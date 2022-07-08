@@ -49,7 +49,6 @@ namespace Anor
             m_EnableValidationLayers = true;
         }
         bool validationLayersSupported = CheckValidationLayerSupport();
-        validationLayersSupported = false;
         if (m_EnableValidationLayers && !validationLayersSupported)
         {
             std::cerr << "Validation layers requsted, but one of the layers is not supported!" << std::endl; 
