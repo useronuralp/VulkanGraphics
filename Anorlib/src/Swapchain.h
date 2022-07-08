@@ -50,6 +50,7 @@ namespace Anor
 		std::vector<Framebuffer*>	    m_Framebuffers;
 		std::vector<VkImage>		    m_SwapchainImages;
 		std::vector<VkImageView>		m_ImageViews;
+		// Have the depth buffer here.....
 		VkFormat					    m_SwapchainImageFormat;
 		uint32_t						m_ActiveImageIndex = -1;
 		VkPresentModeKHR				m_PresentMode;

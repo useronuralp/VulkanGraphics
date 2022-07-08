@@ -48,11 +48,13 @@ namespace Anor
         {
             m_EnableValidationLayers = true;
         }
-
-        if (m_EnableValidationLayers && !CheckValidationLayerSupport())
+        bool validationLayersSupported = CheckValidationLayerSupport();
+        validationLayersSupported = false;
+        if (m_EnableValidationLayers && !validationLayersSupported)
         {
             std::cerr << "Validation layers requsted, but one of the layers is not supported!" << std::endl; 
-            __debugbreak();
+            std::cerr << "Continuing without enabling debug extensions." << std::endl;
+            //__debugbreak();
         }
         
         VkApplicationInfo AI{};
@@ -92,7 +94,7 @@ namespace Anor
         vkCreateInfo.enabledExtensionCount     = requiredExtensionCount + createInfo.ExtensionNames.size();
         vkCreateInfo.ppEnabledExtensionNames   = requiredExtensions.data();
 
-        if (m_EnableValidationLayers) {
+        if (m_EnableValidationLayers && validationLayersSupported) {
             VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
             vkCreateInfo.enabledLayerCount     = static_cast<uint32_t>(m_ValidationLayers.size());
             vkCreateInfo.ppEnabledLayerNames   = m_ValidationLayers.data();

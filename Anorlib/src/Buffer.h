@@ -11,7 +11,7 @@ namespace Anor
 
 	struct Vertex
 	{
-		glm::vec2 pos;
+		glm::vec3 pos;
 		glm::vec3 color;
 		glm::vec2 texCoord;
 
@@ -66,7 +66,6 @@ namespace Anor
 		VkDeviceMemory m_ImageMemory = VK_NULL_HANDLE;
 		VkImageView m_ImageView		 = VK_NULL_HANDLE;
 		VkSampler m_Sampler;
-
 
 		const char* m_TexturePath;
 		uint32_t	m_ImageWidth;
