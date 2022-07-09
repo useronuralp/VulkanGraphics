@@ -9,7 +9,8 @@ namespace Anor
 		struct CreateInfo
 		{
 			LogicalDevice* pLogicalDevice;
-			VkFormat	   Format;
+			VkFormat	   ColorAttachmentFormat;
+			VkFormat	   DepthAttachmentFormat;
 		};
 	public:
 		VkRenderPass& GetRenderPass() { return m_RenderPass; }

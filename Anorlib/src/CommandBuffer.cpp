@@ -41,9 +41,12 @@ namespace Anor
         renderPassInfo.renderArea.offset = { 0, 0 };
         renderPassInfo.renderArea.extent = swapchain.GetExtent();
 
-        VkClearValue clearColor = { {{0.1f, 0.1f, 0.1f, 1.0f}} };
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        // WARNING: The clear value order shoould be identical to your attachment orders.
+        std::array<VkClearValue, 2> clearValues{};
+        clearValues[0].color = { {0.1f, 0.1f, 0.1f, 1.0f} };
+        clearValues[1].depthStencil = { 1.0f, 0 };
+        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        renderPassInfo.pClearValues = clearValues.data();
 
         // Record the following commands into the first parameter of each of those functions "commandBuffer"
         vkCmdBeginRenderPass(m_CommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);

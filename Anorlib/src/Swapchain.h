@@ -40,6 +40,11 @@ namespace Anor
 
 		VkResult QueuePresent(const VkQueue& presentQueue, const VkSemaphore &waitSemaphore);
 	private:
+		VkFormat FindDepthFormat();
+		VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+		bool HasStencilComponent(VkFormat format);
+		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	private:
 		VkSwapchainKHR				    m_Swapchain = VK_NULL_HANDLE;
 		// !!!!!!!!!WARNING!!!!!!!!!!: WATCH OUT FOR DANGLING POINTERS HERE. THE FOLLOWING POINTERS SHOULD BE SET TO NULL WHEN THE POINTED MEMORY IS FREED.
 		PhysicalDevice* m_PhysicalDevice;
@@ -50,7 +55,11 @@ namespace Anor
 		std::vector<Framebuffer*>	    m_Framebuffers;
 		std::vector<VkImage>		    m_SwapchainImages;
 		std::vector<VkImageView>		m_ImageViews;
-		// Have the depth buffer here.....
+
+		VkImage							m_DepthImage;
+		VkDeviceMemory					m_DepthImageMemory;
+		VkImageView						m_DepthImageView;
+
 		VkFormat					    m_SwapchainImageFormat;
 		uint32_t						m_ActiveImageIndex = -1;
 		VkPresentModeKHR				m_PresentMode;

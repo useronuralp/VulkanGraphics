@@ -4,6 +4,7 @@
 #include "Surface.h"
 #include "RenderPass.h" 
 #include "Framebuffer.h"
+#include <array>
 namespace Anor
 {
 	Swapchain::Swapchain(CreateInfo& createInfo)
@@ -125,14 +126,83 @@ namespace Anor
             __debugbreak();
         }
 
+
+
+        VkFormat depthFormat = FindDepthFormat();
+        
+        // VK Image creation for the depth buffer.
+        VkImageCreateInfo depthImageInfo{};
+        depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
+        depthImageInfo.extent.width = m_SwapchainExtent.width;
+        depthImageInfo.extent.height = m_SwapchainExtent.height;
+        depthImageInfo.extent.depth = 1;
+        depthImageInfo.mipLevels = 1;
+        depthImageInfo.arrayLayers = 1;
+        depthImageInfo.format = depthFormat;
+        depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        depthImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthImageInfo.flags = 0; // Optional
+
+        if (vkCreateImage(m_LogicalDevice->GetVKDevice(), &depthImageInfo, nullptr, &m_DepthImage) != VK_SUCCESS)
+        {
+            std::cerr << "Failed to create image!" << std::endl;
+            __debugbreak();
+        }
+
+        VkMemoryRequirements memRequirements;
+        vkGetImageMemoryRequirements(m_LogicalDevice->GetVKDevice(), m_DepthImage, &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        if (vkAllocateMemory(m_LogicalDevice->GetVKDevice(), &allocInfo, nullptr, &m_DepthImageMemory) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate image memory!");
+        }
+
+        vkBindImageMemory(m_LogicalDevice->GetVKDevice(), m_DepthImage, m_DepthImageMemory, 0);
+
+
+        VkImageViewCreateInfo depthImageviewInfo{};
+        depthImageviewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        depthImageviewInfo.image = m_DepthImage;
+        depthImageviewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        depthImageviewInfo.format = depthFormat;
+        depthImageviewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        depthImageviewInfo.subresourceRange.baseMipLevel = 0;
+        depthImageviewInfo.subresourceRange.levelCount = 1;
+        depthImageviewInfo.subresourceRange.baseArrayLayer = 0;
+        depthImageviewInfo.subresourceRange.layerCount = 1;
+
+        VkImageView imageView;
+        if (vkCreateImageView(m_LogicalDevice->GetVKDevice(), &depthImageviewInfo, nullptr, &m_DepthImageView) != VK_SUCCESS)
+        {
+            std::cerr << "Failed to create textre image view" << std::endl;
+            __debugbreak();
+        }
+
+
+
         // Createing the necessary framebuffers for each of the image view we have in this class.
         m_Framebuffers.resize(m_ImageViews.size());
         for (int i = 0; i < m_ImageViews.size(); i++)
         {
+
+            std::array<VkImageView, 2> attachments = {
+                m_ImageViews[i],
+                m_DepthImageView
+            };
+
             Framebuffer::CreateInfo CI{};
             CI.pLogicalDevice = m_LogicalDevice;
             CI.pRenderPass = m_RenderPass;
-            CI.pAttachments = &m_ImageViews[i];
+            CI.AttachmentCount = static_cast<uint32_t>(attachments.size());
+            CI.pAttachments = attachments.data();
             CI.ExtentHeight = m_SwapchainExtent.height;
             CI.ExtentWidth = m_SwapchainExtent.width;
             m_Framebuffers[i] = new Framebuffer(CI);
@@ -173,6 +243,51 @@ namespace Anor
         presentInfo.pSwapchains = &m_Swapchain;
         presentInfo.pImageIndices = &m_ActiveImageIndex;
         return vkQueuePresentKHR(presentQueue, &presentInfo);
+    }
+
+    VkFormat Swapchain::FindDepthFormat()
+    {
+        return FindSupportedFormat( { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    }
+
+    VkFormat Swapchain::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+    {
+        for (VkFormat format : candidates) {
+            VkFormatProperties props;
+            vkGetPhysicalDeviceFormatProperties(m_PhysicalDevice->GetVKPhysicalDevice(), format, &props);
+
+            if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            {
+                return format;
+            }
+            else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            {
+                return format;
+            }
+        }
+
+        std::cerr << "Failed to find supported format!";
+        __debugbreak();
+    }
+
+    bool Swapchain::HasStencilComponent(VkFormat format)
+    {
+        return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+    }
+
+    uint32_t Swapchain::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice->GetVKPhysicalDevice(), &memProperties);
+
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+
+        std::cerr << "Failed to find suitable memory type" << std::endl;
+        __debugbreak();
     }
 
     Swapchain::~Swapchain()

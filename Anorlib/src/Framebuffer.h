@@ -11,6 +11,7 @@ namespace Anor
 		{
 			LogicalDevice* pLogicalDevice;
 			RenderPass*    pRenderPass;
+			uint32_t	   AttachmentCount;
 			VkImageView*   pAttachments;
 			uint32_t	   ExtentWidth;
 			uint32_t	   ExtentHeight;

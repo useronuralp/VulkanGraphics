@@ -117,10 +117,35 @@ int main()
 	logicalDeviceCreateInfo.pSurface = &srfc;
 	Anor::LogicalDevice logicalDevice(logicalDeviceCreateInfo, queueCreateInfos);
 
+
+	VkFormat depthFormat = VK_FORMAT_MAX_ENUM;
+	std::vector<VkFormat> candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+	for (VkFormat format : candidates) {
+		VkFormatProperties props;
+		vkGetPhysicalDeviceFormatProperties(GPU.GetVKPhysicalDevice(), format, &props);
+
+		if (VK_IMAGE_TILING_OPTIMAL == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+		{
+			depthFormat = format;
+		}
+		else if (VK_IMAGE_TILING_OPTIMAL == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+		{
+			depthFormat = format;
+		}
+	}
+	if (depthFormat == VK_FORMAT_MAX_ENUM)
+	{
+		std::cerr << "Failed to find supported format!";
+		__debugbreak();
+
+	}
+
+
 	// Render pass createion. TO DO: Let the user choose how many attachments to create and their types.
 	Anor::RenderPass::CreateInfo renderPassCreateInfo{};
 	renderPassCreateInfo.pLogicalDevice = &logicalDevice;
-	renderPassCreateInfo.Format = srfc.GetVKSurfaceFormat().format;
+	renderPassCreateInfo.ColorAttachmentFormat = srfc.GetVKSurfaceFormat().format;
+	renderPassCreateInfo.DepthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
 	Anor::RenderPass renderPass(renderPassCreateInfo);
 
 	// Swapchain creation.
@@ -152,8 +177,8 @@ int main()
 
 	std::vector<uint16_t> indices =
 	{
+		4, 5, 6, 6, 7, 4,
 		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4
 	};
 
 	struct UniformBufferObject

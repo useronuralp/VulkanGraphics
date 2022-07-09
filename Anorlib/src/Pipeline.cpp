@@ -136,6 +136,19 @@ namespace Anor
         colorBlending.blendConstants[2] = 0.0f; // Optional
         colorBlending.blendConstants[3] = 0.0f; // Optional
 
+        // Depth & Stencil testing configuration
+        VkPipelineDepthStencilStateCreateInfo depthStencil{};
+        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable = VK_TRUE;
+        depthStencil.depthWriteEnable = VK_TRUE;
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthBoundsTestEnable = VK_FALSE;
+        depthStencil.minDepthBounds = 0.0f; // Optional
+        depthStencil.maxDepthBounds = 1.0f; // Optional
+        depthStencil.stencilTestEnable = VK_FALSE;
+        depthStencil.front = {}; // Optional
+        depthStencil.back = {}; // Optional
+
         // Dynamic states that can be changed during drawing time. The states that can be found in "dynamicStates" can be changed without recreateing the pipeline.
         // Viewport size (screen resizing) is a good example for this.
         VkPipelineDynamicStateCreateInfo dynamicState{};
@@ -171,6 +184,7 @@ namespace Anor
         pipelineInfo.pDepthStencilState = nullptr; // Optional
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = nullptr; // Optional
+        pipelineInfo.pDepthStencilState = &depthStencil;
 
         pipelineInfo.layout = m_PipelineLayout;
 

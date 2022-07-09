@@ -11,7 +11,7 @@ namespace Anor
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = m_RenderPass->GetRenderPass();
-            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.attachmentCount = createInfo.AttachmentCount;
             framebufferInfo.pAttachments = createInfo.pAttachments;
             framebufferInfo.width = createInfo.ExtentWidth;
             framebufferInfo.height = createInfo.ExtentHeight;
