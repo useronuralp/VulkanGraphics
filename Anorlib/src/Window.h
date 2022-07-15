@@ -10,9 +10,8 @@ namespace Anor
 		GLFWwindow* GetNativeWindow() { return m_Window; }
 	private:
 		static void glfw_error_callback(int error, const char* description);
-		void		Init();
 	private:
-		GLFWwindow* m_Window;
+		GLFWwindow* m_Window = nullptr;
 		uint32_t	m_Height;
 		uint32_t	m_Width;
 		const char* m_WindowName;

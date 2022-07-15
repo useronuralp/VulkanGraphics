@@ -1,6 +1,7 @@
 #pragma once
 #include "vulkan/vulkan.h"
 #include <vector>
+#include "core.h"
 namespace Anor
 {
 	class Instance;
@@ -9,25 +10,17 @@ namespace Anor
 	class Surface
 	{
 	public:
-		struct CreateInfo
-		{
-			Instance* pInstance;
-			PhysicalDevice* pPhysicalDevice;
-			Window* pWindow;
-		};
-	public:
-		Surface(CreateInfo& createInfo);
+		Surface(const Ref<Instance>& instance, const Ref<Window>& window, const Ref<PhysicalDevice>& physDevice);
 		~Surface();
-		VkSurfaceKHR			 GetVKSurface()			  { return m_Surface;		}
-		VkExtent2D				 GetVKExtent()			  { return m_Extent;		}
-		VkSurfaceFormatKHR		 GetVKSurfaceFormat()	  { return m_SurfaceFormat; }
-		VkSurfaceCapabilitiesKHR GetVKSurfaceCapabilities() { return m_Capabilities;  }
+		const VkSurfaceKHR&				 GetVKSurface()				{ return m_Surface;		  }
+		const VkExtent2D&				 GetVKExtent()				{ return m_Extent;		  }
+		const VkSurfaceFormatKHR&		 GetVKSurfaceFormat()		{ return m_SurfaceFormat; }
+		const VkSurfaceCapabilitiesKHR&  GetVKSurfaceCapabilities() { return m_Capabilities;  }
 	private:
 		VkSurfaceKHR			 m_Surface = VK_NULL_HANDLE;
-		// !!!!!!!!!WARNING!!!!!!!!!!: WATCH OUT FOR DANGLING POINTERS HERE. THE FOLLOWING POINTER SHOULD BE SET TO NULL WHEN THE POINTED MEMORY IS FREED.
-		Instance*				 m_Instance;
-		VkSurfaceCapabilitiesKHR m_Capabilities;
 		VkSurfaceFormatKHR		 m_SurfaceFormat;
+		VkSurfaceCapabilitiesKHR m_Capabilities;
 		VkExtent2D				 m_Extent;
+		Ref<Instance>			 m_Instance;
 	};
 }

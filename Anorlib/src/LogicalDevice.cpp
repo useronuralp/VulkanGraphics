@@ -5,45 +5,45 @@
 #include "Surface.h"
 namespace Anor
 {
-	LogicalDevice::LogicalDevice(CreateInfo& createInfo, std::vector<QueueCreateInfo>& queueCreateInfos)
-        :m_PhysicalDevice(createInfo.pPhysicalDevice), m_Window(createInfo.pWindow), m_Surface(createInfo.pSurface),
-        m_Extensions(createInfo.ppEnabledExtensionNames), m_Layers(createInfo.pEnabledLayerNames)
+	LogicalDevice::LogicalDevice(const Ref<PhysicalDevice>& physDevice, const Ref<Surface>& surface, const Ref<Window>& window, uint32_t graphicsQueueIndex, uint32_t presentQueueIndex)
+        :m_PhysicalDevice(physDevice), m_Window(window), m_Surface(surface)
 	{
         std::vector<QueueFamily> queueFamilies = m_PhysicalDevice->GetQueueFamilies();
         VkBool32 supported = false;
         std::vector<VkDeviceQueueCreateInfo> deviceQueueCreateInfos;
 
-        for (const auto& qci : queueCreateInfos)
+        // Create a graphics queue.
+        float graphicsQueuePriority = 1.0f;
+        const float* priorities     = { &graphicsQueuePriority };
+        VkDeviceQueueCreateInfo QCI{};
+        QCI.sType                   = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        QCI.queueFamilyIndex        = graphicsQueueIndex;
+        QCI.queueCount              = 1;
+        QCI.pQueuePriorities        = priorities;
+
+        deviceQueueCreateInfos.push_back(QCI);
+
+        // If the indices of graphics & present queues are not the same, we need to create a separate queue for present operations.
+        if (graphicsQueueIndex != presentQueueIndex)
         {
-            if (qci.SearchForPresentSupport)
-            {
-                supported = m_PhysicalDevice->CheckPresentSupport(qci.QueueFamilyIndex, m_Surface->GetVKSurface());
-                if (!supported)
-                {
-                    std::cerr << "The queue family you requested doesn't support present operations!!" << std::endl;
-                    __debugbreak();
-                }
-            }
+            // Create a present queue.
+            float presentQueuePriority = 1.0f;
+            const float* priorities    = { &presentQueuePriority };
             VkDeviceQueueCreateInfo QCI{};
-            QCI.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            QCI.queueFamilyIndex = qci.QueueFamilyIndex;
-            QCI.queueCount = qci.QueueCount;
-            QCI.pQueuePriorities = qci.pQueuePriorities;
+            QCI.sType                  = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            QCI.queueFamilyIndex       = presentQueueIndex;
+            QCI.queueCount             = 1;
+            QCI.pQueuePriorities       = priorities;
 
             deviceQueueCreateInfos.push_back(QCI);
         }
 
+        // Check Anisotrophy support.
+        ASSERT(m_PhysicalDevice->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
+
+        // Enable Anisotropy.
         VkPhysicalDeviceFeatures deviceFeatures{};
-        if (m_PhysicalDevice->GetVKFeatures().samplerAnisotropy)
-        {
-            // Enable anisotrophy here.
-            deviceFeatures.samplerAnisotropy = true;
-        }
-        else
-        {
-            std::cerr << "Anisothrophy is not supported on your card." << std::endl;
-            __debugbreak();
-        }
+        deviceFeatures.samplerAnisotropy = true;
 
         VkPhysicalDeviceFeatures pDeviceFeatures[] =
         {
@@ -51,43 +51,39 @@ namespace Anor
         };
 
         VkDeviceCreateInfo CI {};
-        CI.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        CI.queueCreateInfoCount = deviceQueueCreateInfos.size();
-        CI.pQueueCreateInfos = deviceQueueCreateInfos.data(); // Multiple create infos will come here FIX.
-        CI.pEnabledFeatures = createInfo.pEnabledFeatures.data();
-        CI.enabledExtensionCount = m_Extensions.size();
-        CI.ppEnabledExtensionNames = m_Extensions.data();
-        CI.pEnabledFeatures = pDeviceFeatures;
+        CI.sType                    = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        CI.queueCreateInfoCount     = deviceQueueCreateInfos.size();
+        CI.pQueueCreateInfos        = deviceQueueCreateInfos.data();
+        CI.pEnabledFeatures         = pDeviceFeatures;
+        CI.enabledExtensionCount    = m_Extensions.size();
+        CI.ppEnabledExtensionNames  = m_Extensions.data();
 
         if (m_Layers.size() == 0)
         {
             CI.enabledLayerCount = 0;
         }
-        else if (createInfo.pEnabledLayerNames.size() > 0)
+        else
         {
             CI.ppEnabledLayerNames = m_Layers.data();
             CI.enabledLayerCount = m_Layers.size();
         }
 
+        ASSERT(vkCreateDevice(m_PhysicalDevice->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS, "Failed to create logical device!");
 
-        if (vkCreateDevice(m_PhysicalDevice->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) != VK_SUCCESS)
+        // Get a graphics queue from the device. We'll need this while using command buffers.
+        vkGetDeviceQueue(m_Device, graphicsQueueIndex, 0, &m_GraphicsQueue);
+
+        // Index is Unique.
+        if (graphicsQueueIndex != presentQueueIndex)
         {
-            throw std::runtime_error("Failed to create logical device!");
+            vkGetDeviceQueue(m_Device, presentQueueIndex, 0, &m_PresentQueue); 
         }
+        // Index is the same with the graphics queue.
         else
         {
-            std::cout << "Logical device has been created." << std::endl;
+            vkGetDeviceQueue(m_Device, graphicsQueueIndex, 0, &m_PresentQueue); 
         }
-
-        for (const auto& queueCreateInfo : queueCreateInfos)
-        {
-            VkQueue queue;
-            vkGetDeviceQueue(m_Device, queueCreateInfo.QueueFamilyIndex, 0, &queue);
-            if (queueCreateInfo.QueueType & VK_QUEUE_GRAPHICS_BIT)
-            {
-                m_GraphicsQueue = queue;
-            }
-        }
+        std::cout << "Logical device has been created." << std::endl;
 	}
 
 	Anor::LogicalDevice::~LogicalDevice()

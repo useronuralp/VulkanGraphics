@@ -4,12 +4,12 @@
 #include <array>
 namespace Anor
 {
-	RenderPass::RenderPass(CreateInfo& createInfo)
-		:m_Device(createInfo.pLogicalDevice)
+	RenderPass::RenderPass(const Ref<LogicalDevice>& device, VkFormat colorFormat, VkFormat depthFormat)
+		:m_Device(device)
 	{
         // Color attachment
         VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = createInfo.ColorAttachmentFormat; // Format of the color attachment should match the swap chain image format.
+        colorAttachment.format = colorFormat; // Format of the color attachment should match the swap chain image format.
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -25,7 +25,7 @@ namespace Anor
 
         // Depth attachment
         VkAttachmentDescription depthAttachment{};
-        depthAttachment.format = createInfo.DepthAttachmentFormat;
+        depthAttachment.format = depthFormat;
         depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -66,11 +66,7 @@ namespace Anor
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-        if (vkCreateRenderPass(m_Device->GetVKDevice(), &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS)
-        {
-            std::cerr << "Failed to create a render pass" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreateRenderPass(m_Device->GetVKDevice(), &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS, "Failed to create a render pass.");
 	}
     RenderPass::~RenderPass()
     {

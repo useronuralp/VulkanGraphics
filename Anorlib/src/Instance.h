@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include "PhysicalDevice.h"
+#include "core.h"
 namespace Anor
 {
 	class Instance
@@ -30,28 +31,16 @@ namespace Anor
 					return false;
 			}
 		};
-
-		struct CreateInfo
-		{
-			ApplicationInfo		     AppInfo;
-			VkInstanceCreateFlags    Flags = 0;
-			bool                     EnableValidation = false;
-			std::vector<const char*> ExtensionNames;
-			VkAllocationCallbacks*   pVkAllocator = nullptr;
-		};
-
-		Instance(CreateInfo& createInfo, bool isVerbose = true);
+		Instance();
 		~Instance(); 
 	public:
-		static std::vector<const char*>		  GetValidationLayers()			{ return m_ValidationLayers;	    }
-		const VkInstance&					  GetVkInstance()				{ return m_Instance;				}
-		bool								  AreValidationLayersEnabled()	{ return m_EnableValidationLayers;  }
+		const VkInstance&					  GetVkInstance() const	{ return m_Instance;				}
 		std::vector<PhysicalDevice>			  GetVKPhysicalDevices()		{ return m_PhysicalDevices;			}
-		void								  PrintAvailableExtensions();
  	private:
+		void								  PrintAvailableExtensions();
 		static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
 											  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
-		std::vector<const char*>		      GetRequiredExtensions();
+		const std::vector<const char*> 		  GetRequiredExtensions(bool isValLayersSupported);
 		bool							      CheckValidationLayerSupport();
 		void							      SetupDebugMessenger();
 		VkResult						      CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -59,10 +48,8 @@ namespace Anor
 		void							      DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 	private:
 		VkInstance						      m_Instance = VK_NULL_HANDLE;
-		bool							      m_EnableValidationLayers = false;
-		static std::vector<const char*>		  m_ValidationLayers;
-		bool							      m_IsVerbose;
-		VkDebugUtilsMessengerEXT		      m_DebugMessenger;
+		VkDebugUtilsMessengerEXT		      m_DebugMessenger = VK_NULL_HANDLE;
+		const std::vector<const char*>		  m_ValidationLayers = { "VK_LAYER_KHRONOS_validation" };
 		std::vector<PhysicalDevice>			  m_PhysicalDevices;
 	};
 }

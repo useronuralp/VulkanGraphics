@@ -3,6 +3,7 @@
 #include <vector>
 #include "glm/glm.hpp"
 #include <array>
+#include "core.h"
 namespace Anor
 {
 	class RenderPass;
@@ -12,31 +13,20 @@ namespace Anor
 	class Pipeline
 	{
 	public:
-		struct CreateInfo
-		{
-			LogicalDevice* pLogicalDevice;
-			Swapchain* pSwapchain;
-			RenderPass* pRenderPass;
-			DescriptorSet* pDescriptorSet;
-		};
-
-	public:
-		Pipeline(CreateInfo& createInfo);
+		Pipeline(const Ref<LogicalDevice>& device, const Ref<Swapchain>& swapchain, const Ref<RenderPass>& renderPass, const Ref<DescriptorSet>& dscSet);
 		~Pipeline();
-		VkPipeline GetVKPipeline() { return m_Pipeline; }
-		VkPipelineLayout GetPipelineLayout() { return m_PipelineLayout; }
-		VkDescriptorSetLayout GetDescriptorSetLayout() { return m_DescriptorSetLayout; }
+		const VkPipeline& GetVKPipeline()						{ return m_Pipeline; }
+		const VkPipelineLayout& GetPipelineLayout()				{ return m_PipelineLayout; }
 	private:
 		VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode);
 	private:
 		VkPipeline					m_Pipeline;
 		VkPipelineLayout			m_PipelineLayout;
 		std::vector<VkDynamicState> m_DynamicStates;
-		VkDescriptorSetLayout		m_DescriptorSetLayout;
-		// !!!!!!!!!WARNING!!!!!!!!!!: WATCH OUT FOR DANGLING POINTERS HERE. THE FOLLOWING POINTERS SHOULD BE SET TO NULL WHEN THE POINTED MEMORY IS FREED.
-		LogicalDevice*				m_Device;
-		Swapchain*					m_Swapchain;
-		RenderPass*					m_RenderPass;
-		DescriptorSet*				m_DescriptorSet;
+
+		Ref<LogicalDevice>				m_Device;
+		Ref<Swapchain>					m_Swapchain;
+		Ref<RenderPass>					m_RenderPass;
+		Ref<DescriptorSet>				m_DescriptorSet;
 	};
 }

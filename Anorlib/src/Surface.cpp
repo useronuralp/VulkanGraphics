@@ -5,25 +5,22 @@
 #include <algorithm>
 namespace Anor
 {
-	Surface::Surface(CreateInfo& createInfo)
-		:m_Instance(createInfo.pInstance)
+	Surface::Surface(const Ref<Instance>& instance, const Ref<Window>& window, const Ref<PhysicalDevice>& physDevice)
+		:m_Instance(instance)
 	{
-		if (glfwCreateWindowSurface(m_Instance->GetVkInstance(), createInfo.pWindow->GetNativeWindow(), nullptr, &m_Surface) != VK_SUCCESS)
-		{
-			throw std::runtime_error("Failed to create a window surface");
-		}
+		ASSERT(glfwCreateWindowSurface(instance->GetVkInstance(), window->GetNativeWindow(), nullptr, &m_Surface) == VK_SUCCESS, "Failed to create a window surface");
 
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(createInfo.pPhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
 
 		uint32_t formatCount;
-		vkGetPhysicalDeviceSurfaceFormatsKHR(createInfo.pPhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, nullptr);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, nullptr);
 
 		std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
 		if (formatCount != 0)
 		{
 			surfaceFormats.resize(formatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(createInfo.pPhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, surfaceFormats.data());
+			vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, surfaceFormats.data());
 		}
 
 		bool found = false;
@@ -43,14 +40,14 @@ namespace Anor
 		found = false;
 
 
-		if (m_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) // TO DO: This part could be problematic. Two macros clash for some reason.
+		if (m_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)())
 		{
 			m_Extent = m_Capabilities.currentExtent;
 		}
 		else
 		{
 			int width, height;
-			glfwGetFramebufferSize(createInfo.pWindow->GetNativeWindow(), &width, &height);
+			glfwGetFramebufferSize(window->GetNativeWindow(), &width, &height);
 
 			VkExtent2D actualExtent =
 			{

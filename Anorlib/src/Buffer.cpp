@@ -2,37 +2,38 @@
 #include "LogicalDevice.h"
 #include <iostream>
 #include "PhysicalDevice.h"
-#include "CommandPool.h"
 #include <stb_image.h>
 #include "CommandBuffer.h"
+#include "DescriptorSet.h"
+
 namespace Anor
 {
-	 VertexBuffer::VertexBuffer(CreateInfo& createInfo)
-        :Buffer(createInfo.pPhysicalDevice, createInfo.pLogicalDevice, createInfo.pCommandPool), m_Vertices(createInfo.pVertices)
+	 VertexBuffer::VertexBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physicalDevice, const std::vector<Vertex>& vertices, uint64_t graphicsQueueIndex)
+        :Buffer(physicalDevice, device, graphicsQueueIndex), m_Vertices(vertices)
 	{
-        VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices->size();
-        // The buffer we create on host side.
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
+         VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices.size();
+         // The buffer we create on host side.
+         VkBuffer stagingBuffer;
+         VkDeviceMemory stagingBufferMemory;
 
-        CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+         CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
-        void* data;
-        vkMapMemory(m_Device->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-        
-        VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(m_Device->GetVKDevice(), stagingBuffer, &memRequirements);
-        memcpy_s(data, memRequirements.size, m_Vertices->data(), (size_t)bufferSize); // Copy the vertex data to the GPU using the mapped "data" pointer.
-        vkUnmapMemory(m_Device->GetVKDevice(), stagingBufferMemory);
+         void* data;
+         vkMapMemory(m_Device->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+
+         VkMemoryRequirements memRequirements;
+         vkGetBufferMemoryRequirements(m_Device->GetVKDevice(), stagingBuffer, &memRequirements);
+         memcpy_s(data, memRequirements.size, m_Vertices.data(), (size_t)bufferSize); // Copy the vertex data to the GPU using the mapped "data" pointer.
+         vkUnmapMemory(m_Device->GetVKDevice(), stagingBufferMemory);
 
 
-        // The following buffer is not visible to CPU.
-        CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
+         // The following buffer is not visible to CPU.
+         CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
+         CopyBuffer(stagingBuffer, m_Buffer, bufferSize, graphicsQueueIndex);
 
-        vkDestroyBuffer(m_Device->GetVKDevice(), stagingBuffer, nullptr);
-        vkFreeMemory(m_Device->GetVKDevice(), stagingBufferMemory, nullptr);
+         vkDestroyBuffer(m_Device->GetVKDevice(), stagingBuffer, nullptr);
+         vkFreeMemory(m_Device->GetVKDevice(), stagingBufferMemory, nullptr);
 	}
   
     VertexBuffer::~VertexBuffer()
@@ -41,10 +42,10 @@ namespace Anor
         vkFreeMemory(m_Device->GetVKDevice(), m_BufferMemory, nullptr);
     }
 
-    IndexBuffer::IndexBuffer(CreateInfo& createInfo)
-        :Buffer(createInfo.pPhysicalDevice, createInfo.pLogicalDevice, createInfo.pCommandPool), m_Indices(createInfo.pIndices)
+    IndexBuffer::IndexBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physicalDevice, const std::vector<uint32_t>& indices, uint64_t graphicsQueueIndex)
+        :Buffer(physicalDevice, device, graphicsQueueIndex), m_Indices(indices)
     {
-        VkDeviceSize bufferSize = sizeof(m_Indices[0]) * m_Indices->size();
+        VkDeviceSize bufferSize = sizeof(m_Indices[0]) * m_Indices.size();
         
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -52,12 +53,12 @@ namespace Anor
         
         void* data;
         vkMapMemory(m_Device->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, m_Indices->data(), (size_t)bufferSize);
+        memcpy(data, m_Indices.data(), (size_t)bufferSize);
         vkUnmapMemory(m_Device->GetVKDevice(), stagingBufferMemory);
         
         CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
         
-        CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
+        CopyBuffer(stagingBuffer, m_Buffer, bufferSize, m_GraphicsQueueIndex);
         
         vkDestroyBuffer(m_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(m_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -93,7 +94,6 @@ namespace Anor
         attributeDescriptions[1].location = 1;
         attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[1].offset = offsetof(Vertex, color);
-
         // For the texCoords
         attributeDescriptions[2].binding = 0;
         attributeDescriptions[2].location = 2;
@@ -102,10 +102,10 @@ namespace Anor
 
         return attributeDescriptions;
     }
-    UniformBuffer::UniformBuffer(CreateInfo& createInfo)
-        :Buffer(createInfo.pPhysicalDevice, createInfo.pLogicalDevice)
+    UniformBuffer::UniformBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physicalDevice, size_t allocateSize)
+        :Buffer(physicalDevice, device)
     {
-        VkDeviceSize bufferSize = createInfo.AllocateSize;
+        VkDeviceSize bufferSize = allocateSize;
         CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_BufferMemory);
     }
     UniformBuffer::~UniformBuffer()
@@ -113,7 +113,7 @@ namespace Anor
         vkDestroyBuffer(m_Device->GetVKDevice(), m_Buffer, nullptr);
         vkFreeMemory(m_Device->GetVKDevice() , m_BufferMemory, nullptr);
     }
-    void ImageBuffer::UpdateImageBuffer(VkDescriptorSet& dscSet)
+    void ImageBuffer::UpdateImageBuffer(const Ref<DescriptorSet>& dscSet)
     {
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -122,7 +122,7 @@ namespace Anor
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = dscSet;
+        descriptorWrite.dstSet = dscSet->GetVKDescriptorSet();
         descriptorWrite.dstBinding = 1;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -131,7 +131,7 @@ namespace Anor
         vkUpdateDescriptorSets(m_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
 
-    void UniformBuffer::UpdateUniformBuffer(uint64_t writeRange, VkDescriptorSet& dscSet)
+    void UniformBuffer::UpdateUniformBuffer(uint64_t writeRange, const Ref<DescriptorSet>& dscSet)
     {
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = m_Buffer;
@@ -140,7 +140,7 @@ namespace Anor
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = dscSet;
+        descriptorWrite.dstSet = dscSet->GetVKDescriptorSet();
         descriptorWrite.dstBinding = 0;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -151,40 +151,21 @@ namespace Anor
         vkUpdateDescriptorSets(m_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
     
-    void Buffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+    void Buffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, uint64_t graphicsQueueIndex)
     {
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = m_CommandPool->GetCommandPool();
-        allocInfo.commandBufferCount = 1;
-
-        VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(m_Device->GetVKDevice(), &allocInfo, &commandBuffer);
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+        VkCommandPool singleCmdPool;
+        VkCommandBuffer singleCmdBuffer;
+        CommandBuffer::Create(m_Device, graphicsQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::BeginSingleTimeCommandBuffer(singleCmdBuffer);
 
         VkBufferCopy copyRegion{};
         copyRegion.srcOffset = 0; // Optional
         copyRegion.dstOffset = 0; // Optional
         copyRegion.size = size;
-        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+        vkCmdCopyBuffer(singleCmdBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-        vkEndCommandBuffer(commandBuffer);
-
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
-
-        vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(m_Device->GetGraphicsQueue());
-
-        vkFreeCommandBuffers(m_Device->GetVKDevice(), m_CommandPool->GetCommandPool(), 1, &commandBuffer);
+        // This line also takes care of submitting the command buffer and making sure it runs before freeing it.
+        CommandBuffer::EndSingleTimeCommandBuffer(m_Device, singleCmdBuffer, singleCmdPool);
     }
     void Buffer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
     {
@@ -194,11 +175,7 @@ namespace Anor
         bufferInfo.usage = usage;
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if (vkCreateBuffer(m_Device->GetVKDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-        {
-            std::cerr << "Failed to create vertex buffer" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreateBuffer(m_Device->GetVKDevice(), &bufferInfo, nullptr, &buffer) == VK_SUCCESS, "Failed to create vertex buffer");
 
         VkMemoryRequirements memRequirements;
         vkGetBufferMemoryRequirements(m_Device->GetVKDevice(), buffer, &memRequirements);
@@ -207,12 +184,7 @@ namespace Anor
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
-        if (vkAllocateMemory(m_Device->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-        {
-            std::cerr << "failed to allocate vertex buffer memory!" << std::endl;
-            __debugbreak();
-        }
-
+        ASSERT(vkAllocateMemory(m_Device->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) == VK_SUCCESS, "Failed to allocate vertex buffer memory!");
         vkBindBufferMemory(m_Device->GetVKDevice(), buffer, bufferMemory, 0);
     }
     uint32_t Buffer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
@@ -229,31 +201,23 @@ namespace Anor
             }
         }
 
-        if (memoryTypeIndex == -1)
-        {
-            std::cerr << "Failed to find suitable memory type!" << std::endl;
-            __debugbreak();
-        }
-
+        ASSERT(memoryTypeIndex != -1, "Failed to find suitable memory type!");
         return memoryTypeIndex;
     }
     Buffer::~Buffer() {}
 
-    ImageBuffer::ImageBuffer(CreateInfo& createInfo)
-       :Buffer(createInfo.pPhysicalDevice, createInfo.pLogicalDevice, createInfo.pCommandPool), m_TexturePath(createInfo.pTexturePath)
+    ImageBuffer::ImageBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physDevice, const char* texturePath, uint64_t graphicsQueueIndex)
+       :Buffer(physDevice, device, graphicsQueueIndex), m_TexturePath(texturePath)
     {
         int texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load(m_TexturePath, &texWidth, &texHeight, &texChannels, createInfo.IncludeAlpha ? STBI_rgb_alpha : STBI_rgb); // TO DO: Test this alpha part, might be problematic.
+        stbi_uc* pixels = stbi_load(m_TexturePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha); // TO DO: Test this alpha part, might be problematic.
         VkDeviceSize imageSize = texWidth * texHeight * 4;
 
         m_ImageWidth    = texWidth;
         m_ImageHeight   = texHeight;
         m_ChannelCount  = texChannels;
 
-        if (!pixels) {
-            std::cerr << "Failed to load texture image!" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(pixels, "Failed to load texture image!");
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -277,19 +241,15 @@ namespace Anor
         imageInfo.extent.depth = 1;
         imageInfo.mipLevels = 1;
         imageInfo.arrayLayers = 1;
-        imageInfo.format = createInfo.ImageFormat;
-        imageInfo.tiling = createInfo.Tiling;
+        imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = createInfo.Usage;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.flags = 0; // Optional
 
-        if (vkCreateImage(m_Device->GetVKDevice(), &imageInfo, nullptr, &m_Image) != VK_SUCCESS)
-        {
-            std::cerr << "Failed to create image!" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreateImage(m_Device->GetVKDevice(), &imageInfo, nullptr, &m_Image) == VK_SUCCESS, "Failed to create image!");
 
         VkMemoryRequirements memRequirements;
         vkGetImageMemoryRequirements(m_Device->GetVKDevice(), m_Image, &memRequirements);
@@ -299,12 +259,7 @@ namespace Anor
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        if (vkAllocateMemory(m_Device->GetVKDevice(), &allocInfo, nullptr, &m_ImageMemory) != VK_SUCCESS)
-        {
-            std::cerr << "Failed to allocate image memory!" << std::endl;
-            __debugbreak();
-        }
-
+        ASSERT(vkAllocateMemory(m_Device->GetVKDevice(), &allocInfo, nullptr, &m_ImageMemory) == VK_SUCCESS, "Failed to allocate image memory!");
         vkBindImageMemory(m_Device->GetVKDevice(), m_Image, m_ImageMemory, 0);
 
         // TO DO : Learn pipeline barriers.
@@ -328,11 +283,7 @@ namespace Anor
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = 1;
 
-        if (vkCreateImageView(m_Device->GetVKDevice(), &viewInfo, nullptr, &m_ImageView) != VK_SUCCESS)
-        {
-            std::cerr << "Failed to create texture image view!" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreateImageView(m_Device->GetVKDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS, "Failed to create texture image view!");
 
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -340,11 +291,11 @@ namespace Anor
         samplerInfo.minFilter = VK_FILTER_LINEAR;
 
         // Repeats the texture when going out of the sampling range. You might wanna expose this variable during ImageBufferCreation.
-        samplerInfo.addressModeU = createInfo.TextureMode;
-        samplerInfo.addressModeV = createInfo.TextureMode;
-        samplerInfo.addressModeW = createInfo.TextureMode;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         samplerInfo.anisotropyEnable = VK_TRUE;
-        samplerInfo.maxAnisotropy = createInfo.AnisotropyFilter;
+        samplerInfo.maxAnisotropy = m_PhysicalDevice->GetVKProperties().limits.maxSamplerAnisotropy;
         samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
         samplerInfo.compareEnable = VK_FALSE;
@@ -354,11 +305,7 @@ namespace Anor
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
 
-        if (vkCreateSampler(m_Device->GetVKDevice(), &samplerInfo, nullptr, &m_Sampler) != VK_SUCCESS)
-        {
-            std::cerr << "Failed to create texture sampler!" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreateSampler(m_Device->GetVKDevice(), &samplerInfo, nullptr, &m_Sampler) == VK_SUCCESS, "Failed to create texture sampler!");
     }
     ImageBuffer::~ImageBuffer()
     {
@@ -369,8 +316,10 @@ namespace Anor
     }
     void ImageBuffer::TransitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
     {
-        CommandBuffer cmdBuffer(m_CommandPool, m_Device); // Create a single time command buffer here. The life of this object ends with this function.
-        cmdBuffer.BeginSingleTimeCommands();
+        VkCommandBuffer singleCmdBuffer;
+        VkCommandPool singleCmdPool;
+        CommandBuffer::Create(m_Device, m_GraphicsQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::BeginSingleTimeCommandBuffer(singleCmdBuffer);
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -387,7 +336,7 @@ namespace Anor
 
         VkPipelineStageFlags sourceStage;
         VkPipelineStageFlags destinationStage;
-
+        bool supported = false;
         if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
         {
             barrier.srcAccessMask = 0;
@@ -395,6 +344,7 @@ namespace Anor
 
             sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            supported = true;
         }
         else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
         {
@@ -403,21 +353,19 @@ namespace Anor
 
             sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            supported = true;
         }
-        else
-        {
-            std::cerr << "Unsupported layout transition" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(supported, "Unsupported layout transition");
 
-        vkCmdPipelineBarrier(cmdBuffer.GetVKCommandBuffer(), sourceStage , destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-        cmdBuffer.EndnSingleTimeCommands();
+        vkCmdPipelineBarrier(singleCmdBuffer, sourceStage , destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+        CommandBuffer::EndSingleTimeCommandBuffer(m_Device, singleCmdBuffer, singleCmdPool);
     }
     void ImageBuffer::CopyBufferToImage(VkBuffer buffer, uint32_t width, uint32_t height)
     {
-        CommandBuffer cmdBuffer(m_CommandPool, m_Device); 
-        cmdBuffer.BeginSingleTimeCommands();
+        VkCommandBuffer singleCmdBuffer;
+        VkCommandPool singleCmdPool;
+        CommandBuffer::Create(m_Device, m_GraphicsQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::BeginSingleTimeCommandBuffer(singleCmdBuffer);
 
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
@@ -437,14 +385,13 @@ namespace Anor
         };
 
         vkCmdCopyBufferToImage(
-            cmdBuffer.GetVKCommandBuffer(),
+            singleCmdBuffer,
             buffer,
             m_Image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1,
             &region
         );
-
-        cmdBuffer.EndnSingleTimeCommands();
+        CommandBuffer::EndSingleTimeCommandBuffer(m_Device, singleCmdBuffer, singleCmdPool);
     }
 }

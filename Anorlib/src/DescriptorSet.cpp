@@ -7,8 +7,8 @@
 */
 namespace Anor
 {
-	DescriptorSet::DescriptorSet(CreateInfo& createInfo) // Descriptors are "pointers" to a resource. Programmer defines these resources.
-		:m_Device(createInfo.pLogicalDevice)
+	DescriptorSet::DescriptorSet(const Ref<LogicalDevice>& device) // Descriptors are "pointers" to a resource. Programmer defines these resources.
+		:m_Device(device)
 	{
 		// TO DO: Think about exposing this part to the user.
 		VkDescriptorSetLayoutBinding uboLayoutBinding{};
@@ -37,11 +37,7 @@ namespace Anor
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 		layoutInfo.pBindings = bindings.data();
 
-		if (vkCreateDescriptorSetLayout(m_Device->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) != VK_SUCCESS)
-		{
-			std::cerr << "Failed to create descriptor set layout!" << std::endl;;
-			__debugbreak();
-		}
+		ASSERT(vkCreateDescriptorSetLayout(m_Device->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS, "Failed to create descriptor set layout!");
 
 		std::array<VkDescriptorPoolSize, 2> poolSizes{};
 		// Descriptor pool creation. O: Uniform buffer, 1: Sampler
@@ -56,12 +52,7 @@ namespace Anor
 		poolInfo.pPoolSizes = poolSizes.data();
 		poolInfo.maxSets = 1;
 
-
-		if (vkCreateDescriptorPool(m_Device->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS)
-		{
-			std::cerr << "Failed to create descriptor pool!" << std::endl;
-			__debugbreak();
-		}
+		ASSERT(vkCreateDescriptorPool(m_Device->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) == VK_SUCCESS, "Failed to create descriptor pool!");
 
 		VkDescriptorSetAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -69,10 +60,7 @@ namespace Anor
 		allocInfo.descriptorSetCount = 1;
 		allocInfo.pSetLayouts = &m_DescriptorSetLayout;
 
-		if (vkAllocateDescriptorSets(m_Device->GetVKDevice(), &allocInfo, &m_DescriptorSet) != VK_SUCCESS)
-		{
-			std::cerr << "Failed to allocate descriptor sets!" << std::endl;
-		}
+		ASSERT(vkAllocateDescriptorSets(m_Device->GetVKDevice(), &allocInfo, &m_DescriptorSet) == VK_SUCCESS, "Failed to allocate descriptor sets!");
 	}
 	DescriptorSet::~DescriptorSet()
 	{

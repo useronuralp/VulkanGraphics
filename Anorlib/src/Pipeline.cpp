@@ -5,12 +5,14 @@
 #include "RenderPass.h"
 #include "Buffer.h"
 #include "DescriptorSet.h"
+#include <iostream>
 namespace Anor
 {
-    Pipeline::Pipeline(CreateInfo& createInfo)
-        :m_Device(createInfo.pLogicalDevice), m_Swapchain(createInfo.pSwapchain), m_RenderPass(createInfo.pRenderPass), m_DescriptorSet(createInfo.pDescriptorSet)
+    Pipeline::Pipeline(const Ref<LogicalDevice>& device, const Ref<Swapchain>& swapchain, const Ref<RenderPass>& renderPass, const Ref<DescriptorSet>& dscSet)
+        :m_Device(device), m_Swapchain(swapchain), m_RenderPass(renderPass), m_DescriptorSet(dscSet)
 	{
-        m_DynamicStates = {
+        m_DynamicStates =
+        {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_LINE_WIDTH
         };
@@ -27,7 +29,6 @@ namespace Anor
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-
         vertShaderStageInfo.module = vertShaderModule;
         vertShaderStageInfo.pName = "main";
 
@@ -35,12 +36,10 @@ namespace Anor
         VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
         fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-
         fragShaderStageInfo.module = fragShaderModule;
         fragShaderStageInfo.pName = "main";
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
 
         auto bindingDescription = Vertex::getBindingDescription();
         auto attributeDescriptions = Vertex::getAttributeDescriptions();
@@ -164,11 +163,7 @@ namespace Anor
         pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
         pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-        if (vkCreatePipelineLayout(m_Device->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
-        {
-            std::cerr << "Failed to create pipeline layout" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreatePipelineLayout(m_Device->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout");
 
         // This struct binds together all the other structs we have created so far in this function up above.
         VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -194,11 +189,7 @@ namespace Anor
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
         pipelineInfo.basePipelineIndex = -1; // Optional
 
-        if (vkCreateGraphicsPipelines(m_Device->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) != VK_SUCCESS)
-        {
-            std::cerr << "failed to create graphics pipeline!" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreateGraphicsPipelines(m_Device->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) == VK_SUCCESS, "Failed to create graphics pipeline!");
 
         vkDestroyShaderModule(m_Device->GetVKDevice(), fragShaderModule, nullptr);
         vkDestroyShaderModule(m_Device->GetVKDevice(), vertShaderModule, nullptr);
@@ -218,11 +209,8 @@ namespace Anor
         createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
 
         VkShaderModule shaderModule;
-        if (vkCreateShaderModule(m_Device->GetVKDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
-        {
-            std::cerr << "failed to create shader module!" << std::endl;
-            __debugbreak();
-        }
+        ASSERT(vkCreateShaderModule(m_Device->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");
+
         return shaderModule;
     }
 
