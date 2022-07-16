@@ -6,12 +6,28 @@
 #include "Framebuffer.h"
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
-#include "Window.h"
+#include "Window.h" 
 namespace Anor
 {
 	Swapchain::Swapchain(const Ref<PhysicalDevice>& physDevice, const Ref<LogicalDevice>& device, const Ref<Surface>& surface, const Ref<RenderPass>& renderPass, VkFormat depthFormat)
         :m_PhysicalDevice(physDevice), m_Surface(surface), m_LogicalDevice(device), m_RenderPass(renderPass), m_DepthBufferFormat(depthFormat)
 	{
+        Init();
+	}
+
+    VkResult Swapchain::AcquireNextImage(uint32_t& outIndex)
+    {
+        VkResult result = vkAcquireNextImageKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &outIndex);
+        return result;
+    }
+
+    void Swapchain::ResetFence()
+    {
+        vkResetFences(m_LogicalDevice->GetVKDevice(), 1, &m_InRenderingFence);
+    }
+    
+    void Swapchain::Init()
+    {
         // Find a suitable present mode.
         uint32_t presentModeCount;
         vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface->GetVKSurface(), &presentModeCount, nullptr);
@@ -37,42 +53,41 @@ namespace Anor
         }
 
         // Find the optimal image count to request from the swapchain.
-        uint32_t imageCount = m_Surface->GetVKSurfaceCapabilities().minImageCount + 1;
+        m_ImageCount = m_Surface->GetVKSurfaceCapabilities().minImageCount + 1;
 
-        if (m_Surface->GetVKSurfaceCapabilities().maxImageCount > 0 && imageCount > m_Surface->GetVKSurfaceCapabilities().maxImageCount)
+        if (m_Surface->GetVKSurfaceCapabilities().maxImageCount > 0 && m_ImageCount > m_Surface->GetVKSurfaceCapabilities().maxImageCount)
         {
-            imageCount = m_Surface->GetVKSurfaceCapabilities().maxImageCount;
+            m_ImageCount = m_Surface->GetVKSurfaceCapabilities().maxImageCount;
         }
 
         // Create info for the swapchain.
         VkSwapchainCreateInfoKHR CI{};
         CI.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         CI.surface = m_Surface->GetVKSurface();
-        CI.minImageCount = imageCount;
+        CI.minImageCount = m_ImageCount;
         CI.imageFormat = m_Surface->GetVKSurfaceFormat().format;
         CI.imageColorSpace = m_Surface->GetVKSurfaceFormat().colorSpace;
         CI.imageExtent = m_Surface->GetVKExtent();
-        CI.imageArrayLayers = 1; 
+        CI.imageArrayLayers = 1;
         CI.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         CI.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        CI.queueFamilyIndexCount = 0; 
+        CI.queueFamilyIndexCount = 0;
         CI.pQueueFamilyIndices = nullptr;
         CI.preTransform = m_Surface->GetVKSurfaceCapabilities().currentTransform;
         CI.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         CI.presentMode = m_PresentMode;
-        CI.clipped = VK_TRUE; 
+        CI.clipped = VK_TRUE;
         CI.oldSwapchain = VK_NULL_HANDLE;
 
         ASSERT(vkCreateSwapchainKHR(m_LogicalDevice->GetVKDevice(), &CI, nullptr, &m_Swapchain) == VK_SUCCESS, "Failed to create swap chain!");
-           
+
         std::cout << "Successfuly created a swapchain!" << std::endl;
 
-        vkGetSwapchainImagesKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, &imageCount, nullptr);
-        m_SwapchainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, &imageCount, m_SwapchainImages.data());
+        vkGetSwapchainImagesKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, &m_ImageCount, nullptr);
+        m_SwapchainImages.resize(m_ImageCount);
+        vkGetSwapchainImagesKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, &m_ImageCount, m_SwapchainImages.data());
 
         m_SwapchainImageFormat = m_Surface->GetVKSurfaceFormat().format;
-        m_SwapchainExtent = m_Surface->GetVKExtent();
 
         // Create the image views for swapchain images so that we can access them.
         m_ImageViews.resize(m_SwapchainImages.size());
@@ -111,17 +126,17 @@ namespace Anor
         ASSERT(vkCreateFence(m_LogicalDevice->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InRenderingFence) == VK_SUCCESS, "Failed to create is rendering fence.");
         ASSERT(vkCreateSemaphore(m_LogicalDevice->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphore) == VK_SUCCESS, "Failed to create image available semaphore.");
 
-        
+
         // VK Image creation for the depth buffer.
         VkImageCreateInfo depthImageInfo{};
         depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
-        depthImageInfo.extent.width = m_SwapchainExtent.width;
-        depthImageInfo.extent.height = m_SwapchainExtent.height;
+        depthImageInfo.extent.width = m_Surface->GetVKExtent().width;
+        depthImageInfo.extent.height = m_Surface->GetVKExtent().height;
         depthImageInfo.extent.depth = 1;
         depthImageInfo.mipLevels = 1;
         depthImageInfo.arrayLayers = 1;
-        depthImageInfo.format = depthFormat;
+        depthImageInfo.format = m_DepthBufferFormat;
         depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -157,8 +172,19 @@ namespace Anor
         ASSERT(vkCreateImageView(m_LogicalDevice->GetVKDevice(), &depthImageviewInfo, nullptr, &m_DepthImageView) == VK_SUCCESS, "Failed to create textre image view");
 
         // Creating the necessary framebuffers for each of the image view we have in this class.
-        m_Framebuffers.resize(m_ImageViews.size());
-        for (int i = 0; i < m_ImageViews.size(); i++)
+        if (m_Framebuffers.size() > 0)
+        {
+            for (int i = 0; i < m_Framebuffers.size(); i++)
+            {
+                m_Framebuffers[i].reset();
+            }
+        }
+        else
+        {
+            m_Framebuffers.resize(m_ImageViews.size());
+        }
+
+        for (int i = 0; i < m_Framebuffers.size(); i++)
         {
             std::vector<VkImageView> attachments =
             {
@@ -167,30 +193,25 @@ namespace Anor
             };
             m_Framebuffers[i] = std::make_shared<Framebuffer>(m_LogicalDevice, m_RenderPass, m_Surface, attachments);
         }
-	}
-
-    uint32_t Swapchain::AcquireNextImage()
-    {
-        uint32_t imageIndex = -1;
-        VkResult result = vkAcquireNextImageKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-
-        if (result == VK_ERROR_OUT_OF_DATE_KHR)
-        {
-            std::cerr << "Out of date!" << std::endl;
-            __debugbreak();
-            //RecreateSwapChain();
-        }
-        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-        {
-            std::cerr << "Failed to acquire swap chain image" << std::endl;
-            __debugbreak();
-        }
-        return imageIndex;
     }
-
-    void Swapchain::ResetFence()
+    void Swapchain::CleanupSwapchain()
     {
-        vkResetFences(m_LogicalDevice->GetVKDevice(), 1, &m_InRenderingFence);
+        for (auto imageView : m_ImageViews)
+        {
+            vkDestroyImageView(m_LogicalDevice->GetVKDevice(), imageView, nullptr);
+        }
+        vkDestroyImageView(m_LogicalDevice->GetVKDevice(), m_DepthImageView, nullptr);
+        vkDestroyImage(m_LogicalDevice->GetVKDevice(), m_DepthImage, nullptr);
+        vkFreeMemory(m_LogicalDevice->GetVKDevice(), m_DepthImageMemory, nullptr);
+        vkDestroySwapchainKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, nullptr);
+        vkDestroySemaphore(m_LogicalDevice->GetVKDevice(), m_ImageAvailableSemaphore, nullptr);
+        vkDestroySemaphore(m_LogicalDevice->GetVKDevice(), m_RenderingCompleteSemaphore, nullptr);
+        vkDestroyFence(m_LogicalDevice->GetVKDevice(), m_InRenderingFence, nullptr);
+    }
+    void Swapchain::OnResize()
+    {
+        CleanupSwapchain();
+        Init();
     }
 
     VkFormat Swapchain::FindDepthFormat()
@@ -240,17 +261,7 @@ namespace Anor
 
     Swapchain::~Swapchain()
     {
-        for (auto imageView : m_ImageViews)
-        {
-            vkDestroyImageView(m_LogicalDevice->GetVKDevice(), imageView, nullptr);
-        }
-        vkDestroyImageView(m_LogicalDevice->GetVKDevice(), m_DepthImageView, nullptr);
-        vkDestroyImage(m_LogicalDevice->GetVKDevice(), m_DepthImage, nullptr);
-        vkFreeMemory(m_LogicalDevice->GetVKDevice(), m_DepthImageMemory, nullptr);
-        vkDestroySwapchainKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, nullptr);
-        vkDestroySemaphore(m_LogicalDevice->GetVKDevice(), m_ImageAvailableSemaphore, nullptr);
-        vkDestroySemaphore(m_LogicalDevice->GetVKDevice(), m_RenderingCompleteSemaphore, nullptr);
-        vkDestroyFence(m_LogicalDevice->GetVKDevice(), m_InRenderingFence, nullptr);
+        CleanupSwapchain();
     }
 
 }

@@ -11,6 +11,7 @@ namespace Anor
 	class VertexBuffer;
 	class IndexBuffer;
 	class DescriptorSet;
+	class Surface;
 	class CommandBuffer
 	{
 	public:
@@ -21,8 +22,7 @@ namespace Anor
 		CommandBuffer(const Ref<LogicalDevice>& device, uint32_t queueFamilyIndex, const Ref<DescriptorSet>& dscSet);
 		~CommandBuffer();
 		const VkCommandPool& GetCommandPool() { return m_CommandPool; }
-		void RecordDrawingCommandBuffer(uint32_t imageIndex, const Ref<RenderPass>& renderPass, const Ref<Swapchain>& swapchain, const Ref<Pipeline>& pipeline, const Ref<Framebuffer>& framebuffer,
-			const Ref<VertexBuffer>& vertexBuffer, const Ref<IndexBuffer>& indexBuffer);
+		void RecordDrawingCommandBuffer(const Ref<RenderPass>& renderPass, const Ref<Surface>& surface, const Ref<Pipeline>& pipeline, const Ref<Framebuffer>& framebuffer, const Ref<VertexBuffer>& vertexBuffer, const Ref<IndexBuffer>& indexBuffer);
 		void ResetCommandBuffer();
 		const VkCommandBuffer& GetVKCommandBuffer() { return m_CommandBuffer; }
 	private:

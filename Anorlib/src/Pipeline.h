@@ -10,10 +10,11 @@ namespace Anor
 	class Swapchain;
 	class LogicalDevice;
 	class DescriptorSet;
+	class Surface;
 	class Pipeline
 	{
 	public:
-		Pipeline(const Ref<LogicalDevice>& device, const Ref<Swapchain>& swapchain, const Ref<RenderPass>& renderPass, const Ref<DescriptorSet>& dscSet);
+		Pipeline(const Ref<LogicalDevice>& device, const Ref<Swapchain>& swapchain, const Ref<RenderPass>& renderPass, const Ref<Surface>& surface, const Ref<DescriptorSet>& dscSet);
 		~Pipeline();
 		const VkPipeline& GetVKPipeline()						{ return m_Pipeline; }
 		const VkPipelineLayout& GetPipelineLayout()				{ return m_PipelineLayout; }

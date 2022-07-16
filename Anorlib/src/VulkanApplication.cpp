@@ -126,13 +126,13 @@ namespace Anor
             VK_FORMAT_D24_UNORM_S8_UINT
         };
 
-        depthFormat = FindSupportedFormat(m_PhysicalDevice, candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        m_DepthFormat = FindSupportedFormat(m_PhysicalDevice, candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
-        // Render pass creation.
-        m_RenderPass = std::make_shared<RenderPass> (m_Device, m_Surface->GetVKSurfaceFormat().format, depthFormat);
+        // Render pass creation. (Should a render pass be customisable / changable in between every draw call ?)
+        m_RenderPass = std::make_shared<RenderPass> (m_Device, m_Surface->GetVKSurfaceFormat().format, m_DepthFormat);
 
         // Swapchain creation.
-        m_Swapchain = std::make_shared<Swapchain> (m_PhysicalDevice, m_Device, m_Surface, m_RenderPass, depthFormat);
+        m_Swapchain = std::make_shared<Swapchain> (m_PhysicalDevice, m_Device, m_Surface, m_RenderPass, m_DepthFormat);
 
         // Descriptor Set creaation.
         m_DescriptorSet = std::make_shared<DescriptorSet> (m_Device);
@@ -141,7 +141,7 @@ namespace Anor
         m_CommandBuffer = std::make_shared<CommandBuffer> (m_Device, m_GraphicsQueueIndex, m_DescriptorSet);
 
         // Pipeline creation.
-        m_Pipeline = std::make_shared<Pipeline>(m_Device, m_Swapchain, m_RenderPass, m_DescriptorSet);
+        m_Pipeline = std::make_shared<Pipeline>(m_Device, m_Swapchain, m_RenderPass, m_Surface, m_DescriptorSet);
 
 
         // This part should be taken care of by a "Model" class.
@@ -183,16 +183,29 @@ namespace Anor
         while (!glfwWindowShouldClose(m_Window->GetNativeWindow()))
         {
             glfwPollEvents(); // Checks for events like button presses.
-
             // From here on, frame drawing happens. This part could and should be carried into a Renderer class.
             VkFence waitFence = m_Swapchain->GetIsRenderingFence();
             vkWaitForFences(m_Device->GetVKDevice(), 1, &waitFence, VK_TRUE, UINT64_MAX);
+
+
+            uint32_t outIimageIndex = -1;
+            VkResult rslt = m_Swapchain->AcquireNextImage(outIimageIndex);
+
+            if (rslt == VK_ERROR_OUT_OF_DATE_KHR || m_Window->IsWindowResized())
+            {
+                vkDeviceWaitIdle(m_Device->GetVKDevice());
+                m_Swapchain->OnResize();
+                m_Pipeline.reset();
+                m_Pipeline = std::make_shared<Pipeline>(m_Device, m_Swapchain, m_RenderPass, m_Surface, m_DescriptorSet);
+                m_Window->ResetResize();
+                continue;
+            }
+
+            ASSERT(rslt == VK_SUCCESS, "Failed to acquire next image.");
+
             m_Swapchain->ResetFence();
-
-            uint32_t imageIndex = m_Swapchain->AcquireNextImage();
-
             m_CommandBuffer->ResetCommandBuffer();
-            m_CommandBuffer->RecordDrawingCommandBuffer(imageIndex, m_RenderPass, m_Swapchain, m_Pipeline, m_Swapchain->GetFramebuffers()[imageIndex], m_VBO, m_IBO);
+            m_CommandBuffer->RecordDrawingCommandBuffer(m_RenderPass, m_Surface, m_Pipeline, m_Swapchain->GetFramebuffers()[outIimageIndex], m_VBO, m_IBO);
 
 
             // Update uniform buffer.-------------------------
@@ -204,7 +217,7 @@ namespace Anor
             UniformBufferObject ubo{};
             ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
             ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-            ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain->GetExtent().width / (float)m_Swapchain->GetExtent().height, 0.1f, 10.0f);
+            ubo.proj = glm::perspective(glm::radians(45.0f), m_Surface->GetVKExtent().width / (float)m_Surface->GetVKExtent().height, 0.1f, 10.0f);
             ubo.proj[1][1] *= -1;
             
             // Map UBO memory and write to it every frame.
@@ -245,13 +258,21 @@ namespace Anor
             VkSwapchainKHR swapChains[] = { m_Swapchain->GetVKSwapchain() };
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = swapChains;
-            presentInfo.pImageIndices = &imageIndex;
+            presentInfo.pImageIndices = &outIimageIndex;
             presentInfo.pResults = nullptr; // Optional
 
             VkQueue presentQueue = m_Device->GetPresentQueue();
-            VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo); // graphics and present queues are the same in my computer.
+            VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
-            ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+
+            if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                vkDeviceWaitIdle(m_Device->GetVKDevice());
+                m_Swapchain->OnResize();
+                m_Pipeline.reset();
+                m_Pipeline = std::make_shared<Pipeline>(m_Device, m_Swapchain, m_RenderPass, m_Surface, m_DescriptorSet);
+            }
+            //ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
         }
         vkDeviceWaitIdle(m_Device->GetVKDevice());
     }

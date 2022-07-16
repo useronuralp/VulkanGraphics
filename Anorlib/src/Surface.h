@@ -13,14 +13,15 @@ namespace Anor
 		Surface(const Ref<Instance>& instance, const Ref<Window>& window, const Ref<PhysicalDevice>& physDevice);
 		~Surface();
 		const VkSurfaceKHR&				 GetVKSurface()				{ return m_Surface;		  }
-		const VkExtent2D&				 GetVKExtent()				{ return m_Extent;		  }
+		VkExtent2D						 GetVKExtent();
 		const VkSurfaceFormatKHR&		 GetVKSurfaceFormat()		{ return m_SurfaceFormat; }
 		const VkSurfaceCapabilitiesKHR&  GetVKSurfaceCapabilities() { return m_Capabilities;  }
 	private:
 		VkSurfaceKHR			 m_Surface = VK_NULL_HANDLE;
 		VkSurfaceFormatKHR		 m_SurfaceFormat;
 		VkSurfaceCapabilitiesKHR m_Capabilities;
-		VkExtent2D				 m_Extent;
 		Ref<Instance>			 m_Instance;
+		Ref<Window>				 m_Window;
+		Ref<PhysicalDevice>		 m_PhysicalDevice;
 	};
 }

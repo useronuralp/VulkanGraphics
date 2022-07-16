@@ -47,5 +47,7 @@ namespace Anor
 		// Queue Indices
 		uint64_t			m_GraphicsQueueIndex = -1;
 		uint64_t			m_PresentQueueIndex = -1;
+
+		VkFormat			m_DepthFormat; 
 	};
 }

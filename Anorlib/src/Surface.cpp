@@ -6,21 +6,21 @@
 namespace Anor
 {
 	Surface::Surface(const Ref<Instance>& instance, const Ref<Window>& window, const Ref<PhysicalDevice>& physDevice)
-		:m_Instance(instance)
+		:m_Instance(instance), m_Window(window), m_PhysicalDevice(physDevice)
 	{
-		ASSERT(glfwCreateWindowSurface(instance->GetVkInstance(), window->GetNativeWindow(), nullptr, &m_Surface) == VK_SUCCESS, "Failed to create a window surface");
+		ASSERT(glfwCreateWindowSurface(m_Instance->GetVkInstance(), m_Window->GetNativeWindow(), nullptr, &m_Surface) == VK_SUCCESS, "Failed to create a window surface");
 
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
 
 		uint32_t formatCount;
-		vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, nullptr);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, nullptr);
 
 		std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
 		if (formatCount != 0)
 		{
 			surfaceFormats.resize(formatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(physDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, surfaceFormats.data());
+			vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, surfaceFormats.data());
 		}
 
 		bool found = false;
@@ -36,18 +36,27 @@ namespace Anor
 		if (!found)
 		{
 			m_SurfaceFormat = surfaceFormats[0];
+			found = true;
 		}
-		found = false;
+	}
 
+	Surface::~Surface()
+	{
+		vkDestroySurfaceKHR(m_Instance->GetVkInstance(), m_Surface, nullptr);
+	}
+
+	VkExtent2D Surface::GetVKExtent()
+	{
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
 
 		if (m_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)())
 		{
-			m_Extent = m_Capabilities.currentExtent;
+			return m_Capabilities.currentExtent;
 		}
 		else
 		{
 			int width, height;
-			glfwGetFramebufferSize(window->GetNativeWindow(), &width, &height);
+			glfwGetFramebufferSize(m_Window->GetNativeWindow(), &width, &height);
 
 			VkExtent2D actualExtent =
 			{
@@ -58,13 +67,8 @@ namespace Anor
 			actualExtent.width = std::clamp(actualExtent.width, m_Capabilities.minImageExtent.width, m_Capabilities.maxImageExtent.width);
 			actualExtent.height = std::clamp(actualExtent.height, m_Capabilities.minImageExtent.height, m_Capabilities.maxImageExtent.height);
 
-			m_Extent = actualExtent;
+			return actualExtent;
 		}
-	}
-
-	Surface::~Surface()
-	{
-		vkDestroySurfaceKHR(m_Instance->GetVkInstance(), m_Surface, nullptr);
 	}
 
 }

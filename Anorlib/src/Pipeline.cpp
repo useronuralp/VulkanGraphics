@@ -5,10 +5,11 @@
 #include "RenderPass.h"
 #include "Buffer.h"
 #include "DescriptorSet.h"
+#include "Surface.h"
 #include <iostream>
 namespace Anor
 {
-    Pipeline::Pipeline(const Ref<LogicalDevice>& device, const Ref<Swapchain>& swapchain, const Ref<RenderPass>& renderPass, const Ref<DescriptorSet>& dscSet)
+    Pipeline::Pipeline(const Ref<LogicalDevice>& device, const Ref<Swapchain>& swapchain, const Ref<RenderPass>& renderPass, const Ref<Surface>& surface, const Ref<DescriptorSet>& dscSet)
         :m_Device(device), m_Swapchain(swapchain), m_RenderPass(renderPass), m_DescriptorSet(dscSet)
 	{
         m_DynamicStates =
@@ -65,8 +66,8 @@ namespace Anor
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = (float)m_Swapchain->GetExtent().width;
-        viewport.height = (float)m_Swapchain->GetExtent().height;
+        viewport.width = (float)surface->GetVKExtent().width;
+        viewport.height = (float)surface->GetVKExtent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
@@ -74,7 +75,7 @@ namespace Anor
         // If you do not want any kind of discarding due to scissors, make its extent the same as the framebuffer / swap chain images.
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
-        scissor.extent = m_Swapchain->GetExtent();
+        scissor.extent = surface->GetVKExtent();
 
         // The above two states "VkRect2D" and "VkViewport" need to be combined into a single struct called "VkPipelineViewportStateCreateInfo". That is 
         // exactly what we are doing here.

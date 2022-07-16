@@ -6,6 +6,7 @@
 #include "Framebuffer.h"
 #include "Buffer.h"
 #include "DescriptorSet.h"
+#include "Surface.h"
 #include <iostream>
 namespace Anor
 {
@@ -74,8 +75,7 @@ namespace Anor
     {
         vkDestroyCommandPool(m_Device->GetVKDevice(), m_CommandPool, nullptr);
     }
-    void CommandBuffer::RecordDrawingCommandBuffer(uint32_t imageIndex, const Ref<RenderPass>& renderPass, const Ref<Swapchain>& swapchain, const Ref<Pipeline>& pipeline, const Ref<Framebuffer>& framebuffer,
-        const Ref<VertexBuffer>& vertexBuffer, const Ref<IndexBuffer>& indexBuffer)
+    void CommandBuffer::RecordDrawingCommandBuffer(const Ref<RenderPass>& renderPass, const Ref<Surface>& surface, const Ref<Pipeline>& pipeline, const Ref<Framebuffer>& framebuffer, const Ref<VertexBuffer>& vertexBuffer, const Ref<IndexBuffer>& indexBuffer)
     {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -90,7 +90,7 @@ namespace Anor
         renderPassInfo.framebuffer = framebuffer->GetVKFramebuffer();
 
         renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent = swapchain->GetExtent();
+        renderPassInfo.renderArea.extent = surface->GetVKExtent();
 
         // WARNING: The clear value order shoould be identical to your attachment orders.
         std::array<VkClearValue, 2> clearValues{};

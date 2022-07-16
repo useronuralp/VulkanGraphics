@@ -40,7 +40,6 @@ namespace Anor
         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         // Vulkan spilts a render pass into one or more subpasses. Each render pass has to has at least one subpass.
-        // In our case, our color attachment pass is our only rendering pass.
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;

@@ -20,7 +20,6 @@ namespace Anor
 		const VkSwapchainKHR&		GetVKSwapchain()						{ return m_Swapchain;			 }
 		const VkFormat&				GetSwapchainImageFormat()				{ return m_SwapchainImageFormat; }
 		const VkPresentModeKHR&		GetPresentMode()						{ return m_PresentMode;			 }
-		const VkExtent2D&			GetExtent()								{ return m_SwapchainExtent;		 }
 		const VkFence&				GetIsRenderingFence()			const	{ return m_InRenderingFence;	 }
 		const VkSemaphore&			GetImageAvailableSemaphore()	const	{ return m_ImageAvailableSemaphore; }
 		const VkSemaphore&			GetRenderingCompleteSemaphore()	const	{ return m_RenderingCompleteSemaphore; }
@@ -28,10 +27,13 @@ namespace Anor
 		std::vector<VkImage>&		GetSwapchainImages()					{ return m_SwapchainImages;		 }
 		std::vector<VkImageView>&	GetSwapchainImageViews()				{ return m_ImageViews;			 }
 		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()						{ return m_Framebuffers; }
-		uint32_t					AcquireNextImage();
+		VkResult					AcquireNextImage(uint32_t& outIndex);
 		void						ResetFence();
 
+		void OnResize();
 	private:
+		void Init();
+		void CleanupSwapchain();
 		VkFormat FindDepthFormat();
 		VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 		bool HasStencilComponent(VkFormat format);
@@ -48,16 +50,17 @@ namespace Anor
 		std::vector<VkImage>		    m_SwapchainImages;
 		std::vector<VkImageView>		m_ImageViews;
 
+		uint32_t						m_ImageCount;
+
 		// Variables needed for the depth buffer.
 		VkImage							m_DepthImage;
 		VkDeviceMemory					m_DepthImageMemory;
 		VkImageView						m_DepthImageView;
+		VkFormat						m_DepthBufferFormat;
 
 		VkFormat					    m_SwapchainImageFormat;
-		VkFormat						m_DepthBufferFormat;
 		uint32_t						m_ActiveImageIndex = -1;
 		VkPresentModeKHR				m_PresentMode;
-		VkExtent2D						m_SwapchainExtent;
 
 		VkSemaphore						m_ImageAvailableSemaphore	 = VK_NULL_HANDLE;
 		VkSemaphore						m_RenderingCompleteSemaphore = VK_NULL_HANDLE;
