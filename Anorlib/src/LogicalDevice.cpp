@@ -90,5 +90,4 @@ namespace Anor
 	{
         vkDestroyDevice(m_Device, nullptr);
 	}
-
 }

@@ -122,7 +122,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\tiny_obj_loader\include;$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -141,7 +141,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\tiny_obj_loader\include;$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -155,11 +155,13 @@
   <ItemGroup>
     <ClCompile Include="src\Anorlib.cpp" />
     <ClCompile Include="src\CommandBuffer.cpp" />
+    <ClCompile Include="src\Containers.cpp" />
     <ClCompile Include="src\DescriptorSet.cpp" />
     <ClCompile Include="src\Framebuffer.cpp" />
     <ClCompile Include="src\Instance.cpp" />
     <ClCompile Include="src\LogicalDevice.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\ModelOBJ.cpp" />
     <ClCompile Include="src\PhysicalDevice.cpp" />
     <ClCompile Include="src\Pipeline.cpp" />
     <ClCompile Include="src\RenderPass.cpp" />
@@ -177,11 +179,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CommandBuffer.h" />
+    <ClInclude Include="src\Containers.h" />
     <ClInclude Include="src\core.h" />
     <ClInclude Include="src\DescriptorSet.h" />
     <ClInclude Include="src\Framebuffer.h" />
     <ClInclude Include="src\Instance.h" />
     <ClInclude Include="src\LogicalDevice.h" />
+    <ClInclude Include="src\ModelOBJ.h" />
     <ClInclude Include="src\PhysicalDevice.h" />
     <ClInclude Include="src\Pipeline.h" />
     <ClInclude Include="src\RenderPass.h" />

@@ -1,6 +1,7 @@
 #pragma once
 #include <cassert>
 #include <memory>
+#include <iostream>
 #define VERIFY_EXPR(EXPRESSION, ERR_MESSAGE) do {if(EXPRESSION) { std::cout << ERR_MESSAGE << std::endl; __debugbreak();} }while(0)
 #define ASSERT_ABORT(EXPR, MESSAGE) assert(EXPR && MESSAGE)
 

@@ -10,7 +10,7 @@ namespace Anor
 	DescriptorSet::DescriptorSet(const Ref<LogicalDevice>& device) // Descriptors are "pointers" to a resource. Programmer defines these resources.
 		:m_Device(device)
 	{
-		// TO DO: Think about exposing this part to the user.
+		// For the Uniform Buffer object.
 		VkDescriptorSetLayoutBinding uboLayoutBinding{};
 		uboLayoutBinding.binding = 0; // binding number used in the shader.
 		uboLayoutBinding.descriptorCount = 1;

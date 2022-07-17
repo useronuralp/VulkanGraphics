@@ -4,20 +4,12 @@
 #include "glm/glm.hpp"
 #include <array>
 #include "core.h"
+#include "Containers.h"
 namespace Anor
 {
 	class LogicalDevice;
 	class PhysicalDevice;
 	class DescriptorSet;
-	struct Vertex
-	{
-		glm::vec3 pos;
-		glm::vec3 color;
-		glm::vec2 texCoord;
-
-		static VkVertexInputBindingDescription getBindingDescription();
-		static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
-	};
 	class Buffer
 	{
 	protected:

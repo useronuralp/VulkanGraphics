@@ -18,6 +18,7 @@ namespace Anor
 	class DescriptorSet;
 	class Pipeline;
 	class ImageBuffer;
+	class ModelOBJ;
 	class VulkanApplication
 	{
 	public:
@@ -40,14 +41,19 @@ namespace Anor
 		Ref<DescriptorSet>   m_DescriptorSet;
 		Ref<CommandBuffer>   m_CommandBuffer;
 		Ref<Pipeline>		 m_Pipeline;
-		Ref<VertexBuffer>	 m_VBO;
-		Ref<IndexBuffer>	 m_IBO;
-		Ref<UniformBuffer>	 m_UBO;
-		Ref<ImageBuffer>	 m_ImBO;
+		//Ref<VertexBuffer>	 m_VBO;
+		//Ref<IndexBuffer>	 m_IBO;
+		//Ref<UniformBuffer>	 m_UBO;
+		//Ref<ImageBuffer>	 m_ImBO;
 		// Queue Indices
 		uint64_t			m_GraphicsQueueIndex = -1;
 		uint64_t			m_PresentQueueIndex = -1;
 
 		VkFormat			m_DepthFormat; 
+
+
+		// TEMP:
+
+		ModelOBJ* m_VikingsRoom;
 	};
 }

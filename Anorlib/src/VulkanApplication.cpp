@@ -17,15 +17,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <chrono>
+#include "ModelOBJ.h"
 namespace Anor
 {
-    struct UniformBufferObject
-    {
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 proj;
-    };
-
     VkFormat VulkanApplication::FindSupportedFormat(const Ref<PhysicalDevice>& physDevice, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
     {
         bool found = false;
@@ -116,7 +110,6 @@ namespace Anor
         // Logical Device creation.
         m_Device = std::make_shared<LogicalDevice>(m_PhysicalDevice, m_Surface, m_Window, m_GraphicsQueueIndex, m_PresentQueueIndex);
 
-
         // Find the most suitable depth format.
         VkFormat depthFormat = VK_FORMAT_MAX_ENUM;
         std::vector<VkFormat> candidates =
@@ -144,35 +137,29 @@ namespace Anor
         m_Pipeline = std::make_shared<Pipeline>(m_Device, m_Swapchain, m_RenderPass, m_Surface, m_DescriptorSet);
 
 
-        // This part should be taken care of by a "Model" class.
-        std::vector<Anor::Vertex> vertices =
-        {
-            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-            {{0.5f, -0.5f , 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, 0.5f  , 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-            {{-0.5f, 0.5f , 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+        //// This part should be taken care of by a "Model" class.
+        //std::vector<Anor::Vertex> vertices =
+        //{
+        //    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        //    {{0.5f, -0.5f , 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        //    {{0.5f, 0.5f  , 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        //    {{-0.5f, 0.5f , 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+        //
+        //    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        //    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        //    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f},  {1.0f, 1.0f}},
+        //    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+        //};
+        //
+        //std::vector<uint32_t> indices =
+        //{
+        //    4, 5, 6, 6, 7, 4,
+        //    0, 1, 2, 2, 3, 0,
+        //};
         
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-            {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f},  {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-        };
-        
-        std::vector<uint32_t> indices =
-        {
-            4, 5, 6, 6, 7, 4,
-            0, 1, 2, 2, 3, 0,
-        };
-        
-        std::string tst = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\texture.png").c_str();
-        m_VBO = std::make_shared<VertexBuffer>(m_Device, m_PhysicalDevice, vertices, m_GraphicsQueueIndex);
-        m_IBO = std::make_shared<IndexBuffer>(m_Device, m_PhysicalDevice, indices, m_GraphicsQueueIndex);
-        m_UBO = std::make_shared<UniformBuffer>(m_Device, m_PhysicalDevice, sizeof(UniformBufferObject));
-        m_ImBO  = std::make_shared<ImageBuffer>(m_Device, m_PhysicalDevice, tst.c_str(), m_GraphicsQueueIndex);
-        
-
-        m_UBO->UpdateUniformBuffer(sizeof(UniformBufferObject), m_DescriptorSet);
-        m_ImBO->UpdateImageBuffer(m_DescriptorSet);
+        std::string texturePath = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\viking_room.png").c_str();
+        std::string objPath = (std::string(SOLUTION_DIR) + "Anorlib\\models\\viking_room.obj").c_str();
+        m_VikingsRoom = new Anor::ModelOBJ(objPath.c_str(), texturePath.c_str(), m_Device, m_PhysicalDevice, m_DescriptorSet, m_GraphicsQueueIndex);
 
         Run();
     }
@@ -205,7 +192,7 @@ namespace Anor
 
             m_Swapchain->ResetFence();
             m_CommandBuffer->ResetCommandBuffer();
-            m_CommandBuffer->RecordDrawingCommandBuffer(m_RenderPass, m_Surface, m_Pipeline, m_Swapchain->GetFramebuffers()[outIimageIndex], m_VBO, m_IBO);
+            m_CommandBuffer->RecordDrawingCommandBuffer(m_RenderPass, m_Surface, m_Pipeline, m_Swapchain->GetFramebuffers()[outIimageIndex], m_VikingsRoom->GetVBO(), m_VikingsRoom->GetIBO());
 
 
             // Update uniform buffer.-------------------------
@@ -215,16 +202,16 @@ namespace Anor
             float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
             
             UniformBufferObject ubo{};
-            ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            ubo.model = glm::rotate(glm::mat4(1.0f), (time / 3.0f) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
             ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
             ubo.proj = glm::perspective(glm::radians(45.0f), m_Surface->GetVKExtent().width / (float)m_Surface->GetVKExtent().height, 0.1f, 10.0f);
             ubo.proj[1][1] *= -1;
             
             // Map UBO memory and write to it every frame.
             void* data;
-            vkMapMemory(m_Device->GetVKDevice(), m_UBO->GetBufferMemory(), 0, sizeof(ubo), 0, &data);
+            vkMapMemory(m_Device->GetVKDevice(), m_VikingsRoom->GetUBO()->GetBufferMemory(), 0, sizeof(ubo), 0, &data);
             memcpy(data, &ubo, sizeof(ubo));
-            vkUnmapMemory(m_Device->GetVKDevice(), m_UBO->GetBufferMemory());
+            vkUnmapMemory(m_Device->GetVKDevice(), m_VikingsRoom->GetUBO()->GetBufferMemory());
             // End of update uniform buffers------------------
 
             VkSubmitInfo submitInfo{};
@@ -271,9 +258,11 @@ namespace Anor
                 m_Swapchain->OnResize();
                 m_Pipeline.reset();
                 m_Pipeline = std::make_shared<Pipeline>(m_Device, m_Swapchain, m_RenderPass, m_Surface, m_DescriptorSet);
+                continue;
             }
-            //ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+            ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
         }
         vkDeviceWaitIdle(m_Device->GetVKDevice());
+        delete m_VikingsRoom;
     }
 }
