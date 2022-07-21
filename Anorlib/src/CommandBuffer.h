@@ -1,9 +1,9 @@
 #pragma once
 #include "vulkan/vulkan.hpp"
 #include "core.h"
+#include <glm/glm.hpp>
 namespace Anor
 {
-	class LogicalDevice;
 	class RenderPass;
 	class Swapchain;
 	class Framebuffer;
@@ -11,24 +11,21 @@ namespace Anor
 	class VertexBuffer;
 	class IndexBuffer;
 	class DescriptorSet;
-	class Surface;
 	class CommandBuffer
 	{
 	public:
-		static void Create(const Ref<LogicalDevice>& device, uint32_t queueFamilyIndex, VkCommandPool& outCmdPool, VkCommandBuffer& outCmdBuffer);
-		static void BeginSingleTimeCommandBuffer(const VkCommandBuffer& cmdBuffer);
-		static void EndSingleTimeCommandBuffer(const Ref<LogicalDevice>& device, const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool);
-	public:
-		CommandBuffer(const Ref<LogicalDevice>& device, uint32_t queueFamilyIndex, const Ref<DescriptorSet>& dscSet);
-		~CommandBuffer();
-		const VkCommandPool& GetCommandPool() { return m_CommandPool; }
-		void RecordDrawingCommandBuffer(const Ref<RenderPass>& renderPass, const Ref<Surface>& surface, const Ref<Pipeline>& pipeline, const Ref<Framebuffer>& framebuffer, const Ref<VertexBuffer>& vertexBuffer, const Ref<IndexBuffer>& indexBuffer);
-		void ResetCommandBuffer();
-		const VkCommandBuffer& GetVKCommandBuffer() { return m_CommandBuffer; }
-	private:
-		VkCommandBuffer m_CommandBuffer = VK_NULL_HANDLE;
-		VkCommandPool m_CommandPool;
-		Ref<LogicalDevice> m_Device;
-		Ref<DescriptorSet> m_DscSet;
+		static void Create(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool, VkCommandBuffer& outCmdBuffer);
+		static void Begin(const VkCommandBuffer& cmdBuffer);
+		static void End(const VkCommandBuffer& cmdBuffer);
+		static void BeginRenderPass(const VkCommandBuffer& cmdBuffer, const Ref<RenderPass>& renderPass, const Ref<Framebuffer>& framebuffer);
+		static void EndRenderPass(const VkCommandBuffer& cmdBuffer);
+		static void BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline, const VkDeviceSize& offset);
+		static void BindVertexBuffer(const VkCommandBuffer& cmdBuffer, const VkBuffer& VBO, const VkDeviceSize& offset);
+		static void BindIndexBuffer(const VkCommandBuffer& cmdBuffer, const VkBuffer& IBO);
+		static void BindDescriptorSet(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet);
+		static void DrawIndexed(const VkCommandBuffer& cmdBuffer, uint32_t indicesCount);
+		static void Submit(const VkCommandBuffer& cmdBuffer);
+		static void FreeCommandBuffer(const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool);
+		static void Reset(const VkCommandBuffer& cmdBuffer);
 	};
 }

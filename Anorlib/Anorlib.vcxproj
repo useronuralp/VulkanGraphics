@@ -122,13 +122,13 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\tiny_obj_loader\include;$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\tiny_obj_loader\include;$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include;$(SolutionDir)Anorlib\vendor\Assimp\assimp\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Lib;$(SolutionDir)Anorlib\vendor\GLFW\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;vulkan-1.lib;assimp-vc142-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Lib;$(SolutionDir)Anorlib\vendor\GLFW\lib-vc2022;$(SolutionDir)Anorlib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -141,15 +141,15 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\tiny_obj_loader\include;$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Anorlib\vendor\tiny_obj_loader\include;$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)Anorlib\vendor\GLFW\include;$(SolutionDir)Anorlib\vendor\stb_image\include;$(SolutionDir)Anorlib\vendor\Assimp\assimp\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Lib;$(SolutionDir)Anorlib\vendor\GLFW\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;vulkan-1.lib;assimp-vc142-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Lib;$(SolutionDir)Anorlib\vendor\GLFW\lib-vc2022;$(SolutionDir)Anorlib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -161,9 +161,11 @@
     <ClCompile Include="src\Instance.cpp" />
     <ClCompile Include="src\LogicalDevice.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\ModelOBJ.cpp" />
+    <ClCompile Include="src\Mesh.cpp" />
+    <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\PhysicalDevice.cpp" />
     <ClCompile Include="src\Pipeline.cpp" />
+    <ClCompile Include="src\Renderer.cpp" />
     <ClCompile Include="src\RenderPass.cpp" />
     <ClCompile Include="src\Surface.cpp" />
     <ClCompile Include="src\Swapchain.cpp" />
@@ -185,9 +187,11 @@
     <ClInclude Include="src\Framebuffer.h" />
     <ClInclude Include="src\Instance.h" />
     <ClInclude Include="src\LogicalDevice.h" />
-    <ClInclude Include="src\ModelOBJ.h" />
+    <ClInclude Include="src\Mesh.h" />
+    <ClInclude Include="src\Model.h" />
     <ClInclude Include="src\PhysicalDevice.h" />
     <ClInclude Include="src\Pipeline.h" />
+    <ClInclude Include="src\Renderer.h" />
     <ClInclude Include="src\RenderPass.h" />
     <ClInclude Include="src\Surface.h" />
     <ClInclude Include="src\Swapchain.h" />

@@ -1,14 +1,14 @@
 #include "LogicalDevice.h"
+#include "VulkanApplication.h"
 #include "PhysicalDevice.h"
 #include "Instance.h"
 #include "Window.h"
 #include "Surface.h"
 namespace Anor
 {
-	LogicalDevice::LogicalDevice(const Ref<PhysicalDevice>& physDevice, const Ref<Surface>& surface, const Ref<Window>& window, uint32_t graphicsQueueIndex, uint32_t presentQueueIndex)
-        :m_PhysicalDevice(physDevice), m_Window(window), m_Surface(surface)
+	LogicalDevice::LogicalDevice()
 	{
-        std::vector<QueueFamily> queueFamilies = m_PhysicalDevice->GetQueueFamilies();
+        std::vector<QueueFamily> queueFamilies = VulkanApplication::s_PhysicalDevice->GetQueueFamilies();
         VkBool32 supported = false;
         std::vector<VkDeviceQueueCreateInfo> deviceQueueCreateInfos;
 
@@ -17,21 +17,21 @@ namespace Anor
         const float* priorities     = { &graphicsQueuePriority };
         VkDeviceQueueCreateInfo QCI{};
         QCI.sType                   = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        QCI.queueFamilyIndex        = graphicsQueueIndex;
+        QCI.queueFamilyIndex        = VulkanApplication::s_GraphicsQueueIndex;
         QCI.queueCount              = 1;
         QCI.pQueuePriorities        = priorities;
 
         deviceQueueCreateInfos.push_back(QCI);
 
         // If the indices of graphics & present queues are not the same, we need to create a separate queue for present operations.
-        if (graphicsQueueIndex != presentQueueIndex)
+        if (VulkanApplication::s_GraphicsQueueIndex != VulkanApplication::s_PresentQueueIndex)
         {
             // Create a present queue.
             float presentQueuePriority = 1.0f;
             const float* priorities    = { &presentQueuePriority };
             VkDeviceQueueCreateInfo QCI{};
             QCI.sType                  = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            QCI.queueFamilyIndex       = presentQueueIndex;
+            QCI.queueFamilyIndex       = VulkanApplication::s_PresentQueueIndex;
             QCI.queueCount             = 1;
             QCI.pQueuePriorities       = priorities;
 
@@ -39,7 +39,7 @@ namespace Anor
         }
 
         // Check Anisotrophy support.
-        ASSERT(m_PhysicalDevice->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
+        ASSERT(VulkanApplication::s_PhysicalDevice->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
 
         // Enable Anisotropy.
         VkPhysicalDeviceFeatures deviceFeatures{};
@@ -68,20 +68,20 @@ namespace Anor
             CI.enabledLayerCount = m_Layers.size();
         }
 
-        ASSERT(vkCreateDevice(m_PhysicalDevice->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS, "Failed to create logical device!");
+        ASSERT(vkCreateDevice(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS, "Failed to create logical device!");
 
         // Get a graphics queue from the device. We'll need this while using command buffers.
-        vkGetDeviceQueue(m_Device, graphicsQueueIndex, 0, &m_GraphicsQueue);
+        vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueIndex, 0, &m_GraphicsQueue);
 
         // Index is Unique.
-        if (graphicsQueueIndex != presentQueueIndex)
+        if (VulkanApplication::s_GraphicsQueueIndex != VulkanApplication::s_PresentQueueIndex)
         {
-            vkGetDeviceQueue(m_Device, presentQueueIndex, 0, &m_PresentQueue); 
+            vkGetDeviceQueue(m_Device, VulkanApplication::s_PresentQueueIndex, 0, &m_PresentQueue);
         }
         // Index is the same with the graphics queue.
         else
         {
-            vkGetDeviceQueue(m_Device, graphicsQueueIndex, 0, &m_PresentQueue); 
+            vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueIndex, 0, &m_PresentQueue);
         }
         std::cout << "Logical device has been created." << std::endl;
 	}

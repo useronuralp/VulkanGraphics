@@ -32,7 +32,7 @@ namespace Anor
         ASSERT(glfwInit(), "Failed to initialize GLFW!, glfwInit() fnc failed.");
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Tell it to not use OpenGL as the default API.
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);   // Disable the resizing functionality.
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);  
 
         m_Window = glfwCreateWindow(m_Width, m_Height, "Vulkan Demo", nullptr, nullptr); // Return a pointer to the handle.
         glfwSetWindowUserPointer(m_Window, this);

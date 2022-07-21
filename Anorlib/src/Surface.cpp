@@ -2,25 +2,25 @@
 #include "Instance.h"
 #include "Window.h"
 #include "PhysicalDevice.h"
+#include "VulkanApplication.h"
 #include <algorithm>
 namespace Anor
 {
-	Surface::Surface(const Ref<Instance>& instance, const Ref<Window>& window, const Ref<PhysicalDevice>& physDevice)
-		:m_Instance(instance), m_Window(window), m_PhysicalDevice(physDevice)
+	Surface::Surface()
 	{
-		ASSERT(glfwCreateWindowSurface(m_Instance->GetVkInstance(), m_Window->GetNativeWindow(), nullptr, &m_Surface) == VK_SUCCESS, "Failed to create a window surface");
+		ASSERT(glfwCreateWindowSurface(VulkanApplication::s_Instance->GetVkInstance(), VulkanApplication::s_Window->GetNativeWindow(), nullptr, &m_Surface) == VK_SUCCESS, "Failed to create a window surface");
 
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
 
 		uint32_t formatCount;
-		vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, nullptr);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, nullptr);
 
 		std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
 		if (formatCount != 0)
 		{
 			surfaceFormats.resize(formatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, surfaceFormats.data());
+			vkGetPhysicalDeviceSurfaceFormatsKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, surfaceFormats.data());
 		}
 
 		bool found = false;
@@ -42,12 +42,12 @@ namespace Anor
 
 	Surface::~Surface()
 	{
-		vkDestroySurfaceKHR(m_Instance->GetVkInstance(), m_Surface, nullptr);
+		vkDestroySurfaceKHR(VulkanApplication::s_Instance->GetVkInstance(), m_Surface, nullptr);
 	}
 
 	VkExtent2D Surface::GetVKExtent()
 	{
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
 
 		if (m_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)())
 		{
@@ -56,7 +56,7 @@ namespace Anor
 		else
 		{
 			int width, height;
-			glfwGetFramebufferSize(m_Window->GetNativeWindow(), &width, &height);
+			glfwGetFramebufferSize(VulkanApplication::s_Window->GetNativeWindow(), &width, &height);
 
 			VkExtent2D actualExtent =
 			{

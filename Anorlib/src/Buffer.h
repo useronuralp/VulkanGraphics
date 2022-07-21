@@ -5,15 +5,27 @@
 #include <array>
 #include "core.h"
 #include "Containers.h"
+#include "DescriptorSet.h"
 namespace Anor
 {
-	class LogicalDevice;
-	class PhysicalDevice;
+	class Texture;
+	struct ImageBufferSpecs
+	{
+		Ref<Texture>		   Texture;
+		Ref<DescriptorSet> DescriptorSet;
+		uint32_t		   BindingIndex;
+	};
+	struct UniformBufferSpecs
+	{
+		size_t			   BufferSize;
+		Ref<DescriptorSet> DescriptorSet;
+		uint32_t		   BindingIndex;
+	};
 	class DescriptorSet;
 	class Buffer
 	{
 	protected:
-		Buffer(const Ref<PhysicalDevice>& physicalDevice, const Ref<LogicalDevice>& device, uint32_t graphicsQueueIndex = -1) : m_PhysicalDevice(physicalDevice), m_Device(device), m_GraphicsQueueIndex(graphicsQueueIndex) {}
+		Buffer() = default;
 		virtual ~Buffer() = 0;
 	protected:
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, uint64_t graphicsQueueIndex);
@@ -22,27 +34,24 @@ namespace Anor
 	protected:
 		VkBuffer m_Buffer				= VK_NULL_HANDLE;
 		VkDeviceMemory m_BufferMemory	= VK_NULL_HANDLE;
-		uint32_t m_GraphicsQueueIndex = -1;
-		Ref<PhysicalDevice> m_PhysicalDevice = nullptr;
-		Ref<LogicalDevice> m_Device			 = nullptr;
 	};
 	class ImageBuffer : public Buffer
 	{
 	public:
-		ImageBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physDevice, const char* texturePath, uint64_t graphicsQueueIndex);
+		ImageBuffer(const ImageBufferSpecs& specs);
 		const VkImageView& GetVKImageView() { return m_ImageView; }
 		const VkSampler& GetVKSampeler() { return m_Sampler; }
-		void UpdateImageBuffer(const Ref<DescriptorSet> & dscSet);
 		~ImageBuffer();
 		void TransitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-		void CopyBufferToImage(VkBuffer buffer, uint32_t width, uint32_t height);
+		void CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height);
+		std::string GetPath()& { return m_TexturePath; }
 	private:
-		VkImage			m_Image			= VK_NULL_HANDLE;
+		VkImage			m_Image			= VK_NULL_HANDLE; // TO DO: Have a vector of images. However many tetures an object uses, store 'em here. And give them all a texture ID.
 		VkDeviceMemory	m_ImageMemory	= VK_NULL_HANDLE;
 		VkImageView		m_ImageView		= VK_NULL_HANDLE;
 		VkSampler		m_Sampler;
 
-		const char* m_TexturePath;
+		std::string m_TexturePath;
 		uint32_t	m_ImageWidth;
 		uint32_t	m_ImageHeight;
 		int			m_ChannelCount;
@@ -50,7 +59,7 @@ namespace Anor
 	class VertexBuffer : public Buffer
 	{
 	public:
-		VertexBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physicalDevice, const std::vector<Vertex>& vertices, uint64_t graphicsQueueIndex);
+		VertexBuffer(const std::vector<Vertex>& vertices);
 		~VertexBuffer();
 		const std::vector<Vertex>&	GetVertices() { return m_Vertices; }
 		const VkBuffer&				GetVKBuffer() { return m_Buffer; }
@@ -61,7 +70,7 @@ namespace Anor
 	class IndexBuffer : public Buffer
 	{
 	public:
-		IndexBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physicalDevice, const std::vector<uint32_t>& indices, uint64_t graphicsQueueIndex);
+		IndexBuffer(const std::vector<uint32_t>& indices);
 		~IndexBuffer();
 		const std::vector<uint32_t>& GetIndices() { return m_Indices; }
 		const VkBuffer& GetVKBuffer() { return m_Buffer; }
@@ -72,10 +81,9 @@ namespace Anor
 	class UniformBuffer : public Buffer
 	{
 	public:
-		UniformBuffer(const Ref<LogicalDevice>& device, const Ref<PhysicalDevice>& physicalDevice, size_t allocateSize);
+		UniformBuffer(const UniformBufferSpecs& specs);
 		~UniformBuffer();
 		const VkBuffer& GetUniformBuffer() { return m_Buffer; }
 		const VkDeviceMemory& GetBufferMemory() { return m_BufferMemory; }
-		void UpdateUniformBuffer(uint64_t writeRange, const Ref<DescriptorSet>& dscSet);
 	};
 }

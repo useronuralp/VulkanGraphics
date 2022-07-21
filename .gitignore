@@ -78,3 +78,5 @@ ipch/
 
 # Don't include intermediate files
 /Anorlib/bin-int
+
+!**/models/**

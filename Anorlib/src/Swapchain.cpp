@@ -3,39 +3,29 @@
 #include <iostream>
 #include "Surface.h"
 #include "RenderPass.h" 
+#include "VulkanApplication.h"
 #include "Framebuffer.h"
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "Window.h" 
 namespace Anor
 {
-	Swapchain::Swapchain(const Ref<PhysicalDevice>& physDevice, const Ref<LogicalDevice>& device, const Ref<Surface>& surface, const Ref<RenderPass>& renderPass, VkFormat depthFormat)
-        :m_PhysicalDevice(physDevice), m_Surface(surface), m_LogicalDevice(device), m_RenderPass(renderPass), m_DepthBufferFormat(depthFormat)
+	Swapchain::Swapchain(VkFormat depthFormat)
+        :m_DepthBufferFormat(depthFormat)
 	{
         Init();
 	}
-
-    VkResult Swapchain::AcquireNextImage(uint32_t& outIndex)
-    {
-        VkResult result = vkAcquireNextImageKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &outIndex);
-        return result;
-    }
-
-    void Swapchain::ResetFence()
-    {
-        vkResetFences(m_LogicalDevice->GetVKDevice(), 1, &m_InRenderingFence);
-    }
     
     void Swapchain::Init()
     {
         // Find a suitable present mode.
         uint32_t presentModeCount;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface->GetVKSurface(), &presentModeCount, nullptr);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), VulkanApplication::s_Surface->GetVKSurface(), &presentModeCount, nullptr);
         std::vector<VkPresentModeKHR> presentModes;
         if (presentModeCount != 0)
         {
             presentModes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice->GetVKPhysicalDevice(), m_Surface->GetVKSurface(), &presentModeCount, presentModes.data());
+            vkGetPhysicalDeviceSurfacePresentModesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), VulkanApplication::s_Surface->GetVKSurface(), &presentModeCount, presentModes.data());
         }
         bool found = false;
         for (const auto& availablePresentMode : presentModes)
@@ -53,41 +43,41 @@ namespace Anor
         }
 
         // Find the optimal image count to request from the swapchain.
-        m_ImageCount = m_Surface->GetVKSurfaceCapabilities().minImageCount + 1;
+        m_ImageCount = VulkanApplication::s_Surface->GetVKSurfaceCapabilities().minImageCount + 1;
 
-        if (m_Surface->GetVKSurfaceCapabilities().maxImageCount > 0 && m_ImageCount > m_Surface->GetVKSurfaceCapabilities().maxImageCount)
+        if (VulkanApplication::s_Surface->GetVKSurfaceCapabilities().maxImageCount > 0 && m_ImageCount > VulkanApplication::s_Surface->GetVKSurfaceCapabilities().maxImageCount)
         {
-            m_ImageCount = m_Surface->GetVKSurfaceCapabilities().maxImageCount;
+            m_ImageCount = VulkanApplication::s_Surface->GetVKSurfaceCapabilities().maxImageCount;
         }
 
         // Create info for the swapchain.
         VkSwapchainCreateInfoKHR CI{};
         CI.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        CI.surface = m_Surface->GetVKSurface();
+        CI.surface = VulkanApplication::s_Surface->GetVKSurface();
         CI.minImageCount = m_ImageCount;
-        CI.imageFormat = m_Surface->GetVKSurfaceFormat().format;
-        CI.imageColorSpace = m_Surface->GetVKSurfaceFormat().colorSpace;
-        CI.imageExtent = m_Surface->GetVKExtent();
+        CI.imageFormat = VulkanApplication::s_Surface->GetVKSurfaceFormat().format;
+        CI.imageColorSpace = VulkanApplication::s_Surface->GetVKSurfaceFormat().colorSpace;
+        CI.imageExtent = VulkanApplication::s_Surface->GetVKExtent();
         CI.imageArrayLayers = 1;
         CI.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         CI.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         CI.queueFamilyIndexCount = 0;
         CI.pQueueFamilyIndices = nullptr;
-        CI.preTransform = m_Surface->GetVKSurfaceCapabilities().currentTransform;
+        CI.preTransform = VulkanApplication::s_Surface->GetVKSurfaceCapabilities().currentTransform;
         CI.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         CI.presentMode = m_PresentMode;
         CI.clipped = VK_TRUE;
         CI.oldSwapchain = VK_NULL_HANDLE;
 
-        ASSERT(vkCreateSwapchainKHR(m_LogicalDevice->GetVKDevice(), &CI, nullptr, &m_Swapchain) == VK_SUCCESS, "Failed to create swap chain!");
+        ASSERT(vkCreateSwapchainKHR(VulkanApplication::s_Device->GetVKDevice(), &CI, nullptr, &m_Swapchain) == VK_SUCCESS, "Failed to create swap chain!");
 
         std::cout << "Successfuly created a swapchain!" << std::endl;
 
-        vkGetSwapchainImagesKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, &m_ImageCount, nullptr);
+        vkGetSwapchainImagesKHR(VulkanApplication::s_Device->GetVKDevice(), m_Swapchain, &m_ImageCount, nullptr);
         m_SwapchainImages.resize(m_ImageCount);
-        vkGetSwapchainImagesKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, &m_ImageCount, m_SwapchainImages.data());
+        vkGetSwapchainImagesKHR(VulkanApplication::s_Device->GetVKDevice(), m_Swapchain, &m_ImageCount, m_SwapchainImages.data());
 
-        m_SwapchainImageFormat = m_Surface->GetVKSurfaceFormat().format;
+        m_SwapchainImageFormat = VulkanApplication::s_Surface->GetVKSurfaceFormat().format;
 
         // Create the image views for swapchain images so that we can access them.
         m_ImageViews.resize(m_SwapchainImages.size());
@@ -111,28 +101,15 @@ namespace Anor
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
 
-            ASSERT(vkCreateImageView(m_LogicalDevice->GetVKDevice(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
+            ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
         }
-
-        // A fence that is signalled when rendering is finished.
-        VkFenceCreateInfo fenceCreateInfo = {};
-        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-        ASSERT(vkCreateSemaphore(m_LogicalDevice->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphore) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
-        ASSERT(vkCreateFence(m_LogicalDevice->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InRenderingFence) == VK_SUCCESS, "Failed to create is rendering fence.");
-        ASSERT(vkCreateSemaphore(m_LogicalDevice->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphore) == VK_SUCCESS, "Failed to create image available semaphore.");
-
 
         // VK Image creation for the depth buffer.
         VkImageCreateInfo depthImageInfo{};
         depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
-        depthImageInfo.extent.width = m_Surface->GetVKExtent().width;
-        depthImageInfo.extent.height = m_Surface->GetVKExtent().height;
+        depthImageInfo.extent.width = VulkanApplication::s_Surface->GetVKExtent().width;
+        depthImageInfo.extent.height = VulkanApplication::s_Surface->GetVKExtent().height;
         depthImageInfo.extent.depth = 1;
         depthImageInfo.mipLevels = 1;
         depthImageInfo.arrayLayers = 1;
@@ -144,18 +121,18 @@ namespace Anor
         depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         depthImageInfo.flags = 0; // Optional
 
-        ASSERT(vkCreateImage(m_LogicalDevice->GetVKDevice(), &depthImageInfo, nullptr, &m_DepthImage) == VK_SUCCESS, "Failed to create image!");
+        ASSERT(vkCreateImage(VulkanApplication::s_Device->GetVKDevice(), &depthImageInfo, nullptr, &m_DepthImage) == VK_SUCCESS, "Failed to create image!");
 
         VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(m_LogicalDevice->GetVKDevice(), m_DepthImage, &memRequirements);
+        vkGetImageMemoryRequirements(VulkanApplication::s_Device->GetVKDevice(), m_DepthImage, &memRequirements);
 
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        ASSERT(vkAllocateMemory(m_LogicalDevice->GetVKDevice(), &allocInfo, nullptr, &m_DepthImageMemory) == VK_SUCCESS, "failed to allocate image memory!");
-        vkBindImageMemory(m_LogicalDevice->GetVKDevice(), m_DepthImage, m_DepthImageMemory, 0);
+        ASSERT(vkAllocateMemory(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, nullptr, &m_DepthImageMemory) == VK_SUCCESS, "failed to allocate image memory!");
+        vkBindImageMemory(VulkanApplication::s_Device->GetVKDevice(), m_DepthImage, m_DepthImageMemory, 0);
 
         // Depth buffer image view creation.
         VkImageViewCreateInfo depthImageviewInfo{};
@@ -169,7 +146,7 @@ namespace Anor
         depthImageviewInfo.subresourceRange.baseArrayLayer = 0;
         depthImageviewInfo.subresourceRange.layerCount = 1;
 
-        ASSERT(vkCreateImageView(m_LogicalDevice->GetVKDevice(), &depthImageviewInfo, nullptr, &m_DepthImageView) == VK_SUCCESS, "Failed to create textre image view");
+        ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &depthImageviewInfo, nullptr, &m_DepthImageView) == VK_SUCCESS, "Failed to create textre image view");
 
         // Creating the necessary framebuffers for each of the image view we have in this class.
         if (m_Framebuffers.size() > 0)
@@ -191,22 +168,19 @@ namespace Anor
                 m_ImageViews[i],
                 m_DepthImageView
             };
-            m_Framebuffers[i] = std::make_shared<Framebuffer>(m_LogicalDevice, m_RenderPass, m_Surface, attachments);
+            m_Framebuffers[i] = std::make_shared<Framebuffer>(VulkanApplication::s_Device, VulkanApplication::s_ModelRenderPass, VulkanApplication::s_Surface, attachments);
         }
     }
     void Swapchain::CleanupSwapchain()
     {
         for (auto imageView : m_ImageViews)
         {
-            vkDestroyImageView(m_LogicalDevice->GetVKDevice(), imageView, nullptr);
+            vkDestroyImageView(VulkanApplication::s_Device->GetVKDevice(), imageView, nullptr);
         }
-        vkDestroyImageView(m_LogicalDevice->GetVKDevice(), m_DepthImageView, nullptr);
-        vkDestroyImage(m_LogicalDevice->GetVKDevice(), m_DepthImage, nullptr);
-        vkFreeMemory(m_LogicalDevice->GetVKDevice(), m_DepthImageMemory, nullptr);
-        vkDestroySwapchainKHR(m_LogicalDevice->GetVKDevice(), m_Swapchain, nullptr);
-        vkDestroySemaphore(m_LogicalDevice->GetVKDevice(), m_ImageAvailableSemaphore, nullptr);
-        vkDestroySemaphore(m_LogicalDevice->GetVKDevice(), m_RenderingCompleteSemaphore, nullptr);
-        vkDestroyFence(m_LogicalDevice->GetVKDevice(), m_InRenderingFence, nullptr);
+        vkDestroyImageView(VulkanApplication::s_Device->GetVKDevice(), m_DepthImageView, nullptr);
+        vkDestroyImage(VulkanApplication::s_Device->GetVKDevice(), m_DepthImage, nullptr);
+        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), m_DepthImageMemory, nullptr);
+        vkDestroySwapchainKHR(VulkanApplication::s_Device->GetVKDevice(), m_Swapchain, nullptr);
     }
     void Swapchain::OnResize()
     {
@@ -223,7 +197,7 @@ namespace Anor
     {
         for (VkFormat format : candidates) {
             VkFormatProperties props;
-            vkGetPhysicalDeviceFormatProperties(m_PhysicalDevice->GetVKPhysicalDevice(), format, &props);
+            vkGetPhysicalDeviceFormatProperties(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), format, &props);
 
             if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
             {
@@ -247,7 +221,7 @@ namespace Anor
     uint32_t Swapchain::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
     {
         VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice->GetVKPhysicalDevice(), &memProperties);
+        vkGetPhysicalDeviceMemoryProperties(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), &memProperties);
 
         for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
             if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {

@@ -9,12 +9,13 @@ namespace Anor
 
 	struct Vertex
 	{
-		glm::vec3 pos;
-		glm::vec3 color;
-		glm::vec2 texCoord;
+		glm::vec3 pos; // 0
+		glm::vec3 color; // 1
+		glm::vec2 texCoord; // 2
+		glm::vec3 normal; // 3  WARNING !! There is a possibility that Vulkan could read this data incorrectly because of the alignment rules. Check?
 
 		static VkVertexInputBindingDescription getBindingDescription();
-		static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
+		static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions();
 
 		bool operator==(const Vertex& other) const
 		{
@@ -24,7 +25,7 @@ namespace Anor
 
 
 
-	struct UniformBufferObject
+	struct UniformBufferObject_MVP
 	{
 		glm::mat4 model;
 		glm::mat4 view;
@@ -39,6 +40,7 @@ struct std::hash<Anor::Vertex>
 	{
 		return ((hash<glm::vec3>()(vertex.pos) ^
 			(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
-			(hash<glm::vec2>()(vertex.texCoord) << 1);
+			(hash<glm::vec2>()(vertex.texCoord) << 1) ^
+			(hash<glm::vec3>()(vertex.normal) << 1);
 	}
 };

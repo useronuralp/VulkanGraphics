@@ -1,4 +1,5 @@
 #include "Pipeline.h"
+#include "VulkanApplication.h"
 #include "Utils.h"
 #include "LogicalDevice.h"
 #include "Swapchain.h"
@@ -9,15 +10,33 @@
 #include <iostream>
 namespace Anor
 {
-    Pipeline::Pipeline(const Ref<LogicalDevice>& device, const Ref<Swapchain>& swapchain, const Ref<RenderPass>& renderPass, const Ref<Surface>& surface, const Ref<DescriptorSet>& dscSet)
-        :m_Device(device), m_Swapchain(swapchain), m_RenderPass(renderPass), m_DescriptorSet(dscSet)
+    Pipeline::Pipeline(const Ref<DescriptorSet>& dscSet)
+        : m_DescriptorSet(dscSet)
 	{
+        Init(m_DescriptorSet);
+	}
+    Pipeline::~Pipeline()
+    {
+        Cleanup();
+    }
+    void Pipeline::OnResize()
+    {
+        Cleanup();
+        Init(m_DescriptorSet); //Re initializes the pipeline with correct framebuffer dimensions.
+    }
+    void Pipeline::Cleanup()
+    {
+        vkDestroyPipelineLayout(VulkanApplication::s_Device->GetVKDevice(), m_PipelineLayout, nullptr);
+        vkDestroyPipeline(VulkanApplication::s_Device->GetVKDevice(), m_Pipeline, nullptr);
+    }
+    void Pipeline::Init(const Ref<DescriptorSet>& dscSet)
+    {
         m_DynamicStates =
         {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_LINE_WIDTH
         };
-        
+
         // Read shaders from file.
         auto vertShaderCode = Utils::ReadFile("shaders/vert.spv");
         auto fragShaderCode = Utils::ReadFile("shaders/frag.spv");
@@ -53,7 +72,7 @@ namespace Anor
         vertexInputInfo.vertexBindingDescriptionCount = 1;
         vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
         vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data(); 
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         // This struct assembels the points and forms whatever primitive you want to form. These primitives are usually: triangles, lines and points.
         // We are interested in drawing trianlgles in our case.
@@ -66,8 +85,8 @@ namespace Anor
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = (float)surface->GetVKExtent().width;
-        viewport.height = (float)surface->GetVKExtent().height;
+        viewport.width = (float)VulkanApplication::s_Surface->GetVKExtent().width;
+        viewport.height = (float)VulkanApplication::s_Surface->GetVKExtent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
@@ -75,7 +94,7 @@ namespace Anor
         // If you do not want any kind of discarding due to scissors, make its extent the same as the framebuffer / swap chain images.
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
-        scissor.extent = surface->GetVKExtent();
+        scissor.extent = VulkanApplication::s_Surface->GetVKExtent();
 
         // The above two states "VkRect2D" and "VkViewport" need to be combined into a single struct called "VkPipelineViewportStateCreateInfo". That is 
         // exactly what we are doing here.
@@ -94,7 +113,7 @@ namespace Anor
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+        rasterizer.cullMode = VK_CULL_MODE_NONE;
         rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
         rasterizer.depthBiasConstantFactor = 0.0f; // Optional
@@ -159,12 +178,20 @@ namespace Anor
         // This struct specifies how the "UNIFORM" variables are going to be laid out. TO DO: Learn it better.
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 1; 
+        pipelineLayoutInfo.setLayoutCount = 1;
         pipelineLayoutInfo.pSetLayouts = &m_DescriptorSet->GetVKDescriptorSetLayout();
+
+        //// TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        //VkPushConstantRange PC;
+        //PC.offset = 0;
+        //PC.size = (uint32_t)sizeof(glm::vec4);
+        //PC.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        //// TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
         pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-        ASSERT(vkCreatePipelineLayout(m_Device->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout");
+        ASSERT(vkCreatePipelineLayout(VulkanApplication::s_Device->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout");
 
         // This struct binds together all the other structs we have created so far in this function up above.
         VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -184,22 +211,16 @@ namespace Anor
 
         pipelineInfo.layout = m_PipelineLayout;
 
-        pipelineInfo.renderPass = m_RenderPass->GetRenderPass();
+        pipelineInfo.renderPass = VulkanApplication::s_ModelRenderPass->GetRenderPass();
         pipelineInfo.subpass = 0;
 
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
         pipelineInfo.basePipelineIndex = -1; // Optional
 
-        ASSERT(vkCreateGraphicsPipelines(m_Device->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) == VK_SUCCESS, "Failed to create graphics pipeline!");
+        ASSERT(vkCreateGraphicsPipelines(VulkanApplication::s_Device->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) == VK_SUCCESS, "Failed to create graphics pipeline!");
 
-        vkDestroyShaderModule(m_Device->GetVKDevice(), fragShaderModule, nullptr);
-        vkDestroyShaderModule(m_Device->GetVKDevice(), vertShaderModule, nullptr);
-	}
-    Pipeline::~Pipeline()
-    {
-        vkDestroyPipelineLayout(m_Device->GetVKDevice(), m_PipelineLayout, nullptr);
-        vkDestroyPipeline(m_Device->GetVKDevice(), m_Pipeline, nullptr);
-       
+        vkDestroyShaderModule(VulkanApplication::s_Device->GetVKDevice(), fragShaderModule, nullptr);
+        vkDestroyShaderModule(VulkanApplication::s_Device->GetVKDevice(), vertShaderModule, nullptr);
     }
     VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& shaderCode)
     {
@@ -210,7 +231,7 @@ namespace Anor
         createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
 
         VkShaderModule shaderModule;
-        ASSERT(vkCreateShaderModule(m_Device->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");
+        ASSERT(vkCreateShaderModule(VulkanApplication::s_Device->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");
 
         return shaderModule;
     }
