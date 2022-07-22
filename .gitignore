@@ -80,4 +80,3 @@ ipch/
 /Anorlib/bin-int
 
 !**/models/**
-!**/assimp**
