@@ -131,7 +131,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Lib;$(SolutionDir)Anorlib\vendor\GLFW\lib-vc2022;$(SolutionDir)Anorlib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(SolutionDir)Anorlib\\vendor\\Assimp\\assimp\\bin\\Release\\assimp-vc142-mt.dll" "$(SolutionDir)Anorlib\\bin" /y</Command>
+      <Command>xcopy "$(SolutionDir)Anorlib\vendor\Assimp\assimp\lib\Release\assimp-vc142-mt.dll" "$(SolutionDir)Anorlib\bin" /y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -155,7 +155,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)Anorlib\vendor\VULKAN\1.3.211.0\Lib;$(SolutionDir)Anorlib\vendor\GLFW\lib-vc2022;$(SolutionDir)Anorlib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(SolutionDir)Anorlib\\vendor\\Assimp\\assimp\\bin\\Release\\assimp-vc142-mt.dll" "$(SolutionDir)Anorlib\\bin" /y</Command>
+      <Command>xcopy "$(SolutionDir)Anorlib\vendor\Assimp\assimp\lib\Release\assimp-vc142-mt.dll" "$(SolutionDir)Anorlib\bin" /y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
