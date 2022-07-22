@@ -20,10 +20,10 @@ namespace Anor
         :m_DescriptorLayout(bindings), m_FullPath(path)
 	{
         m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
-        Assimp::Importer import;
-        const aiScene* scene = import.ReadFile(m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+        Assimp::Importer importer;
+        const aiScene* scene = importer.ReadFile(m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
-        ASSERT(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, "Failed to load model.");
+        ASSERT(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, importer.GetErrorString());
 
         // Process the model in a recursive way.
         ProcessNode(scene->mRootNode, scene);
