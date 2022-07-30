@@ -24,6 +24,7 @@ namespace Anor
 		static void BindIndexBuffer(const VkCommandBuffer& cmdBuffer, const VkBuffer& IBO);
 		static void BindDescriptorSet(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet);
 		static void DrawIndexed(const VkCommandBuffer& cmdBuffer, uint32_t indicesCount);
+		static void Draw(const VkCommandBuffer& cmdBuffer, uint32_t vertexCount);
 		static void Submit(const VkCommandBuffer& cmdBuffer);
 		static void FreeCommandBuffer(const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool);
 		static void Reset(const VkCommandBuffer& cmdBuffer);

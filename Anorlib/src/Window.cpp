@@ -17,6 +17,16 @@ namespace Anor
         glfwGetFramebufferSize(m_Window, &width, &height);
         return width;
     }
+    void Window::OnUpdate()
+    {
+        m_MouseScrolled = false;
+        m_MouseXScrollOffset = 0.0f,
+        m_MouseYScrollOffset = 0.0f;
+    }
+    std::pair<float, float> Window::GetMouseScrollOffset()
+    {
+        return std::pair<float, float>(m_MouseXScrollOffset, m_MouseYScrollOffset);
+    }
     void Window::glfw_error_callback(int error, const char* description)
     {
         fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -25,6 +35,13 @@ namespace Anor
     {
         auto app = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
         app->m_WindowResized = true;
+    }
+    void Window::glfw_mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+    {
+        auto app = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+        app->m_MouseScrolled = true;
+        app->m_MouseXScrollOffset = xoffset;
+        app->m_MouseYScrollOffset = yoffset;
     }
 	Window::Window(const char* windowName, uint32_t width, uint32_t height)
         :m_WindowName(windowName), m_Height(height), m_Width(width)
@@ -38,6 +55,8 @@ namespace Anor
         glfwSetWindowUserPointer(m_Window, this);
         glfwSetFramebufferSizeCallback(m_Window, glfw_framebuffer_resize_callback);
         glfwSetErrorCallback(glfw_error_callback);
+        glfwSetScrollCallback(m_Window, glfw_mouse_scroll_callback);
+
 
         ASSERT(m_Window, "Failed to create Window! 'm_Window' is empty.");
 	}

@@ -16,45 +16,51 @@
 #include "Swapchain.h"
 namespace Anor
 {
-    Model::Model(std::string path, std::initializer_list<ShaderBinding> bindings) 
-        :m_DescriptorLayout(bindings), m_FullPath(path)
+    Model::Model(const std::string& path, std::initializer_list<ShaderBindingSpecs> bindingSpecs, const std::string& vertShaderPath, const std::string& fragShaderPath)
+        :m_DescriptorLayout(bindingSpecs), m_FullPath(path), m_VertShaderPath(vertShaderPath), m_FragShaderPath(fragShaderPath)
 	{
+        m_DescriptorSet = std::make_shared<DescriptorSet>(bindingSpecs);
+
         m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
         Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+        const aiScene* scene = importer.ReadFile(m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 
         ASSERT(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, importer.GetErrorString());
 
         // Process the model in a recursive way.
         ProcessNode(scene->mRootNode, scene);
-
-        // Free all the texture pixels after creating the ImageBuffers.
-        for (auto& texture : m_TextureCache)
-        {
-            texture->FreePixels();
-        }
-
 	}
     void Model::Draw(const VkCommandBuffer& cmdBuffer)
     {
         for (auto& mesh : m_Meshes)
         {
-            mesh.Draw(cmdBuffer);
+            mesh->Draw(cmdBuffer);
+        }
+    }
+    void Model::DrawIndexed(const VkCommandBuffer& cmdBuffer)
+    {
+        for (auto& mesh : m_Meshes)
+        {
+            mesh->DrawIndexed(cmdBuffer);
         }
     }
     void Model::OnResize()
     {
         for (auto& mesh : m_Meshes)
         {
-            mesh.OnResize();
+            mesh->OnResize();
         }
     }
-    void Model::UpdateViewProjection(const glm::mat4& viewMat, const glm::mat4& projMat)
+    void Model::UpdateUniformBuffer(uint32_t bufferIndex, void* dataToCopy, size_t dataSize)
     {
         for (auto& mesh : m_Meshes)
         {
-            mesh.UpdateViewProjection(viewMat, projMat);
+            mesh->UpdateUniformBuffer(bufferIndex, dataToCopy, dataSize);
         }
+    }
+    glm::mat4 Model::GetModelMatrix()
+    {
+        return m_Meshes[0]->GetModelMatrix();
     }
     void Model::ProcessNode(aiNode* node, const aiScene* scene)
     {
@@ -70,13 +76,17 @@ namespace Anor
             ProcessNode(node->mChildren[i], scene);
         }
     }
-    Mesh Model::ProcessMesh(aiMesh* mesh, const aiScene* scene)
+    Ref<Mesh> Model::ProcessMesh(aiMesh* mesh, const aiScene* scene)
     {
         std::vector<Vertex>         vertices;
         std::vector<uint32_t>       indices;
-        std::vector<Ref<Texture>>   diffuseTextures;
+        Ref<Texture>                diffuseTexture;
+        Ref<Texture>                normalTexture;
+        Ref<Texture>                roughnessMetallicTexture;
+        //Ref<Texture>                metallicTexture;
+        //Ref<Texture>                AOTexture;
 
-        Ref<DescriptorSet> meshDescriptorSet = std::make_shared<DescriptorSet>(m_DescriptorLayout);
+        Ref<DescriptorSet> dscSet = std::make_shared<DescriptorSet>(m_DescriptorLayout);
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
@@ -95,34 +105,50 @@ namespace Anor
             vertex.normal = vector;
 
             //UV
+            bool dontCalcTangent = false;
             if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
             {
                 glm::vec2 vector;
                 vector.x = mesh->mTextureCoords[0][i].x;
                 vector.y = mesh->mTextureCoords[0][i].y;
-                vertex.texCoord = vector;
+                vertex.texCoord= vector;
             }
             else
+            {
                 vertex.texCoord = glm::vec2(0.0f, 0.0f);
+                dontCalcTangent = true;
+            }
 
-            // Color.
-            vector.x = 0.9f;
-            vector.y = 0.0f;
-            vector.z = 0.8f;
-            vertex.color = vector;
+            //TODO: Handle the case where the tangents cannot be calculated for the loaded model. That case would be models that don't have UV coordinates.
+            //Tangnet
 
-            ////TODO: Handle the case where the tangents cannot be calculated for the loaded model. That case would be models that don't have UV coordinates.
-            ////Tangnet
-            //vector.x = mesh->mTangents[i].x;
-            //vector.y = mesh->mTangents[i].y;
-            //vector.z = mesh->mTangents[i].z;
-            //vertex.Tangent = vector;
-            //
-            ////Biangnet
-            //vector.x = mesh->mBitangents[i].x;
-            //vector.y = mesh->mBitangents[i].y;
-            //vector.z = mesh->mBitangents[i].z;
-            //vertex.Bitangent = vector;
+
+            if (dontCalcTangent)
+            {
+                vector.x = 0.0f;
+                vector.y = 0.0f;
+                vector.z = 0.0f;
+                vertex.tangent = vector;
+
+                vector.x = 0.0f;
+                vector.y = 0.0f;
+                vector.z = 0.0f;
+                vertex.bitangent = vector;
+            
+            }
+            else
+            {
+                vector.x = mesh->mTangents[i].x;
+                vector.y = mesh->mTangents[i].y;
+                vector.z = mesh->mTangents[i].z;
+                vertex.tangent = vector;
+            
+
+                vector.x = mesh->mBitangents[i].x;
+                vector.y = mesh->mBitangents[i].y;
+                vector.z = mesh->mBitangents[i].z;
+                vertex.bitangent = vector;
+            }
 
             vertices.push_back(vertex);
         }
@@ -137,76 +163,88 @@ namespace Anor
         if (mesh->mMaterialIndex >= 0)
         {
             aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-            std::vector<Ref<Texture>> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE/*, "texture_diffuse"*/, meshDescriptorSet);
-            diffuseTextures.insert(diffuseTextures.end(), diffuseMaps.begin(), diffuseMaps.end());
-            //std::vector<Ref<ImageBuffer>> specularMaps = LoadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-            //textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-        
-            //std::vector<Ref<Texture>> normalMaps;
-            //normalMaps = LoadMaterialTextures(material, type, "texture_normalMap");
-            //textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+            diffuseTexture = LoadMaterialTextures(material, aiTextureType_DIFFUSE, m_TextureCache); 
+            normalTexture  = LoadMaterialTextures(material, aiTextureType_NORMALS, m_NormalsCache);
+            roughnessMetallicTexture = LoadMaterialTextures(material, aiTextureType_UNKNOWN, m_RoughnessCache);
         }
-        return Mesh(vertices, indices, diffuseTextures, meshDescriptorSet);
+        return std::make_shared<Mesh>(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, dscSet, m_VertShaderPath, m_FragShaderPath);
     }
     void Model::Rotate(const float& degree, const float& x, const float& y, const float& z)
     {
         for (auto& mesh : m_Meshes)
         {
-            mesh.Rotate(degree, x, y, z);
+            mesh->Rotate(degree, x, y, z);
         }
     }
     void Model::Translate(const float& x, const float& y, const float& z)
     {
         for (auto& mesh : m_Meshes)
         {
-            mesh.Translate(x, y, z);
+            mesh->Translate(x, y, z);
         }
     }
     void Model::Scale(const float& x, const float& y, const float& z)
     {
         for (auto& mesh : m_Meshes)
         {
-            mesh.Scale(x, y, z);
+            mesh->Scale(x, y, z);
         }
     }
-    std::vector<Ref<Texture>> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type/*, const std::string& typeName*/, const Ref<DescriptorSet>& meshDescriptorSet)
+    Ref<Texture> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Texture>>& cache)
     {
-        std::vector<Ref<Texture>> diffuseTextures;
+        
+        Ref<Texture> textureOUT;
         std::string folderName = m_Directory.substr(m_Directory.find_last_of("\\/") + 1, m_Directory.length());
-        for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+
+        aiString str;
+        mat->GetTexture(type, 0, &str);
+        
+        std::string textureName(str.C_Str());
+
+
+        bool skip = false;
+        for (unsigned int j = 0; j < cache.size(); j++)
         {
-            aiString str;
-            mat->GetTexture(type, i, &str);
-            std::string textureName(str.C_Str());
-
-
-            bool skip = false;
-            for (unsigned int j = 0; j < m_TextureCache.size(); j++)
+            if (std::strcmp(cache[j]->GetPath().c_str(), (m_Directory + "\\" + textureName).c_str()) == 0) // TO DO: Check this part.
             {
-                if (std::strcmp(m_TextureCache[j]->GetPath().c_str(), (m_Directory + "\\" + textureName).c_str()) == 0) // TO DO: Check this part.
-                {
-                    diffuseTextures.push_back(m_TextureCache[j]);
-                    skip = true;
-                    break;
-                }
-            }
-            if (!skip)
-            {  
-                Ref<Texture> texture = std::make_shared<Texture>((m_Directory + "\\" + textureName).c_str());
-                diffuseTextures.push_back(texture);
-                m_TextureCache.push_back(texture);
+                textureOUT = cache[j];
+                skip = true;
+                break;
             }
         }
+        if (!skip)
+        {  
+            if (!textureName.empty())
+            {
+                VkFormat format;
+                if (type == aiTextureType_NORMALS)
+                {
+                    format = VK_FORMAT_R8G8B8A8_UNORM;
+                }
+                else
+                {
+                    format = VK_FORMAT_R8G8B8A8_SRGB;
+                }
+                Ref<Texture> texture = std::make_unique<Texture>((m_Directory + "\\" + textureName).c_str(), format);
+                textureOUT = texture;
+                cache.push_back(texture);
+            }
+        }
+
         //Handles the case which the loaded model doesnt contain the specific texture image. In that case, we send the default textures instead.
-        //if (textures.empty())
-        //{
-        //    if (typeName == "texture_diffuse")
-        //        textures.push_back(m_DefaultDiffuse);
-        //    else if (typeName == "texture_specular")
-        //        textures.push_back(m_DefaultSpecular);
-        //    else if (typeName == "texture_normalMap")
-        //        textures.push_back(m_DefaultNormal);
-        //}
-        return diffuseTextures;
+        if (!textureOUT)
+        {
+            if (type == aiTextureType_DIFFUSE)
+                textureOUT = m_DefaultDiffuse;
+            else if (type == aiTextureType_NORMALS || aiTextureType_HEIGHT)
+                textureOUT = m_DefaultNormal;
+            else if (type == aiTextureType_DIFFUSE_ROUGHNESS)
+                textureOUT = m_DefaultRoughness;
+            else if (type == aiTextureType_METALNESS)
+                textureOUT = m_DefaultMetallic;
+            else if (type == aiTextureType_AMBIENT_OCCLUSION)
+                textureOUT = m_DefaultAO;
+        }
+        return textureOUT;
     }
 }

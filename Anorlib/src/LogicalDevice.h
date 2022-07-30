@@ -19,7 +19,7 @@ namespace Anor
 		VkQueue	 m_PresentQueue  = VK_NULL_HANDLE;
 
 		std::vector<const char*> m_Layers;
-		std::vector<const char*> m_Extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+		std::vector<const char*> m_Extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE1_EXTENSION_NAME };
 
 		// TO DO: Create a logic to set the following queues later.
 		//VkQueue					 m_TransferQueue = VK_NULL_HANDLE;

@@ -10,8 +10,8 @@
 #include <iostream>
 namespace Anor
 {
-    Pipeline::Pipeline(const Ref<DescriptorSet>& dscSet)
-        : m_DescriptorSet(dscSet)
+    Pipeline::Pipeline(const Ref<DescriptorSet>& dscSet, const std::string& vertPath, const std::string& fragPath)
+        : m_DescriptorSet(dscSet), m_VertPath(vertPath), m_FragPath(fragPath)
 	{
         Init(m_DescriptorSet);
 	}
@@ -38,8 +38,8 @@ namespace Anor
         };
 
         // Read shaders from file.
-        auto vertShaderCode = Utils::ReadFile("shaders/vert.spv");
-        auto fragShaderCode = Utils::ReadFile("shaders/frag.spv");
+        auto vertShaderCode = Utils::ReadFile(m_VertPath);
+        auto fragShaderCode = Utils::ReadFile(m_FragPath);
 
 
         VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
@@ -84,9 +84,9 @@ namespace Anor
         // Viewport specifies the dimensions of the framebuffer that we want to draw to. This usually spans the entirety of a framebuffer.
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = (float)VulkanApplication::s_Surface->GetVKExtent().height;
         viewport.width = (float)VulkanApplication::s_Surface->GetVKExtent().width;
-        viewport.height = (float)VulkanApplication::s_Surface->GetVKExtent().height;
+        viewport.height = -(float)VulkanApplication::s_Surface->GetVKExtent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 

@@ -18,14 +18,17 @@ namespace Anor
 	struct Vertex;
 	class DescriptorSet;
 	class Pipeline;
+	class Camera;
 	class ImageBuffer;
 	class Model;
+	class Mesh;
 	class VulkanApplication
 	{
 	public:
 		static VkFormat FindSupportedFormat(const Ref<PhysicalDevice>& physDevice, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 		VulkanApplication();
 		void Run();
+		float DeltaTime();
 	public:
 		// Vulkan components
 		static inline Ref<Window>			 s_Window;
@@ -34,6 +37,7 @@ namespace Anor
 		static inline Ref<LogicalDevice>	 s_Device;
 		static inline Ref<PhysicalDevice>	 s_PhysicalDevice;
 		static inline Ref<RenderPass>		 s_ModelRenderPass;
+		static inline Ref<Camera>			 s_Camera;
 
 		static inline uint64_t				 s_GraphicsQueueIndex = -1;
 		static inline uint64_t				 s_PresentQueueIndex = -1;
@@ -41,12 +45,14 @@ namespace Anor
 		Ref<Swapchain>		 m_Swapchain;
 		Ref<CommandBuffer>   m_CommandBuffer;
 
-		glm::vec3			m_CameraPosition;
+
 		VkFormat			m_DepthFormat; 
+		float				m_Time = 0.0f;
+		float				m_LastFrameRenderTime;
 
+		Model* m_Model;
+		Model* m_LightSphere;
 
-		Model* m_VikingsRoom;
-		Model* m_Sponza;
 
 		// Semaphores
 		VkSemaphore						m_ImageAvailableSemaphore = VK_NULL_HANDLE;

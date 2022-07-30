@@ -8,7 +8,8 @@
 */
 namespace Anor
 {
-	DescriptorSet::DescriptorSet(const std::vector<ShaderBinding>& shaderBindings) // Descriptors are "pointers" to a resource. Programmer defines these resources.
+	DescriptorSet::DescriptorSet(const std::vector<ShaderBindingSpecs>& shaderBindings) // Descriptors are "pointers" to a resource. Programmer defines these resources.
+		:m_ShaderLayout(shaderBindings)
 	{
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
 		bindings.resize(shaderBindings.size());
@@ -16,29 +17,29 @@ namespace Anor
 		poolSizes.resize(shaderBindings.size());
 		
 		uint32_t bindingIndex = 0;
-		for (const auto& primitive : shaderBindings)
+		for (const auto& bindingSpecs : shaderBindings)
 		{
-			switch (primitive)
+			// We only need the type of the binding here in this loop. Rest of the member variables are not used here.
+			switch (bindingSpecs.Type)
 			{
-				case ShaderBinding::UNIFORM_BUFFER:
-
+				case ShaderBindingType::UNIFORM_BUFFER:
 					// For the Uniform Buffer object.
 					bindings[bindingIndex].binding = bindingIndex; // binding number used in the shader.
 					bindings[bindingIndex].descriptorCount = 1;
 					bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-					bindings[bindingIndex].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+					bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.Shaderstage);
 					bindings[bindingIndex].pImmutableSamplers = nullptr;
 
 					poolSizes[bindingIndex].descriptorCount = 1;
 					poolSizes[bindingIndex].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 					break;
-				case ShaderBinding::IMAGE_SAMPLER:
+				case ShaderBindingType::TEXTURE_SAMPLER:
 					// For the texture sampler in the fragment shader 
 					bindings[bindingIndex].binding = bindingIndex;
 					bindings[bindingIndex].descriptorCount = 1;
 					bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 					bindings[bindingIndex].pImmutableSamplers = nullptr;
-					bindings[bindingIndex].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+					bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.Shaderstage);
 		
 					poolSizes[bindingIndex].descriptorCount = 1;
 					poolSizes[bindingIndex].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

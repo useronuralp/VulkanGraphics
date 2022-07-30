@@ -1,6 +1,11 @@
 #include "Utils.h"
 #include <iostream>
 #include <fstream>
+#include "core.h"
+#include "VulkanApplication.h"
+#include "LogicalDevice.h"
+#include "PhysicalDevice.h"
+#include "CommandBuffer.h"
 namespace Anor
 {
 	void Utils::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo, PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC)
@@ -34,6 +39,63 @@ namespace Anor
         file.close();
 
         return buffer;
+    }
+
+    void Utils::CreateVKBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+    {
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = size;
+        bufferInfo.usage = usage;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        ASSERT(vkCreateBuffer(VulkanApplication::s_Device->GetVKDevice(), &bufferInfo, nullptr, &buffer) == VK_SUCCESS, "Failed to create vertex buffer");
+
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(VulkanApplication::s_Device->GetVKDevice(), buffer, &memRequirements);
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
+
+        ASSERT(vkAllocateMemory(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) == VK_SUCCESS, "Failed to allocate vertex buffer memory!");
+        vkBindBufferMemory(VulkanApplication::s_Device->GetVKDevice(), buffer, bufferMemory, 0);
+    }
+
+    uint32_t Utils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+        VkPhysicalDeviceMemoryProperties memProperties = VulkanApplication::s_PhysicalDevice->GetVKDeviceMemoryProperties();
+        uint32_t memoryTypeIndex = -1;
+
+
+        // TO DO: Understand this part and the bit shift.
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+        {
+            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                memoryTypeIndex = i;
+            }
+        }
+
+        ASSERT(memoryTypeIndex != -1, "Failed to find suitable memory type!");
+        return memoryTypeIndex;
+    }
+
+    void Utils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, uint64_t graphicsQueueIndex)
+    {
+        VkCommandPool singleCmdPool;
+        VkCommandBuffer singleCmdBuffer;
+        CommandBuffer::Create(graphicsQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::Begin(singleCmdBuffer);
+
+        VkBufferCopy copyRegion{};
+        copyRegion.srcOffset = 0; // Optional
+        copyRegion.dstOffset = 0; // Optional
+        copyRegion.size = size;
+        vkCmdCopyBuffer(singleCmdBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+        CommandBuffer::End(singleCmdBuffer);
+        CommandBuffer::Submit(singleCmdBuffer);
+        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
     }
 
 }

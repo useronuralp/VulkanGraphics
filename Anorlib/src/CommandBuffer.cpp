@@ -86,6 +86,10 @@ namespace Anor
     {
         vkCmdDrawIndexed(cmdBuffer, indicesCount, 1, 0, 0, 0);
     }
+    void CommandBuffer::Draw(const VkCommandBuffer& cmdBuffer, uint32_t vertexCount)
+    {
+        vkCmdDraw(cmdBuffer, vertexCount, 1, 0, 0);
+    }
     void CommandBuffer::Submit(const VkCommandBuffer& cmdBuffer)
     {
         VkSubmitInfo submitInfo{};

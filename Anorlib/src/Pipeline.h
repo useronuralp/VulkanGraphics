@@ -11,7 +11,7 @@ namespace Anor
 	class Pipeline
 	{
 	public:
-		Pipeline(const Ref<DescriptorSet>& dscSet);
+		Pipeline(const Ref<DescriptorSet>& dscSet, const std::string& vertPath, const std::string& fragPath);
 		~Pipeline();
 		void OnResize();
 		const VkPipeline& GetVKPipeline()						{ return m_Pipeline; }
@@ -24,6 +24,9 @@ namespace Anor
 		VkPipeline					m_Pipeline;
 		VkPipelineLayout			m_PipelineLayout;
 		std::vector<VkDynamicState> m_DynamicStates;
+
+		std::string m_VertPath;
+		std::string m_FragPath;
 
 		Ref<DescriptorSet>				m_DescriptorSet;
 	};
