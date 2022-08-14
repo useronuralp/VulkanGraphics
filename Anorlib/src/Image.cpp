@@ -7,23 +7,54 @@
 #include <stb_image.h>
 namespace Anor
 {
+
     // This constructor is to be used when you want to initialize a VkImage with as a color/texture buffer:
-	Image::Image(const char* imagePathToLoad, VkFormat imageFormat)
-        :m_Path(imagePathToLoad)
+	Image::Image(std::vector<std::string> textures, VkFormat imageFormat)
 	{
-        // Load the image here.
+        stbi_uc* pixels = nullptr;
+        stbi_uc* cubemapTextures[6];
+        VkDeviceSize imageSize;
+        VkDeviceSize layerSize;
+
+        if (textures.size() == 6)
+        {
+            m_IsCubemap = true;
+            m_CubemapTexPaths = textures;
+        }
+        else
+        {
+            m_Path = textures[0];
+        }
+
         int texWidth;
         int texHeight;
         int texChannels;
 
-        stbi_uc* pixels = stbi_load(imagePathToLoad, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha); // TO DO: Not every image must be an RGBA type. Might wanna use an if else check here.
-        ASSERT(pixels, "Failed to load texture.");
+        if (m_IsCubemap)
+        {
+            for (uint32_t i = 0; i < 6; i++)
+            {
+                cubemapTextures[i] = stbi_load(textures[i].c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+                ASSERT(cubemapTextures[i], "Failed to load texture.");
+            }
+            imageSize = texWidth * texHeight * 4 * 6;
+            layerSize = imageSize / 6;
+        }
+        else
+        {
+            pixels = stbi_load(m_Path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha); 
+            ASSERT(pixels, "Failed to load texture.");
+            imageSize = texWidth * texHeight * 4;
+            layerSize = imageSize;
+        }
+
 
         // Set member variables.
         m_Width = texWidth;
         m_Height = texHeight;
         m_ChannelCount = texChannels;
-        m_ImageSize = texWidth * texHeight * 4;
+        m_ImageSize = imageSize;
+        m_LayerSize = layerSize;
 
         SetupImage(m_Width, m_Height, imageFormat);
 
@@ -35,7 +66,17 @@ namespace Anor
         // Copy the Texture data to the staging buffer.
         void* data;
         vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, 0, m_ImageSize, 0, &data);
-        memcpy(data, pixels, static_cast<size_t>(m_ImageSize));
+        if (m_IsCubemap)
+        {
+            for (uint32_t i = 0; i < 6; i++)
+            {
+                memcpy(static_cast<stbi_uc*>(data) + (m_LayerSize * i), cubemapTextures[i], m_LayerSize);
+            }
+        }
+        else
+        {
+            memcpy(data, pixels, static_cast<size_t>(m_ImageSize));
+        }
         vkUnmapMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory);
 
         // Do a layout transition operation to move the data from the staging buffer to the VkImage.
@@ -47,12 +88,22 @@ namespace Anor
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
 
-        stbi_image_free(pixels);
+        if (m_IsCubemap)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                stbi_image_free(cubemapTextures[i]);
+            }
+        }
+        else
+        {
+            stbi_image_free(pixels);
+        }
 	}
 
-    Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat)
+    Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType)
     {
-        SetupImage(width, height, imageFormat);
+        SetupImage(width, height, imageFormat, imageType);
     }
 
 	Image::~Image()
@@ -64,6 +115,11 @@ namespace Anor
 
     void Image::TransitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
     {
+        uint32_t layerCount = 1;
+        if (m_IsCubemap)
+        {
+            layerCount = 6;
+        }
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
         CommandBuffer::Create(VulkanApplication::s_GraphicsQueueIndex, singleCmdPool, singleCmdBuffer);
@@ -80,7 +136,7 @@ namespace Anor
         barrier.subresourceRange.baseMipLevel = 0;
         barrier.subresourceRange.levelCount = 1;
         barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.layerCount = layerCount;
 
         VkPipelineStageFlags sourceStage;
         VkPipelineStageFlags destinationStage;
@@ -111,6 +167,46 @@ namespace Anor
         CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
     }
 
+    void Image::TransitionDepthLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+    {
+        VkCommandBuffer singleCmdBuffer;
+        VkCommandPool singleCmdPool;
+        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::Begin(singleCmdBuffer);
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = oldLayout;
+        barrier.newLayout = newLayout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = m_Image;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+
+        VkPipelineStageFlags sourceStage;
+        VkPipelineStageFlags destinationStage;
+        bool supported = false;
+        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+        {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            supported = true;
+        }
+        ASSERT(supported, "Unsupported layout transition");
+
+        vkCmdPipelineBarrier(singleCmdBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+        CommandBuffer::End(singleCmdBuffer);
+        CommandBuffer::Submit(singleCmdBuffer);
+        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
+    }
+
     void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height)
     {
         VkCommandBuffer singleCmdBuffer;
@@ -119,37 +215,73 @@ namespace Anor
         CommandBuffer::Begin(singleCmdBuffer);
 
         VkBufferImageCopy region{};
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
+        std::vector<VkBufferImageCopy> bufferCopyRegions;
 
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
+        if (m_IsCubemap)
+        {
+            for (uint32_t i = 0; i < 6; i++)
+            {
+                for (uint32_t mipLevel = 0; mipLevel < 1; mipLevel++)
+                {
 
-        region.imageOffset = { 0, 0, 0 };
-        region.imageExtent = {
-            width,
-            height,
-            1
-        };
+                    VkBufferImageCopy region{};
+                    region.bufferOffset = m_LayerSize * i;
+                    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                    region.imageSubresource.mipLevel = mipLevel;
+                    region.imageSubresource.baseArrayLayer = i;
+                    region.imageSubresource.layerCount = 1;
+                    region.imageExtent.width = width >> mipLevel;
+                    region.imageExtent.height = height >> mipLevel;
+                    region.imageExtent.depth = 1;
 
-        vkCmdCopyBufferToImage(
-            singleCmdBuffer,
-            buffer,
-            m_Image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &region
-        );
+                    bufferCopyRegions.push_back(region);
+                }
+            }
+        }
+        else
+        {
+            region.bufferOffset = 0;
+            region.bufferRowLength = 0;
+            region.bufferImageHeight = 0;
+
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.mipLevel = 0;
+            region.imageSubresource.baseArrayLayer = 0;
+            region.imageSubresource.layerCount = 1;
+
+            region.imageOffset = { 0, 0, 0 };
+            region.imageExtent = { width, height, 1 };
+        }
+        
+        if (m_IsCubemap)
+        {
+            vkCmdCopyBufferToImage(singleCmdBuffer, buffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
+        }
+        else
+        {
+            vkCmdCopyBufferToImage( singleCmdBuffer, buffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        }
+
         CommandBuffer::End(singleCmdBuffer);
         CommandBuffer::Submit(singleCmdBuffer);
         CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
     }
 
-    void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat)
+    void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType)
     {
+        VkImageCreateFlags flags = 0;
+        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+        uint32_t arrayLayers = 1;
+        uint32_t layerCount = 1;
+
+        if (m_IsCubemap)
+        {
+            layerCount = 6;
+            arrayLayers = 6;
+            viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+            flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+        }
+
         // VK Image creation.
         VkImageCreateInfo imageCreateInfo{};
         imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -158,14 +290,14 @@ namespace Anor
         imageCreateInfo.extent.height = height;
         imageCreateInfo.extent.depth = 1;
         imageCreateInfo.mipLevels = 1;
-        imageCreateInfo.arrayLayers = 1;
+        imageCreateInfo.arrayLayers = arrayLayers;
         imageCreateInfo.format = imageFormat;
         imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageCreateInfo.usage = imageType == ImageType::COLOR ? (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) : (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageCreateInfo.flags = 0; // Optional
+        imageCreateInfo.flags = flags;
 
         ASSERT(vkCreateImage(VulkanApplication::s_Device->GetVKDevice(), &imageCreateInfo, nullptr, &m_Image) == VK_SUCCESS, "Failed to create image!");
 
@@ -184,13 +316,14 @@ namespace Anor
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = m_Image;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+        viewInfo.viewType = viewType;
         viewInfo.format = imageFormat;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.aspectMask = imageType == ImageType::COLOR ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT; // This part also changes when shadowmapping.
         viewInfo.subresourceRange.baseMipLevel = 0;
         viewInfo.subresourceRange.levelCount = 1;
         viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
+        viewInfo.subresourceRange.layerCount = layerCount;
 
         ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS, "Failed to create texture image view!");
     }

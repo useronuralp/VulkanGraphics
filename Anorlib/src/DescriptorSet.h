@@ -5,12 +5,12 @@
 namespace Anor
 {
 
-	enum class ShaderBindingType
+	enum class Type
 	{
 		TEXTURE_SAMPLER,
 		UNIFORM_BUFFER,
 	};
-	enum class UniformUsageType
+	enum class Size
 	{
 		MVP_UNIFORM_BUFFER,
 		DIFFUSE_SAMPLER,
@@ -20,6 +20,8 @@ namespace Anor
 		METALLIC_SAMPLER,
 		ROUGHNESS_METALLIC_SAMPLER,
 		AMBIENT_OCCLUSION_SAMPLER,
+		SHADOWMAP_SAMPLER,
+		CUBEMAP_SAMPLER,
 		MAT4,
 		VEC3,
 	};
@@ -28,26 +30,26 @@ namespace Anor
 		FRAGMENT,
 		VERTEX
 	};
-	struct ShaderBindingSpecs
+	struct DescriptorLayout
 	{
-		ShaderBindingType Type;
-		UniformUsageType  UniformUsage;
-		ShaderStage		  Shaderstage;
+		Type		Type;
+		Size		Size;
+		ShaderStage ShaderStage;
 	};
 	class Pipeline;
 	class DescriptorSet
 	{
 	public:
-		DescriptorSet(const std::vector<ShaderBindingSpecs>& shaderBindings);
+		DescriptorSet(const std::vector<DescriptorLayout>& layout);
 		~DescriptorSet();
 		const VkDescriptorSet& GetVKDescriptorSet() { return m_DescriptorSet; }
 		const VkDescriptorSetLayout& GetVKDescriptorSetLayout() { return m_DescriptorSetLayout; }
-		const std::vector<ShaderBindingSpecs>& GetShaderLayout() { return m_ShaderLayout; }
+		const std::vector<DescriptorLayout>& GetShaderLayout() { return m_ShaderLayout; }
 	private:
 		VkDescriptorSet					 m_DescriptorSet = VK_NULL_HANDLE;
 		VkDescriptorPool				 m_DescriptorPool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout			 m_DescriptorSetLayout = VK_NULL_HANDLE;
-		std::vector<ShaderBindingSpecs>  m_ShaderLayout;
+		std::vector<DescriptorLayout>  m_ShaderLayout;
 	};
 
 	static VkShaderStageFlags FromShaderStageToDescriptorType(ShaderStage stage)

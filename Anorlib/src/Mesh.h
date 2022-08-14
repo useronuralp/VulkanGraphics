@@ -7,39 +7,59 @@
 #include <glm/glm.hpp>
 #include <glm/matrix.hpp>
 #include <map>
+#include "Pipeline.h"
 namespace Anor
 {
-	static size_t FromUsageTypeToSize(UniformUsageType type)
+	static size_t FromUsageTypeToSize(Size type)
 	{
 		switch (type)
 		{
-			case UniformUsageType::MAT4: return sizeof(glm::mat4);
-			case UniformUsageType::VEC3: return sizeof(glm::vec3);
+			case Size::MAT4: return sizeof(glm::mat4);
+			case Size::VEC3: return sizeof(glm::vec3);
 		}
 	}
+
+	struct Configuration
+	{
+		std::string						  ConfigurationName;
+		Ref<Pipeline>					  Pipeline;
+		Ref<DescriptorSet>				  DescriptorSet;
+		std::map<int, Ref<UniformBuffer>> UniformBuffers;
+		std::vector<VkSampler>		      ImageSamplers;
+	};
+
 	class DescriptorSet;
-	class Pipeline;
 	class Texture;
+	class RenderPass;
+	class CubemapTexture;
 	class Mesh
 	{
 	public:
 		void DrawIndexed(const VkCommandBuffer& cmdBuffer);
 		void Draw(const VkCommandBuffer& cmdBuffer);
-		Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture,
-			const Ref<Texture>& roughnessMetallicTexture,const Ref<DescriptorSet>& dscSet, const std::string& vertPath, const std::string& fragPath);
-		Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture,
-			const Ref<Texture>& roughnessTexture, const Ref<Texture>& metallicTexture, const Ref<Texture>& AOTexture, const Ref<DescriptorSet>& dscSet, const std::string& vertPath, const std::string& fragPath);
-		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<DescriptorSet>& dscSet, const std::string& vertPath, const std::string& fragPath);
+
+		Mesh() = default;
+		Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture, const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap = nullptr);
+		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex);
+		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices, const Ref<Texture>& texture);
 		~Mesh();
+
 		Ref<VertexBuffer> GetVBO() { return m_VBO; }
-		Ref<IndexBuffer> GetIBO() { return m_IBO; }
-		const std::vector<uint32_t>& GetIndices() { return m_Indices; }
-		const std::vector<Vertex>& GetVertices() { return m_Vertices; }
-		Ref<DescriptorSet> GetDescriptorSet() { return m_DescriptorSet; }
-		Ref<Pipeline> GetPipeline() { return m_Pipeline; }
+		Ref<IndexBuffer>  GetIBO() { return m_IBO; }
+
+		const std::vector<uint32_t>& GetIndices()  { return m_Indices;  }
+		const std::vector<Vertex>&	 GetVertices() { return m_Vertices; }
+
+
+		void AddConfiguration(const char* configName, Pipeline::Specs pipelineCI, std::vector<DescriptorLayout> descriptorLayout);
+		void SetActiveConfiguration(const char* configName);
+		void SetShadowMap(const Ref<Texture>& shadowMap) { m_ShadowMap = shadowMap; }
+
 		void UpdateUniformBuffer(uint32_t bufferIndex, void* dataToCopy, size_t dataSize);
 		void OnResize();
+
 		glm::mat4 GetModelMatrix() { return m_ModelMatrix; }
+
 
 		void Rotate(const float& degree, const float& x, const float& y, const float& z);
 		void Translate(const float& x, const float& y, const float& z);
@@ -47,20 +67,27 @@ namespace Anor
 	private:
 		const VkDeviceMemory& FindBufferMemory(uint32_t bufferIndex);
 	private:
-		std::vector<Vertex>       m_Vertices;
-		std::vector<uint32_t>	  m_Indices;
+
+		Configuration						m_ActiveConfiguration;
+		std::vector<Configuration>			m_Configurations;
+
+		// Vertex data.
+		std::vector<Vertex>					m_Vertices;
+		std::vector<uint32_t>				m_Indices;
+		uint32_t							m_VertexCount;
+
+		// Vertex & Index Buffers
+		Ref<VertexBuffer>					m_VBO = nullptr;
+		Ref<IndexBuffer>					m_IBO = nullptr;
+
+		// PBR textures.
+		Ref<Texture>	m_Albedo			= nullptr;
+		Ref<Texture>	m_Normals			= nullptr;
+		Ref<Texture>	m_RoughnessMetallic = nullptr;
+		Ref<Texture>	m_ShadowMap			= nullptr;
 
 
-		uint32_t			m_VertexCount;
-		Ref<VertexBuffer>	m_VBO;
-		Ref<IndexBuffer>	m_IBO;
-
-		// Uniform Buffers.
-		std::map<int, Ref<UniformBuffer>>	m_UniformBuffers;
-		std::map<int, VkSampler>			m_ImageSamplers;
-
-		glm::mat4 m_ModelMatrix; 
-		Ref<DescriptorSet>  m_DescriptorSet;
-		Ref<Pipeline> m_Pipeline;
+		Ref<CubemapTexture>		  m_CubemapTexture = nullptr;
+		glm::mat4				  m_ModelMatrix = glm::mat4(1.0f);
 	};
 }

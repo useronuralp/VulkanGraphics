@@ -8,7 +8,6 @@ namespace Anor
 	Camera::Camera(float fov, float aspectRatio, float nearClip, float farClip)
 		:m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip)
 	{
-
 		UpdateView();
 		UpdateProjection();
 	}
@@ -31,26 +30,6 @@ namespace Anor
 			OnMouseScroll(x, y);
 		}
 		UpdateView();
-	}
-
-	glm::vec3 Camera::GetUpDirection() const
-	{
-		return glm::rotate(GetOrientation(), glm::vec3(0.0f, 1.0f, 0.0f));
-	}
-
-	glm::vec3 Camera::GetRightDirection() const
-	{
-		return glm::rotate(GetOrientation(), glm::vec3(1.0f, 0.0f, 0.0f));
-	}
-
-	glm::vec3 Camera::GetForwardDirection() const
-	{
-		return glm::rotate(GetOrientation(), glm::vec3(0.0f, 0.0f, 1.0f));
-	}
-
-	glm::quat Camera::GetOrientation() const
-	{
-		return glm::quat(glm::vec3(-m_Pitch, -m_Yaw, 0.0f));
 	}
 
 	void Camera::UpdateProjection()
@@ -132,9 +111,23 @@ namespace Anor
 		return speed;
 	}
 
+
+	void Camera::OnMouseScroll(float X, float Y)
+	{
+		float delta = Y * 0.05f;
+		MouseZoom(delta);
+		UpdateView();
+	}
+
 	bool Camera::IsKeyDown(int keyCode)
 	{
 		return glfwGetKey(VulkanApplication::s_Window->GetNativeWindow(), keyCode); //GLFW_RELEASE equals to 0 thats why this works.
+	}
+
+
+	bool Camera::IsMouseButtonDown(int keyCode)
+	{
+		return glfwGetMouseButton(VulkanApplication::s_Window->GetNativeWindow(), keyCode);
 	}
 
 	double Camera::GetMouseXOffset()
@@ -150,17 +143,24 @@ namespace Anor
 		glfwGetCursorPos(VulkanApplication::s_Window->GetNativeWindow(), &xpos, &ypos);
 		return ypos;
 	}
-
-	bool Camera::IsMouseButtonDown(int keyCode)
+	glm::vec3 Camera::GetUpDirection() const
 	{
-		return glfwGetMouseButton(VulkanApplication::s_Window->GetNativeWindow(), keyCode);
+		return glm::rotate(GetOrientation(), glm::vec3(0.0f, 1.0f, 0.0f));
 	}
 
-	void Camera::OnMouseScroll(float X, float Y)
+	glm::vec3 Camera::GetRightDirection() const
 	{
-		float delta = Y * 0.05f;
-		MouseZoom(delta);
-		UpdateView();
+		return glm::rotate(GetOrientation(), glm::vec3(1.0f, 0.0f, 0.0f));
+	}
+
+	glm::vec3 Camera::GetForwardDirection() const
+	{
+		return glm::rotate(GetOrientation(), glm::vec3(0.0f, 0.0f, 1.0f));
+	}
+
+	glm::quat Camera::GetOrientation() const
+	{
+		return glm::quat(glm::vec3(-m_Pitch, -m_Yaw, 0.0f));
 	}
 }
 

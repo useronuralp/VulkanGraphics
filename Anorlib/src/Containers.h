@@ -18,6 +18,7 @@ namespace Anor
 		static VkVertexInputBindingDescription getBindingDescription();
 		static std::array<VkVertexInputAttributeDescription, 5> getAttributeDescriptions();
 
+
 		bool operator==(const Vertex& other) const
 		{
 			return pos == other.pos && normal == other.normal && texCoord == other.texCoord && tangent == other.tangent && bitangent == other.bitangent;

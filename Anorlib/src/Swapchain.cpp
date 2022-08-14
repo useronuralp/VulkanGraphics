@@ -10,14 +10,15 @@
 #include "Window.h" 
 namespace Anor
 {
-	Swapchain::Swapchain(VkFormat depthFormat)
-        :m_DepthBufferFormat(depthFormat)
+	Swapchain::Swapchain(const Ref<RenderPass>& renderPass)
+        :m_RenderPass(renderPass)
 	{
         Init();
 	}
     
     void Swapchain::Init()
     {
+        m_DepthBufferFormat = FindDepthFormat();
         // Find a suitable present mode.
         uint32_t presentModeCount;
         vkGetPhysicalDeviceSurfacePresentModesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), VulkanApplication::s_Surface->GetVKSurface(), &presentModeCount, nullptr);
@@ -168,7 +169,7 @@ namespace Anor
                 m_ImageViews[i],
                 m_DepthImageView
             };
-            m_Framebuffers[i] = std::make_shared<Framebuffer>(VulkanApplication::s_Device, VulkanApplication::s_ModelRenderPass, VulkanApplication::s_Surface, attachments);
+            m_Framebuffers[i] = std::make_shared<Framebuffer>(m_RenderPass, attachments);
         }
     }
     void Swapchain::CleanupSwapchain()

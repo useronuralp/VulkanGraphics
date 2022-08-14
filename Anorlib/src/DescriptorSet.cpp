@@ -8,38 +8,37 @@
 */
 namespace Anor
 {
-	DescriptorSet::DescriptorSet(const std::vector<ShaderBindingSpecs>& shaderBindings) // Descriptors are "pointers" to a resource. Programmer defines these resources.
-		:m_ShaderLayout(shaderBindings)
+	DescriptorSet::DescriptorSet(const std::vector<DescriptorLayout>& layout) // Descriptors are "pointers" to a resource. Programmer defines these resources.
+		:m_ShaderLayout(layout)
 	{
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
-		bindings.resize(shaderBindings.size());
+		bindings.resize(layout.size());
 		std::vector<VkDescriptorPoolSize> poolSizes;
-		poolSizes.resize(shaderBindings.size());
+		poolSizes.resize(layout.size());
 		
 		uint32_t bindingIndex = 0;
-		for (const auto& bindingSpecs : shaderBindings)
+		for (const auto& bindingSpecs : layout)
 		{
-			// We only need the type of the binding here in this loop. Rest of the member variables are not used here.
 			switch (bindingSpecs.Type)
 			{
-				case ShaderBindingType::UNIFORM_BUFFER:
+				case Type::UNIFORM_BUFFER:
 					// For the Uniform Buffer object.
 					bindings[bindingIndex].binding = bindingIndex; // binding number used in the shader.
 					bindings[bindingIndex].descriptorCount = 1;
 					bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-					bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.Shaderstage);
+					bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.ShaderStage);
 					bindings[bindingIndex].pImmutableSamplers = nullptr;
 
 					poolSizes[bindingIndex].descriptorCount = 1;
 					poolSizes[bindingIndex].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 					break;
-				case ShaderBindingType::TEXTURE_SAMPLER:
+				case Type::TEXTURE_SAMPLER:
 					// For the texture sampler in the fragment shader 
 					bindings[bindingIndex].binding = bindingIndex;
 					bindings[bindingIndex].descriptorCount = 1;
 					bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 					bindings[bindingIndex].pImmutableSamplers = nullptr;
-					bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.Shaderstage);
+					bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.ShaderStage);
 		
 					poolSizes[bindingIndex].descriptorCount = 1;
 					poolSizes[bindingIndex].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -55,7 +54,6 @@ namespace Anor
 		layoutInfo.pBindings = bindings.data();
 
 		ASSERT(vkCreateDescriptorSetLayout(VulkanApplication::s_Device->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS, "Failed to create descriptor set layout!");
-
 
 		VkDescriptorPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;

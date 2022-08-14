@@ -9,8 +9,9 @@ namespace Anor
 	public:
 		Surface();
 		~Surface();
-		const VkSurfaceKHR&				 GetVKSurface()				{ return m_Surface;		  }
+	public:
 		VkExtent2D						 GetVKExtent();
+		const VkSurfaceKHR&				 GetVKSurface()				{ return m_Surface;		  }
 		const VkSurfaceFormatKHR&		 GetVKSurfaceFormat()		{ return m_SurfaceFormat; }
 		const VkSurfaceCapabilitiesKHR&  GetVKSurfaceCapabilities() { return m_Capabilities;  }
 	private:

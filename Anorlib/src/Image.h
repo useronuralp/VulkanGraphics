@@ -2,13 +2,19 @@
 #include "vulkan/vulkan.h"
 #include "core.h"
 #include <string>
+#include <vector>
 namespace Anor
 {
+	enum class ImageType
+	{
+		COLOR,
+		DEPTH
+	};
 	class Image
 	{
 	public:
-		Image(const char* imagePathToLoad, VkFormat imageFormat);
-		Image(uint32_t width, uint32_t height, VkFormat imageFormat);
+		Image(std::vector<std::string> textures, VkFormat imageFormat);
+		Image(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType = ImageType::COLOR);
 
 		const VkImage&			GetVKImage()		{ return m_Image; }
 		const VkDeviceMemory&	GetVKImageMemory()	{ return m_ImageMemory; }
@@ -21,15 +27,21 @@ namespace Anor
 		const std::string&	GetPath()		{ return m_Path; }
 	private:
 		void TransitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+		void TransitionDepthLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 		void CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height);
-		void SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat);
+		void SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType = ImageType::COLOR);
 	private:
 		VkImage			m_Image			= VK_NULL_HANDLE;
 		VkDeviceMemory	m_ImageMemory	= VK_NULL_HANDLE;
 		VkImageView		m_ImageView		= VK_NULL_HANDLE;
 
+		bool			m_IsCubemap = false;
+
 		VkDeviceSize m_ImageSize;
+		VkDeviceSize m_LayerSize;
 		std::string m_Path;
+		std::vector<std::string> m_CubemapTexPaths;
+
 		uint32_t m_Height;
 		uint32_t m_Width;
 		uint32_t m_ChannelCount;

@@ -10,10 +10,10 @@
 #include <iostream>
 namespace Anor
 {
-    Pipeline::Pipeline(const Ref<DescriptorSet>& dscSet, const std::string& vertPath, const std::string& fragPath)
-        : m_DescriptorSet(dscSet), m_VertPath(vertPath), m_FragPath(fragPath)
+    Pipeline::Pipeline(const Specs& CI)
+        : m_CI(CI), m_DescriptorSetLayout(CI.DescriptorSetLayout)
 	{
-        Init(m_DescriptorSet);
+        Init();
 	}
     Pipeline::~Pipeline()
     {
@@ -22,24 +22,25 @@ namespace Anor
     void Pipeline::OnResize()
     {
         Cleanup();
-        Init(m_DescriptorSet); //Re initializes the pipeline with correct framebuffer dimensions.
+        Init(); //Re initializes the pipeline with correct framebuffer dimensions.
     }
     void Pipeline::Cleanup()
     {
         vkDestroyPipelineLayout(VulkanApplication::s_Device->GetVKDevice(), m_PipelineLayout, nullptr);
         vkDestroyPipeline(VulkanApplication::s_Device->GetVKDevice(), m_Pipeline, nullptr);
     }
-    void Pipeline::Init(const Ref<DescriptorSet>& dscSet)
+    void Pipeline::Init()
     {
         m_DynamicStates =
         {
             VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_LINE_WIDTH
+            VK_DYNAMIC_STATE_LINE_WIDTH,
+            VK_DYNAMIC_STATE_SCISSOR
         };
 
         // Read shaders from file.
-        auto vertShaderCode = Utils::ReadFile(m_VertPath);
-        auto fragShaderCode = Utils::ReadFile(m_FragPath);
+        auto vertShaderCode = Utils::ReadFile(m_CI.VertexShaderPath);
+        auto fragShaderCode = Utils::ReadFile(m_CI.FragmentShaderPath);
 
 
         VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
@@ -83,18 +84,31 @@ namespace Anor
 
         // Viewport specifies the dimensions of the framebuffer that we want to draw to. This usually spans the entirety of a framebuffer.
         VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = (float)VulkanApplication::s_Surface->GetVKExtent().height;
-        viewport.width = (float)VulkanApplication::s_Surface->GetVKExtent().width;
-        viewport.height = -(float)VulkanApplication::s_Surface->GetVKExtent().height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        if (m_CI.ViewportWidth == UINT32_MAX && m_CI.ViewportHeight == UINT32_MAX)
+        {
+            viewport.x = 0.0f;
+            viewport.y = (float)VulkanApplication::s_Surface->GetVKExtent().height;
+            viewport.width = (float)VulkanApplication::s_Surface->GetVKExtent().width;
+            viewport.height = -(float)VulkanApplication::s_Surface->GetVKExtent().height;
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+        }
+        else
+        {
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = (float)m_CI.ViewportWidth;
+            viewport.height = (float)m_CI.ViewportHeight;
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+        }
 
         // Any pixel outside of the scissor boundaries gets discarded. Scissors act rather as filters and required to be specified.
         // If you do not want any kind of discarding due to scissors, make its extent the same as the framebuffer / swap chain images.
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
-        scissor.extent = VulkanApplication::s_Surface->GetVKExtent();
+        scissor.extent.width = m_CI.ViewportWidth == UINT32_MAX ? VulkanApplication::s_Surface->GetVKExtent().width : m_CI.ViewportWidth ;
+        scissor.extent.height = m_CI.ViewportHeight == UINT32_MAX ? VulkanApplication::s_Surface->GetVKExtent().height : m_CI.ViewportHeight;
 
         // The above two states "VkRect2D" and "VkViewport" need to be combined into a single struct called "VkPipelineViewportStateCreateInfo". That is 
         // exactly what we are doing here.
@@ -111,14 +125,14 @@ namespace Anor
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizer.depthClampEnable = VK_FALSE;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
-        rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+        rasterizer.polygonMode = m_CI.PolygonMode;
         rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = VK_CULL_MODE_NONE;
-        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer.depthBiasEnable = VK_FALSE;
-        rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-        rasterizer.depthBiasClamp = 0.0f; // Optional
-        rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
+        rasterizer.cullMode = m_CI.CullMode;
+        rasterizer.frontFace = m_CI.FrontFace;
+        rasterizer.depthBiasEnable = m_CI.EnableDepthBias;
+        rasterizer.depthBiasConstantFactor = m_CI.DepthBiasConstantFactor; // Optional
+        rasterizer.depthBiasClamp = m_CI.DepthBiasClamp; // Optional
+        rasterizer.depthBiasSlopeFactor = m_CI.DepthBiasSlopeFactor; // Optional
 
         // Multisampling configuration here.
         VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -130,13 +144,11 @@ namespace Anor
         multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
         multisampling.alphaToOneEnable = VK_FALSE; // Optional
 
-        VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo{}; // Empty for now.
-
         // Color blebding configuration. This blends the current color that the fragment shader returns with that is already present in the framebuffer with the 
         // parameters specified below. The below setting is usually what you need most of the time.
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = VK_TRUE;
+        colorBlendAttachment.blendEnable = m_CI.EnableBlending;
         colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
         colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
@@ -158,15 +170,15 @@ namespace Anor
         // Depth & Stencil testing configuration
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
         depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.depthTestEnable = VK_TRUE;
-        depthStencil.depthWriteEnable = VK_TRUE;
-        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthTestEnable = m_CI.EnableDepthTesting;
+        depthStencil.depthWriteEnable = m_CI.EnableDepthWriting;
+        depthStencil.depthCompareOp = m_CI.DepthCompareOp;
         depthStencil.depthBoundsTestEnable = VK_FALSE;
         depthStencil.minDepthBounds = 0.0f; // Optional
         depthStencil.maxDepthBounds = 1.0f; // Optional
         depthStencil.stencilTestEnable = VK_FALSE;
         depthStencil.front = {}; // Optional
-        depthStencil.back = {}; // Optional
+        depthStencil.back.compareOp = VK_COMPARE_OP_ALWAYS; // Optional
 
         // Dynamic states that can be changed during drawing time. The states that can be found in "dynamicStates" can be changed without recreateing the pipeline.
         // Viewport size (screen resizing) is a good example for this.
@@ -179,7 +191,7 @@ namespace Anor
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &m_DescriptorSet->GetVKDescriptorSetLayout();
+        pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
 
         //// TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         //VkPushConstantRange PC;
@@ -211,7 +223,7 @@ namespace Anor
 
         pipelineInfo.layout = m_PipelineLayout;
 
-        pipelineInfo.renderPass = VulkanApplication::s_ModelRenderPass->GetRenderPass();
+        pipelineInfo.renderPass = m_CI.RenderPass->GetRenderPass();
         pipelineInfo.subpass = 0;
 
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional

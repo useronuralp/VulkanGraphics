@@ -6,10 +6,11 @@
 namespace Anor 
 {
 	class Framebuffer;
+	class RenderPass;
 	class Swapchain
 	{
 	public:
-		Swapchain(VkFormat depthFormat);
+		Swapchain(const Ref<RenderPass>& renderPass);
 		~Swapchain();
 
 		const VkSwapchainKHR&		GetVKSwapchain()						{ return m_Swapchain;			 }
@@ -18,7 +19,7 @@ namespace Anor
 		uint32_t					GetActiveImageIndex()					{ return m_ActiveImageIndex;	 }
 		std::vector<VkImage>&		GetSwapchainImages()					{ return m_SwapchainImages;		 }
 		std::vector<VkImageView>&	GetSwapchainImageViews()				{ return m_ImageViews;			 }
-		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()						{ return m_Framebuffers; }
+		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()			{ return m_Framebuffers; }
 
 		void OnResize();
 	private:
@@ -33,6 +34,7 @@ namespace Anor
 
 		// Variables needed for images / framebuffers.
 		std::vector<Ref<Framebuffer>>	m_Framebuffers;
+		Ref<RenderPass>					m_RenderPass;
 		std::vector<VkImage>		    m_SwapchainImages;
 		std::vector<VkImageView>		m_ImageViews;
 

@@ -8,26 +8,47 @@ namespace Anor
 {
 	class Swapchain;
 	class DescriptorSet;
+	class RenderPass;
 	class Pipeline
 	{
 	public:
-		Pipeline(const Ref<DescriptorSet>& dscSet, const std::string& vertPath, const std::string& fragPath);
+		struct Specs
+		{
+			Ref<RenderPass>			RenderPass;
+			VkDescriptorSetLayout	DescriptorSetLayout; 
+			std::string				VertexShaderPath; 
+			std::string				FragmentShaderPath; 
+			VkPolygonMode			PolygonMode;
+			VkCullModeFlags			CullMode; 
+			VkFrontFace				FrontFace; 
+			VkBool32				EnableDepthBias;
+			float					DepthBiasConstantFactor;
+			float					DepthBiasClamp;
+			float					DepthBiasSlopeFactor;
+			VkBool32				EnableBlending;
+			VkBool32				EnableDepthTesting;
+			VkBool32				EnableDepthWriting;
+			VkCompareOp				DepthCompareOp;
+			uint32_t				ViewportWidth = UINT32_MAX;
+			uint32_t				ViewportHeight = UINT32_MAX;
+		};
+	public:
+		Pipeline(const Specs& CI);
 		~Pipeline();
 		void OnResize();
-		const VkPipeline& GetVKPipeline()						{ return m_Pipeline; }
-		const VkPipelineLayout& GetPipelineLayout()				{ return m_PipelineLayout; }
+		const VkPipeline&		GetVKPipeline()		{ return m_Pipeline;		}
+		const VkPipelineLayout& GetPipelineLayout()	{ return m_PipelineLayout;	}
 	private:
-		void Init(const Ref<DescriptorSet>& dscSet);
+		void Init();
 		void Cleanup();
 		VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode);
 	private:
 		VkPipeline					m_Pipeline;
 		VkPipelineLayout			m_PipelineLayout;
 		std::vector<VkDynamicState> m_DynamicStates;
+		VkDescriptorSetLayout		m_DescriptorSetLayout;
 
-		std::string m_VertPath;
-		std::string m_FragPath;
-
-		Ref<DescriptorSet>				m_DescriptorSet;
+		// Used to store the configuration of the pipeline. When screen is resized, these values are reused that is why we are storing them here.
+		Specs	m_CI;
 	};
 }

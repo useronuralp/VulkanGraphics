@@ -50,6 +50,7 @@ namespace Anor
             deviceFeatures
         };
 
+        // Create info for the device.
         VkDeviceCreateInfo CI {};
         CI.sType                    = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         CI.queueCreateInfoCount     = deviceQueueCreateInfos.size();
