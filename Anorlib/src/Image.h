@@ -35,6 +35,7 @@ namespace Anor
 		VkDeviceMemory	m_ImageMemory	= VK_NULL_HANDLE;
 		VkImageView		m_ImageView		= VK_NULL_HANDLE;
 
+		uint32_t		m_MipLevels = 1;
 		bool			m_IsCubemap = false;
 
 		VkDeviceSize m_ImageSize;

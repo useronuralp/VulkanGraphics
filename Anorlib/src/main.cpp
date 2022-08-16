@@ -14,7 +14,6 @@ public:
     Model* lightSphere;
     Mesh* skybox;
     Mesh* debugQuad;
-    Mesh* Platform;
     float timer = 0.0f;
     glm::vec3 pointLightPosition = glm::vec3(50.0f, 50.0f, 50.0f);
     glm::vec3 directionalLightPosition = glm::vec3(35.0f, 35.0f, 9.0f);
@@ -35,8 +34,7 @@ public:
 
     Ref<RenderPass> shadowMapPass;
     Ref<Framebuffer> shadowMapFramebuffer;
-    Pipeline::Specs SHADOWpipelineCIModel{};
-    Pipeline::Specs NORMALpipelineCIModel{};
+
 
     void SetupScenePassConfiguration(Model* model)
     {
@@ -367,10 +365,10 @@ private:
     {
         rendertime = GetRenderTime();
         float deltaTime = DeltaTime();
-        timer += 10.0f * deltaTime;
+        timer += 7.0f * deltaTime;
 
         // Animating the light
-        directionalLightPosition.x = std::cos(glm::radians(timer )) * 35.0f;
+        //directionalLightPosition.x = std::cos(glm::radians(timer )) * 35.0f;
         directionalLightPosition.z = std::sin(glm::radians(timer )) * 9.0f;
         lightView = glm::lookAt(directionalLightPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         depthMVP = lightProjectionMatrix * lightView * lightModel;

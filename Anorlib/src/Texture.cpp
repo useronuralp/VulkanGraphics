@@ -12,7 +12,7 @@ namespace Anor
 	{
         m_Image = std::make_shared<Image>(std::vector<std::string>{path}, imageFormat);
 	}
-    Texture::Texture(const Ref<Image> image) : m_Image(image)
+    Texture::Texture(const Ref<Image>& image) : m_Image(image)
     { 
 
     }

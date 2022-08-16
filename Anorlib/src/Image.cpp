@@ -56,6 +56,8 @@ namespace Anor
         m_ImageSize = imageSize;
         m_LayerSize = layerSize;
 
+        m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+
         SetupImage(m_Width, m_Height, imageFormat);
 
         // Prep the staging buffer.
