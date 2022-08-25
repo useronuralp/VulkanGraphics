@@ -1,5 +1,6 @@
 #version 450 core
 
+
 // INs
 layout(location = 0) in vec3 v_Pos;
 layout(location = 1) in vec2 v_UV;
@@ -110,63 +111,114 @@ float DirectionalShadowCalculation(vec4 fragPosLightSpace, vec3 fragPos, vec3 li
 	return shadow;
 }
 
-void main()
-{		
-    
-   vec3 albedo = pow(texture(u_DiffuseSampler, v_UV).rgb, vec3(2.2));
-   vec3 roughnessMetallicTex = texture(u_RoughnessMetallicSampler, v_UV).rgb;
-   float ao  = roughnessMetallicTex.r;
-   float roughness = roughnessMetallicTex.g;
-   float metallic = roughnessMetallicTex.b;
-   
-   vec3 lightPositions[4] = vec3[4](vec3(0.0, 50.0f, 1.0), vec3(0.0, 0.0f, 50.0), vec3(0.0, 0.0f, -50.0), vec3(0.0, -50.0f, 0.0));
-   vec3 lightColors[4] = vec3[4](vec3(1.0, 1.0, 1.0), vec3(1.0, 0.0f, 0.0), vec3(0.0, 1.0f, 0.0), vec3(0.0, 0.0f, 1.0));
-   //vec3 directionalLightPos = vec3(0.0f, 1.0f, 0.0f);
-   vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
-   
-   vec3 N = texture(u_NormalSampler, v_UV).rgb;
-   N = N * 2.0 - 1.0;
-   N = normalize(v_TBN * N);
-   
-   vec3 V = normalize(camPos.pos - v_Pos);
-   
+vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float shadow, vec3 albedo, vec3 roughnessMetallic, vec3 lightColor)
+{
+   float ao  = roughnessMetallic.r;
+   float roughness = roughnessMetallic.g;
+   float metallic = roughnessMetallic.b;
+
    vec3 F0 = vec3(0.04f); 
    F0 = mix(F0, albedo, metallic);
    
    // reflectance equation 
    vec3 Lo = vec3(0.0);
    
-       vec3 L = normalize(v_DirLightPos - v_Pos);
-       vec3 H = normalize(V + L);
+   vec3 L = normalize(dirLightPos - v_Pos);
+   vec3 H = normalize(viewDir + L);
    
-       float distance    = length(v_DirLightPos - v_Pos);
-       float attenuation = 1.0 / (distance * distance);
-       vec3 radiance     = lightColors[0] * 1.0;        
+   float distance    = length(dirLightPos - v_Pos);
+   float attenuation = 1.0 / (distance * distance);
+   vec3 radiance     = lightColor * 1.0;        
+   
+   // cook-torrance brdf
+   float NDF  = DistributionGGX(normal, H, roughness);        
+   float G    = GeometrySmith(normal, viewDir, L, roughness);      
+   vec3  F    = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       
+    
+   vec3  numerator    = NDF * G * F;
+   float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, L), 0.0) + 0.0001;
+   vec3  specular     = numerator / denominator;  
+   
+   vec3 kS = F;
+   vec3 kD = vec3(1.0) - kS;
+   kD *= 1.0 - metallic;	
        
-       // cook-torrance brdf
-       float NDF  = DistributionGGX(N, H, roughness);        
-       float G    = GeometrySmith(N, V, L, roughness);      
-       vec3  F    = fresnelSchlick(max(dot(H, V), 0.0), F0);       
-        
-       vec3  numerator    = NDF * G * F;
-       float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-       vec3  specular     = numerator / denominator;  
-   
-       vec3 kS = F;
-       vec3 kD = vec3(1.0) - kS;
-       kD *= 1.0 - metallic;	
-           
-       float NdotL = max(dot(N, L), 0.0);                
-       Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
-   
-   
-   float directionalShadow = DirectionalShadowCalculation(v_FragPosLightSpace, v_Pos, v_DirLightPos, N);
+   float NdotL = max(dot(normal, L), 0.0);                
+   Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
    vec3 ambient = vec3(0.001f) * vec3(albedo) * ao;
-   vec3 color = ambient + (Lo * (1.0 - directionalShadow));
+   vec3 color = ambient + (Lo * (1.0 - shadow));
    
    color = color / (color + vec3(1.0));
    color = pow(color, vec3(1.0/2.2));  
 
+   return color;
+}
+
+vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, vec3 roughnessMetallic, vec3 lightColor)
+{
+   float ao  = roughnessMetallic.r;
+   float roughness = roughnessMetallic.g;
+   float metallic = roughnessMetallic.b;
+
+   vec3 F0 = vec3(0.04f); 
+   F0 = mix(F0, albedo, metallic);
+   
+   // reflectance equation 
+   vec3 Lo = vec3(0.0);
+   
+   vec3 L = normalize(pointLightPos - v_Pos);
+   vec3 H = normalize(viewDir + L);
+   
+   float distance    = length(pointLightPos - v_Pos);
+   float attenuation = 1.0 / (distance * distance);
+   vec3 radiance     = lightColor * attenuation * 1.0;        
+   
+   // cook-torrance brdf
+   float NDF  = DistributionGGX(normal, H, roughness);        
+   float G    = GeometrySmith(normal, viewDir, L, roughness);      
+   vec3  F    = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       
+    
+   vec3  numerator    = NDF * G * F;
+   float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, L), 0.0) + 0.0001;
+   vec3  specular     = numerator / denominator;  
+   
+   vec3 kS = F;
+   vec3 kD = vec3(1.0) - kS;
+   kD *= 1.0 - metallic;	
+       
+   float NdotL = max(dot(normal, L), 0.0);                
+   Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
+
+   vec3 ambient = vec3(0.001f) * vec3(albedo) * ao;
+   vec3 color = ambient + Lo;
+   
+   color = color / (color + vec3(1.0));
+   color = pow(color, vec3(1.0/2.2));  
+
+   return color;
+}
+
+
+void main()
+{		
+   // -------Sample the PBR textures here--------- 
+   vec3 albedo = pow(texture(u_DiffuseSampler, v_UV).rgb, vec3(2.2));
+   vec3 roughnessMetallicTex = texture(u_RoughnessMetallicSampler, v_UV).rgb;
+   
+
+   // -------Sample the normals from the normal map---------
+   vec3 normal = texture(u_NormalSampler, v_UV).rgb;
+   normal = normal * 2.0 - 1.0;
+   normal = normalize(v_TBN * normal);
+   
+   vec3 viewDir = normalize(camPos.pos - v_Pos);
+
+   float directionalShadow = DirectionalShadowCalculation(v_FragPosLightSpace, v_Pos, v_DirLightPos, normal);
+   
+
+   vec3 color = vec3(0.0);
+   color += CalcDirectionalLight(normal, viewDir, v_DirLightPos, directionalShadow, albedo, roughnessMetallicTex, vec3(1.0));
+   color += CalcPointLight(normal, viewDir, pointLightPos.pos, albedo, roughnessMetallicTex, vec3(1.0, 0.0, 0.0));
    FragColor = vec4(color, 1.0);
 }  

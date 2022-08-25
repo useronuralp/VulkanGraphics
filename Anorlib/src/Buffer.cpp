@@ -33,7 +33,7 @@ namespace Anor
         // The following buffer is not visible to CPU.
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsQueueIndex);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsANDComputeQueueIndex);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -59,7 +59,7 @@ namespace Anor
         // The following buffer is not visible to CPU.
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsQueueIndex);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsANDComputeQueueIndex);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -87,7 +87,7 @@ namespace Anor
 
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsQueueIndex);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsANDComputeQueueIndex);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -123,5 +123,12 @@ namespace Anor
     {
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), m_Buffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory, nullptr);
+    }
+    void UniformBuffer::UpdateUniformBuffer(void* dataToCopy, size_t dataSize)
+    {
+        void* bufferHandle;
+        vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory, 0, dataSize, 0, &bufferHandle);
+        memcpy(bufferHandle, dataToCopy, dataSize);
+        vkUnmapMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory);
     }
 }

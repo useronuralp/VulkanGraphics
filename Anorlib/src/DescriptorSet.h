@@ -24,6 +24,7 @@ namespace Anor
 		CUBEMAP_SAMPLER,
 		MAT4,
 		VEC3,
+		VEC2
 	};
 	enum class ShaderStage
 	{

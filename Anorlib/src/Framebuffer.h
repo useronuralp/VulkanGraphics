@@ -5,12 +5,14 @@
 namespace Anor
 {
 	class LogicalDevice;
+	class Texture;
 	class RenderPass;
 	class Surface;
 	class Framebuffer
 	{
 	public:
-		Framebuffer(const Ref<RenderPass>& renderPass, std::vector<VkImageView> attachments, uint32_t width = UINT32_MAX, uint32_t height = UINT32_MAX);
+		Framebuffer(const Ref<RenderPass>& renderPass, std::vector<VkImageView> attachments);
+		Framebuffer(const Ref<RenderPass>& renderPass, const Ref<Texture>& texture);
 		~Framebuffer();
 		uint32_t GetWidth() { return m_Width; }
 		uint32_t GetHeight() { return m_Height; }

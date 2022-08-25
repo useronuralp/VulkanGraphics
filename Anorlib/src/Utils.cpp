@@ -20,14 +20,16 @@ namespace Anor
     {
         // ate : Start reading at the end of the file
         // binary: read the file as binary, don't do char conversion.
-        std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+        
+        std::string path = std::string(SOLUTION_DIR) + "Anorlib\\" + filePath;
+        std::ifstream file(path, std::ios::ate | std::ios::binary);
 
         //std::cout << std::filesystem::current_path() << std::endl;
 
         if (!file.is_open())
         {
             std::cerr << "Error:" << errno << std::endl;
-            throw std::runtime_error("Failed to open file!");
+            //throw std::runtime_error("Failed to open file!");
         }
         // tellg(): tellg() gives you the current position of the reader head. In this case we opened the file by starting to read if from the end so it gives us the size.
         size_t fileSize = (size_t)file.tellg();

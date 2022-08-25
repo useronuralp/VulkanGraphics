@@ -62,8 +62,8 @@ namespace Anor
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-        auto bindingDescription = Vertex::getBindingDescription();
-        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+        //VkVertexInputBindingDescription bindingDescription = m_CI.VertexBindingDesc;
+        //VkVertexInputAttributeDescription* attributeDescriptions = m_CI.pVertexAttributeDescriptons;
 
         // This "VkPipelineVertexInputStateCreateInfo" strcut specifies the format of the data that you are going to pass to the vertex shader.
         // Bindings: Spacing between data and whether the data is per-vertex or per-instance.
@@ -71,15 +71,15 @@ namespace Anor
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+        vertexInputInfo.pVertexBindingDescriptions = &m_CI.VertexBindingDesc;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(m_CI.pVertexAttributeDescriptons.size());
+        vertexInputInfo.pVertexAttributeDescriptions = m_CI.pVertexAttributeDescriptons.data();
 
         // This struct assembels the points and forms whatever primitive you want to form. These primitives are usually: triangles, lines and points.
         // We are interested in drawing trianlgles in our case.
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        inputAssembly.topology = m_CI.PrimitiveTopology;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
         // Viewport specifies the dimensions of the framebuffer that we want to draw to. This usually spans the entirety of a framebuffer.
@@ -146,22 +146,22 @@ namespace Anor
 
         // Color blebding configuration. This blends the current color that the fragment shader returns with that is already present in the framebuffer with the 
         // parameters specified below. The below setting is usually what you need most of the time.
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = m_CI.EnableBlending;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+        //VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        //colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        //colorBlendAttachment.blendEnable = m_CI.EnableBlending;
+        //colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        //colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        //colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        //colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        //colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        //colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
         VkPipelineColorBlendStateCreateInfo colorBlending{};
         colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         colorBlending.logicOpEnable = VK_FALSE;
         colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
         colorBlending.attachmentCount = 1;
-        colorBlending.pAttachments = &colorBlendAttachment;
+        colorBlending.pAttachments = &m_CI.ColorBlendAttachmentState;
         colorBlending.blendConstants[0] = 0.0f; // Optional
         colorBlending.blendConstants[1] = 0.0f; // Optional
         colorBlending.blendConstants[2] = 0.0f; // Optional
@@ -205,11 +205,19 @@ namespace Anor
 
         ASSERT(vkCreatePipelineLayout(VulkanApplication::s_Device->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout");
 
+        //VkPipelineRenderingCreateInfoKHR pipeline_rendering_create_info{};
+        //pipeline_rendering_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+        //pipeline_rendering_create_info.colorAttachmentCount = 1;
+        //pipeline_rendering_create_info.pColorAttachmentFormats = &VulkanApplication::s_Surface->GetVKSurfaceFormat().format;
+        //pipeline_rendering_create_info.depthAttachmentFormat = VulkanApplication::s_Swapchain->GetDepthFormat();
+
         // This struct binds together all the other structs we have created so far in this function up above.
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount = 2;
         pipelineInfo.pStages = shaderStages;
+
+        pipelineInfo.pNext = nullptr;
 
         pipelineInfo.pVertexInputState = &vertexInputInfo;
         pipelineInfo.pInputAssemblyState = &inputAssembly;

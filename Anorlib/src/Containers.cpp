@@ -9,7 +9,7 @@ namespace Anor
 		bindingDescription.stride = sizeof(Vertex);
 		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		return bindingDescription;;
+		return bindingDescription;
 	}
     std::array<VkVertexInputAttributeDescription, 5> Vertex::getAttributeDescriptions()
 	{

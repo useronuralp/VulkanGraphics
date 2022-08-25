@@ -9,9 +9,9 @@ namespace Anor
 
 	struct Vertex
 	{
-		glm::vec3 pos; // 0
-		glm::vec2 texCoord; // 1
-		glm::vec3 normal; // 2  WARNING !! There is a possibility that Vulkan could read this data incorrectly because of the alignment rules. Check?
+		glm::vec3 pos;
+		glm::vec2 texCoord;
+		glm::vec3 normal;
 		glm::vec3 tangent;
 		glm::vec3 bitangent;
 

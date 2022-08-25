@@ -1,3 +1,5 @@
+..\vendor\VULKAN\1.3.211.0\bin\glslc.exe particle.frag -o particleFRAG.spv
+..\vendor\VULKAN\1.3.211.0\bin\glslc.exe particle.vert -o particleVERT.spv
 ..\vendor\VULKAN\1.3.211.0\bin\glslc.exe debugQuad.frag -o debugQuadFRAG.spv
 ..\vendor\VULKAN\1.3.211.0\bin\glslc.exe debugQuad.vert -o debugQuadVERT.spv
 ..\vendor\VULKAN\1.3.211.0\bin\glslc.exe shadowPass.frag -o shadowPassFRAG.spv

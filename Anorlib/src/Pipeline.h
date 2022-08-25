@@ -2,7 +2,7 @@
 #include "vulkan/vulkan.h"
 #include <vector>
 #include "glm/glm.hpp"
-#include <array>
+#include <vector>
 #include "core.h"
 namespace Anor
 {
@@ -14,23 +14,26 @@ namespace Anor
 	public:
 		struct Specs
 		{
-			Ref<RenderPass>			RenderPass;
-			VkDescriptorSetLayout	DescriptorSetLayout; 
-			std::string				VertexShaderPath; 
-			std::string				FragmentShaderPath; 
-			VkPolygonMode			PolygonMode;
-			VkCullModeFlags			CullMode; 
-			VkFrontFace				FrontFace; 
-			VkBool32				EnableDepthBias;
-			float					DepthBiasConstantFactor;
-			float					DepthBiasClamp;
-			float					DepthBiasSlopeFactor;
-			VkBool32				EnableBlending;
-			VkBool32				EnableDepthTesting;
-			VkBool32				EnableDepthWriting;
-			VkCompareOp				DepthCompareOp;
-			uint32_t				ViewportWidth = UINT32_MAX;
-			uint32_t				ViewportHeight = UINT32_MAX;
+			Ref<RenderPass>					    RenderPass;
+			VkDescriptorSetLayout			    DescriptorSetLayout; 
+			std::string						    VertexShaderPath; 
+			std::string						    FragmentShaderPath; 
+			VkPolygonMode					    PolygonMode;
+			VkCullModeFlags					    CullMode; 
+			VkFrontFace						    FrontFace; 
+			VkBool32						    EnableDepthBias;
+			float							    DepthBiasConstantFactor;
+			float							    DepthBiasClamp;
+			float							    DepthBiasSlopeFactor;
+			VkBool32						    EnableDepthTesting;
+			VkBool32						    EnableDepthWriting;
+			VkCompareOp						    DepthCompareOp;
+			uint32_t						    ViewportWidth  = UINT32_MAX;
+			uint32_t						    ViewportHeight = UINT32_MAX;
+			VkVertexInputBindingDescription     VertexBindingDesc;
+			VkPrimitiveTopology				    PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+			VkPipelineColorBlendAttachmentState ColorBlendAttachmentState;
+			std::vector<VkVertexInputAttributeDescription>  pVertexAttributeDescriptons;
 		};
 	public:
 		Pipeline(const Specs& CI);

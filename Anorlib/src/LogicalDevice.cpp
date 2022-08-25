@@ -17,14 +17,14 @@ namespace Anor
         const float* priorities     = { &graphicsQueuePriority };
         VkDeviceQueueCreateInfo QCI{};
         QCI.sType                   = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        QCI.queueFamilyIndex        = VulkanApplication::s_GraphicsQueueIndex;
+        QCI.queueFamilyIndex        = VulkanApplication::s_GraphicsANDComputeQueueIndex;
         QCI.queueCount              = 1;
         QCI.pQueuePriorities        = priorities;
 
         deviceQueueCreateInfos.push_back(QCI);
 
         // If the indices of graphics & present queues are not the same, we need to create a separate queue for present operations.
-        if (VulkanApplication::s_GraphicsQueueIndex != VulkanApplication::s_PresentQueueIndex)
+        if (VulkanApplication::s_GraphicsANDComputeQueueIndex != VulkanApplication::s_PresentQueueIndex)
         {
             // Create a present queue.
             float presentQueuePriority = 1.0f;
@@ -34,6 +34,8 @@ namespace Anor
             QCI.queueFamilyIndex       = VulkanApplication::s_PresentQueueIndex;
             QCI.queueCount             = 1;
             QCI.pQueuePriorities       = priorities;
+
+
 
             deviceQueueCreateInfos.push_back(QCI);
         }
@@ -50,14 +52,21 @@ namespace Anor
             deviceFeatures
         };
 
+        //VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{};
+        //dynamicRenderingFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+        //dynamicRenderingFeature.dynamicRendering = VK_TRUE;
+
         // Create info for the device.
         VkDeviceCreateInfo CI {};
         CI.sType                    = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         CI.queueCreateInfoCount     = deviceQueueCreateInfos.size();
         CI.pQueueCreateInfos        = deviceQueueCreateInfos.data();
         CI.pEnabledFeatures         = pDeviceFeatures;
+        //CI.pNext                    = &dynamicRenderingFeature;
         CI.enabledExtensionCount    = m_Extensions.size();
         CI.ppEnabledExtensionNames  = m_Extensions.data();
+
+
 
         if (m_Layers.size() == 0)
         {
@@ -72,17 +81,17 @@ namespace Anor
         ASSERT(vkCreateDevice(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS, "Failed to create logical device!");
 
         // Get a graphics queue from the device. We'll need this while using command buffers.
-        vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueIndex, 0, &m_GraphicsQueue);
+        vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsANDComputeQueueIndex, 0, &m_GraphicsQueue);
 
         // Index is Unique.
-        if (VulkanApplication::s_GraphicsQueueIndex != VulkanApplication::s_PresentQueueIndex)
+        if (VulkanApplication::s_GraphicsANDComputeQueueIndex != VulkanApplication::s_PresentQueueIndex)
         {
             vkGetDeviceQueue(m_Device, VulkanApplication::s_PresentQueueIndex, 0, &m_PresentQueue);
         }
         // Index is the same with the graphics queue.
         else
         {
-            vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueIndex, 0, &m_PresentQueue);
+            vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsANDComputeQueueIndex, 0, &m_PresentQueue);
         }
         std::cout << "Logical device has been created." << std::endl;
 	}

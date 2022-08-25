@@ -10,7 +10,7 @@ namespace Anor
 	class Swapchain
 	{
 	public:
-		Swapchain(const Ref<RenderPass>& renderPass);
+		Swapchain();
 		~Swapchain();
 
 		const VkSwapchainKHR&		GetVKSwapchain()						{ return m_Swapchain;			 }
@@ -18,8 +18,13 @@ namespace Anor
 		const VkPresentModeKHR&		GetPresentMode()						{ return m_PresentMode;			 }
 		uint32_t					GetActiveImageIndex()					{ return m_ActiveImageIndex;	 }
 		std::vector<VkImage>&		GetSwapchainImages()					{ return m_SwapchainImages;		 }
+		inline void					SetActiveImageIndex(uint32_t index)		{ m_ActiveImageIndex = index;	 }
 		std::vector<VkImageView>&	GetSwapchainImageViews()				{ return m_ImageViews;			 }
-		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()			{ return m_Framebuffers; }
+		Ref<RenderPass>				GetSwapchainRenderPass()				{ return m_RenderPass;			 }
+		VkImageView&				GetDepthImageView()							{ return m_DepthImageView;		 }
+		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()			{ return m_Framebuffers;		 }
+		VkFormat					GetDepthFormat()						{ return m_DepthBufferFormat; }
+		VkImage&					GetDepthImage()							{ return m_DepthImage; }
 
 		void OnResize();
 	private:
@@ -37,6 +42,7 @@ namespace Anor
 		Ref<RenderPass>					m_RenderPass;
 		std::vector<VkImage>		    m_SwapchainImages;
 		std::vector<VkImageView>		m_ImageViews;
+		VkFormat						m_ImageFormat;
 
 		uint32_t						m_ImageCount;
 

@@ -40,6 +40,10 @@ namespace Anor
         // Store the supported extenions in the member variable.
         ASSERT(vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, m_SupportedExtensions.data()) == VK_SUCCESS, "Failed to enumerate device extension properties.");
 
+        //for (const auto& str : m_SupportedExtensions)
+        //{
+        //    std::cout << str.extensionName << std::endl;
+        //}
         //std::cout << "Found a suitable GPU with Vulkan support --->  " << m_Properties.deviceName << std::endl;
     }
 

@@ -53,7 +53,7 @@ namespace Anor
 		}
 	}
 
-	Mesh::Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices, const Ref<Texture>& texture)
+	Mesh::Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices)
 	{
 		m_VBO = std::make_shared<VertexBuffer>(vertices, vertexBufferSize);
 		m_VertexCount = vertexCount;
@@ -62,8 +62,6 @@ namespace Anor
 		{
 			m_IBO = std::make_shared<IndexBuffer>(indices);
 		}
-		m_Albedo = texture;
-		m_ShadowMap = texture;
 	}
 	Mesh::~Mesh()
 	{
@@ -157,6 +155,7 @@ namespace Anor
 	void Mesh::Scale(const float& x, const float& y, const float& z)
 	{
 		m_ModelMatrix = glm::scale(m_ModelMatrix, glm::vec3(x, y, z));
+		UpdateUniformBuffer(0, &m_ModelMatrix, sizeof(m_ModelMatrix));
 	}
 	void Mesh::UpdateUniformBuffer(uint32_t bufferIndex, void* dataToCopy, size_t dataSize)
 	{

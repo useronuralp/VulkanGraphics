@@ -12,9 +12,9 @@ namespace Anor
 	{
         m_Image = std::make_shared<Image>(std::vector<std::string>{path}, imageFormat);
 	}
-    Texture::Texture(const Ref<Image>& image) : m_Image(image)
-    { 
-
+    Texture::Texture(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType)
+    {
+        m_Image = std::make_shared<Image>(width, height, imageFormat, imageType);
     }
 	VkSampler Texture::CreateSamplerFromThisTexture(const Ref<DescriptorSet>& dscSet, uint32_t bindingIndex, ImageType imageType)
 	{

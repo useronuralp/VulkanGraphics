@@ -55,7 +55,6 @@ namespace Anor
         devices = s_Instance->GetVKPhysicalDevices();
 
         // Find a suitable device here.
-        PhysicalDevice preferredGPU;
         bool found = false;
 
         std::cout << "Searching for a DISCREETE graphics card..." << std::endl;
@@ -90,13 +89,13 @@ namespace Anor
         s_Surface = std::make_shared<Surface>();
 
         // Here, fetch the first queue that supports graphics operations.
-        uint64_t index = s_PhysicalDevice->FindQueueFamily(VK_QUEUE_GRAPHICS_BIT);
-        s_GraphicsQueueIndex = index;
+        uint64_t index = s_PhysicalDevice->FindQueueFamily(VK_QUEUE_GRAPHICS_BIT || VK_QUEUE_COMPUTE_BIT);
+        s_GraphicsANDComputeQueueIndex = index;
 
         // Check whether the graphics queue we just got also supports present operations.
         if (s_PhysicalDevice->CheckPresentSupport(index, s_Surface->GetVKSurface()))
         {
-            s_PresentQueueIndex = s_GraphicsQueueIndex;
+            s_PresentQueueIndex = s_GraphicsANDComputeQueueIndex;
         }
         // If the graphics queue doesn't support present operations, we try to find another queue that supports it.
         else
@@ -116,86 +115,10 @@ namespace Anor
         // Logical Device creation.
         s_Device = std::make_shared<LogicalDevice>();
 
-        // Creating a custom render pass for drawing the models starts here.
-        std::vector<VkFormat> candidates =
-        {
-            VK_FORMAT_D32_SFLOAT,
-            VK_FORMAT_D32_SFLOAT_S8_UINT,
-            VK_FORMAT_D24_UNORM_S8_UINT
-        };
-
-        // Render pass creation. Entire Vulkan API is exposed here because we want this part to be customizable.
-
-        VkAttachmentDescription colorAttachmentDescription;
-        VkAttachmentReference colorAttachmentRef;
-        VkAttachmentDescription depthAttachmentDescription;
-        VkAttachmentReference depthAttachmentRef;
-
-        colorAttachmentDescription.format = VulkanApplication::s_Surface->GetVKSurfaceFormat().format;
-        colorAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachmentDescription.flags = 0;
-        colorAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-        colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        depthAttachmentDescription.format = FindSupportedFormat(s_PhysicalDevice, candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachmentDescription.flags = 0;
-        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-        VkSubpassDependency dependency{};
-        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.srcAccessMask = 0;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-        std::array<VkAttachmentDescription, 2> attachmentDescriptions;
-        attachmentDescriptions[0] = colorAttachmentDescription;
-        attachmentDescriptions[1] = depthAttachmentDescription;
-
-
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()); // Number of attachments.
-        renderPassInfo.pAttachments = attachmentDescriptions.data(); // An array with the size of "attachmentCount".
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = 1;
-        renderPassInfo.pDependencies = &dependency;
-
-        VkRenderPass swapchainRenderPass;
-
-        ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &swapchainRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
-
-        s_ModelRenderPass = std::make_shared<RenderPass>(swapchainRenderPass);
-
         // Swapchain creation.
-        m_Swapchain = std::make_shared<Swapchain> (s_ModelRenderPass);
+        s_Swapchain = std::make_shared<Swapchain>();
 
         s_Camera = std::make_shared<Camera>(45.0f, s_Surface->GetVKExtent().width / (float)s_Surface->GetVKExtent().height, 0.1f, 1500.0f);
-
 
         // A fence that is signalled when rendering is finished.
         VkFenceCreateInfo fenceCreateInfo = {};
@@ -213,24 +136,27 @@ namespace Anor
     // TO DO: Carry this part into a Renderer class.
     void VulkanApplication::Run()
     {
+        // Client OnStart() code is called here. This usually contains initializations and model loadings.
         OnStart();
-
 
         while (!glfwWindowShouldClose(s_Window->GetNativeWindow()))
         {
-            glfwPollEvents(); // Checks for events like button presses.
+            // Checks for events like button presses.
+            glfwPollEvents(); 
 
             // From here on, frame drawing happens. This part could and should be carried into a Renderer class.
             vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InRenderingFence, VK_TRUE, UINT64_MAX);
 
             // Check if window is resized. Break immidietly if that is the case.
             m_OutImageIndex = -1;
-            VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), m_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &m_OutImageIndex);
+            VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &m_OutImageIndex);
+            s_Swapchain->SetActiveImageIndex(m_OutImageIndex);
+
 
             if (rslt == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
             {
                 vkDeviceWaitIdle(s_Device->GetVKDevice());
-                m_Swapchain->OnResize();
+                s_Swapchain->OnResize();
                 OnWindowResize();
                 s_Window->OnResize();
                 s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
@@ -251,13 +177,13 @@ namespace Anor
             VkCommandPool   pool;
             VkCommandBuffer cmdBuffer;
 
-            CommandBuffer::Create(s_GraphicsQueueIndex, pool, cmdBuffer);
+            CommandBuffer::Create(s_GraphicsANDComputeQueueIndex, pool, cmdBuffer);
             CommandBuffer::Begin(cmdBuffer);
 
             m_ActiveCommandBuffer = cmdBuffer;
             m_ActiveCommandPool = pool;
 
-            // Client OnUpdate code is called here.
+            // Client OnUpdate code is called here. This function will usually contain draw calls & functions with "vkCmd" prefix.
             OnUpdate();
 
             CommandBuffer::End(m_ActiveCommandBuffer);
@@ -283,7 +209,7 @@ namespace Anor
             presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             presentInfo.waitSemaphoreCount  = 1;
             presentInfo.pWaitSemaphores     = signalSemaphores;
-            VkSwapchainKHR swapChains[]     = { m_Swapchain->GetVKSwapchain() };
+            VkSwapchainKHR swapChains[]     = { s_Swapchain->GetVKSwapchain() };
             presentInfo.swapchainCount      = 1;
             presentInfo.pSwapchains         = swapChains;
             presentInfo.pImageIndices       = &m_OutImageIndex;
@@ -295,7 +221,7 @@ namespace Anor
             if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR)
             {
                 vkDeviceWaitIdle(s_Device->GetVKDevice());
-                m_Swapchain->OnResize();
+                s_Swapchain->OnResize();
                 OnWindowResize();
                 s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
                 continue;
@@ -336,13 +262,17 @@ namespace Anor
     {
         return s_Camera->GetPosition();
     }
-    void VulkanApplication::BeginRenderPass(const Ref<RenderPass>& renderPass)
+    void VulkanApplication::BeginRenderPass()
     {
-        CommandBuffer::BeginRenderPass(m_ActiveCommandBuffer, renderPass, m_Swapchain->GetFramebuffers()[m_OutImageIndex]);
+        CommandBuffer::BeginRenderPass(m_ActiveCommandBuffer, s_Swapchain->GetSwapchainRenderPass(), s_Swapchain->GetFramebuffers()[m_OutImageIndex]);
     }
-    void VulkanApplication::BeginDepthPass(const Ref<RenderPass>& renderPass, Ref<Framebuffer> framebuffer)
+    void VulkanApplication::BeginRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderingInfoKHR& renderingInfo)
     {
-        CommandBuffer::BeginDepthPass(m_ActiveCommandBuffer, renderPass, framebuffer);
+        CommandBuffer::BeginRenderPass(cmdBuffer, renderingInfo);
+    }
+    void VulkanApplication::BeginCustomRenderPass(const VkRenderPassBeginInfo& renderPassBeginInfo)
+    {
+        CommandBuffer::BeginCustomRenderPass(m_ActiveCommandBuffer, renderPassBeginInfo);
     }
     void VulkanApplication::EndDepthPass()
     {
@@ -363,6 +293,10 @@ namespace Anor
     void VulkanApplication::EndRenderPass()
     {
         CommandBuffer::EndRenderPass(m_ActiveCommandBuffer);
+    }
+    void VulkanApplication::EndRendering()
+    {
+        CommandBuffer::EndRendering(m_ActiveCommandBuffer);
     }
     VkDevice VulkanApplication::GetVKDevice()
     {

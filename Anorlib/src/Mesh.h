@@ -16,6 +16,7 @@ namespace Anor
 		{
 			case Size::MAT4: return sizeof(glm::mat4);
 			case Size::VEC3: return sizeof(glm::vec3);
+			case Size::VEC2: return sizeof(glm::vec2);
 		}
 	}
 
@@ -41,7 +42,7 @@ namespace Anor
 		Mesh() = default;
 		Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture, const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap = nullptr);
 		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex);
-		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices, const Ref<Texture>& texture);
+		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices);
 		~Mesh();
 
 		Ref<VertexBuffer> GetVBO() { return m_VBO; }

@@ -62,25 +62,21 @@ namespace Anor
 
         vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     }
-    void CommandBuffer::BeginDepthPass(const VkCommandBuffer& cmdBuffer, const Ref<RenderPass>& renderPass, const Ref<Framebuffer>& framebuffer)
+    void CommandBuffer::BeginRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderingInfoKHR& renderingInfo)
     {
-        VkClearValue clearValue = { 1.0f, 0.0 };
-
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = renderPass->GetRenderPass();
-        renderPassInfo.framebuffer = framebuffer->GetVKFramebuffer();
-        renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent.width = framebuffer->GetWidth();
-        renderPassInfo.renderArea.extent.height = framebuffer->GetHeight();
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearValue;
-
-        vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        //vkCmdBeginRenderingKHR(cmdBuffer, &renderingInfo);
+    }
+    void CommandBuffer::BeginCustomRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo)
+    {
+        vkCmdBeginRenderPass(cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     }
     void CommandBuffer::EndRenderPass(const VkCommandBuffer& cmdBuffer)
     {
         vkCmdEndRenderPass(cmdBuffer);
+    }
+    void CommandBuffer::EndRendering(const VkCommandBuffer& cmdBuffer)
+    {
+        //vkCmdEndRenderingKHR(cmdBuffer);
     }
     void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline, const VkDeviceSize& offset)
     {

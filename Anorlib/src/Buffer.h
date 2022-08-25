@@ -44,6 +44,8 @@ namespace Anor
 		~UniformBuffer();
 		const VkBuffer&		  GetUniformBuffer() { return m_Buffer; }
 		const VkDeviceMemory& GetBufferMemory() { return m_BufferMemory; }
+		void UpdateUniformBuffer(void* dataToCopy, size_t dataSize);
+
 	private:
 		VkBuffer	   m_Buffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_BufferMemory = VK_NULL_HANDLE;
