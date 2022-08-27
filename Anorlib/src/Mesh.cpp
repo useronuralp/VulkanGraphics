@@ -12,11 +12,10 @@ namespace Anor
 	void Mesh::DrawIndexed(const VkCommandBuffer& cmdBuffer)
 	{
 		CommandBuffer::BindPipeline(cmdBuffer, m_ActiveConfiguration.Pipeline, 0);
-		// TO DO (Optimiziation): You should bind the a descriptor set only once for objects that use the same descriptor set. 
 		CommandBuffer::BindDescriptorSet(cmdBuffer, m_ActiveConfiguration.Pipeline->GetPipelineLayout(), m_ActiveConfiguration.DescriptorSet);
 		CommandBuffer::BindVertexBuffer(cmdBuffer, m_VBO->GetVKBuffer(), 0);
 		CommandBuffer::BindIndexBuffer(cmdBuffer, m_IBO->GetVKBuffer());
-		CommandBuffer::DrawIndexed(cmdBuffer, static_cast<uint32_t>(m_Indices.size()));
+		CommandBuffer::DrawIndexed(cmdBuffer, m_IndexCount);
 	}
 	void Mesh::Draw(const VkCommandBuffer& cmdBuffer)
 	{
@@ -25,17 +24,18 @@ namespace Anor
 		CommandBuffer::BindVertexBuffer(cmdBuffer, m_VBO->GetVKBuffer(), 0);
 		CommandBuffer::Draw(cmdBuffer, m_VertexCount);
 	}
-	Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture,
+	Mesh::Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture,
 		const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap)
-		:m_Vertices(vertices), m_Indices(indices), m_ModelMatrix(glm::mat4(1.0f)), m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture)
+		:m_ModelMatrix(glm::mat4(1.0f)), m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture)
 	{
 		// Vertex Buffer creation.
-		m_VBO = std::make_shared<VertexBuffer>(m_Vertices);
-		m_VertexCount = static_cast<uint32_t>(m_Vertices.size());
+		m_VBO = std::make_shared<VertexBuffer>(vertices);
+		m_VertexCount = static_cast<uint32_t>(vertices.size());
+		m_IndexCount = indices.size();
 		// Index Buffer creation. (If there is one passed.)
-		if (m_Indices.size() != 0)
+		if (indices.size() != 0)
 		{
-			m_IBO = std::make_shared<IndexBuffer>(m_Indices);
+			m_IBO = std::make_shared<IndexBuffer>(indices);
 		}
 		m_ShadowMap = shadowMap;
 	}
@@ -46,23 +46,19 @@ namespace Anor
 		// Vertex Buffer creation.
 		m_VBO = std::make_shared<VertexBuffer>(vertices, vertexBufferSize);
 		m_VertexCount = vertexCount;
-		// Index Buffer creation. (If there is one passed.)
-		if (m_Indices.size() != 0)
-		{
-			m_IBO = std::make_shared<IndexBuffer>(m_Indices);
-		}
 	}
 
 	Mesh::Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices)
 	{
 		m_VBO = std::make_shared<VertexBuffer>(vertices, vertexBufferSize);
 		m_VertexCount = vertexCount;
-		m_Indices = indices;
-		if (m_Indices.size() != 0)
+		m_IndexCount = indices.size();
+		if (indices.size() != 0)
 		{
 			m_IBO = std::make_shared<IndexBuffer>(indices);
 		}
 	}
+
 	Mesh::~Mesh()
 	{
 		for (const auto& config : m_Configurations)

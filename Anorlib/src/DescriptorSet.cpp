@@ -12,12 +12,12 @@ namespace Anor
 		:m_ShaderLayout(layout)
 	{
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
-		bindings.resize(layout.size());
+		bindings.resize(m_ShaderLayout.size());
 		std::vector<VkDescriptorPoolSize> poolSizes;
-		poolSizes.resize(layout.size());
+		poolSizes.resize(m_ShaderLayout.size());
 		
 		uint32_t bindingIndex = 0;
-		for (const auto& bindingSpecs : layout)
+		for (const auto& bindingSpecs : m_ShaderLayout)
 		{
 			switch (bindingSpecs.Type)
 			{

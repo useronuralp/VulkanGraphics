@@ -50,7 +50,7 @@ namespace Anor
 		VkDescriptorSet					 m_DescriptorSet = VK_NULL_HANDLE;
 		VkDescriptorPool				 m_DescriptorPool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout			 m_DescriptorSetLayout = VK_NULL_HANDLE;
-		std::vector<DescriptorLayout>  m_ShaderLayout;
+		std::vector<DescriptorLayout>    m_ShaderLayout;
 	};
 
 	static VkShaderStageFlags FromShaderStageToDescriptorType(ShaderStage stage)

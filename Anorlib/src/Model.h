@@ -8,6 +8,25 @@
 #include "Texture.h"
 namespace Anor
 {
+	enum LoadingFlags
+	{
+		LOAD_VERTICES  = (uint32_t(1) << 0),
+		LOAD_NORMALS   = (uint32_t(1) << 1),
+		LOAD_UV		   = (uint32_t(1) << 2),
+		LOAD_TANGENT   = (uint32_t(1) << 3),
+		LOAD_BITANGENT = (uint32_t(1) << 4),
+	};
+	
+
+	inline LoadingFlags operator|(LoadingFlags a, LoadingFlags b)
+	{
+		return static_cast<LoadingFlags>(static_cast<int>(a) | static_cast<int>(b));
+	}
+	inline LoadingFlags  operator&(LoadingFlags  a, LoadingFlags  b)
+	{
+		return static_cast<LoadingFlags>(static_cast<int>(a) & static_cast<int>(b));
+	}
+
 	class DescriptorSet;
 	class VertexBuffer;
 	class IndexBuffer;
@@ -19,13 +38,12 @@ namespace Anor
 	class Framebuffer;
 	class CommandBuffer;
 	enum class DescriptorPrimitive;
-	struct Vertex;
 	class Model
 	{
 	public:
 		std::vector<Ref<Mesh>>& GetMeshes() { return m_Meshes; }
 		Model() = default;
-		Model(const std::string& path);
+		Model(const std::string& path, LoadingFlags flags);
 		~Model() {};
 		void Draw(const VkCommandBuffer& cmdBuffer);
 		void DrawIndexed(const VkCommandBuffer& cmdBuffer);
@@ -55,7 +73,7 @@ namespace Anor
 		std::vector<Ref<Texture>> m_MetallicCache;
 		std::vector<Ref<Texture>> m_AOCache;
 
-		
+		LoadingFlags			  m_Flags;
 
 		std::string m_FullPath;
 		std::string m_Directory;

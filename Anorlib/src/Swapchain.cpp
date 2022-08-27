@@ -12,21 +12,15 @@ namespace Anor
 {
 	Swapchain::Swapchain()
 	{
-        // Creating a custom render pass for drawing the models starts here.
-        std::vector<VkFormat> candidates =
-        {
-            VK_FORMAT_D32_SFLOAT,
-            VK_FORMAT_D32_SFLOAT_S8_UINT,
-            VK_FORMAT_D24_UNORM_S8_UINT
-        };
-
-        // Render pass creation. Entire Vulkan API is exposed here because we want this part to be customizable.
-
+        // Create the render pass for the swapchain.
         VkAttachmentDescription colorAttachmentDescription;
         VkAttachmentReference colorAttachmentRef;
         VkAttachmentDescription depthAttachmentDescription;
         VkAttachmentReference depthAttachmentRef;
 
+        m_DepthBufferFormat = FindDepthFormat();
+
+        // A single color attachment.
         colorAttachmentDescription.format = VulkanApplication::s_Surface->GetVKSurfaceFormat().format;
         colorAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -37,10 +31,12 @@ namespace Anor
         colorAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         colorAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+        // Color att. reference.
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        depthAttachmentDescription.format = FindSupportedFormat(candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        // A single depth attachment for depth testing / occlusion.
+        depthAttachmentDescription.format = m_DepthBufferFormat;
         depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
         depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -50,6 +46,7 @@ namespace Anor
         depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+        // Depth att. reference.
         depthAttachmentRef.attachment = 1;
         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
@@ -71,7 +68,6 @@ namespace Anor
         attachmentDescriptions[0] = colorAttachmentDescription;
         attachmentDescriptions[1] = depthAttachmentDescription;
 
-
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()); // Number of attachments.
@@ -91,7 +87,6 @@ namespace Anor
     
     void Swapchain::Init()
     {
-        m_DepthBufferFormat = FindDepthFormat();
         // Find a suitable present mode.
         uint32_t presentModeCount;
         vkGetPhysicalDeviceSurfacePresentModesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), VulkanApplication::s_Surface->GetVKSurface(), &presentModeCount, nullptr);
@@ -115,10 +110,10 @@ namespace Anor
         {
             m_PresentMode = VK_PRESENT_MODE_FIFO_KHR;
         }
-        m_PresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
         // Find the optimal image count to request from the swapchain.
         m_ImageCount = VulkanApplication::s_Surface->GetVKSurfaceCapabilities().minImageCount + 1;
 
+        // Check if we are trying to request more images than the maximum supported value. If yes clamp it.
         if (VulkanApplication::s_Surface->GetVKSurfaceCapabilities().maxImageCount > 0 && m_ImageCount > VulkanApplication::s_Surface->GetVKSurfaceCapabilities().maxImageCount)
         {
             m_ImageCount = VulkanApplication::s_Surface->GetVKSurfaceCapabilities().maxImageCount;
@@ -178,7 +173,7 @@ namespace Anor
             ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
         }
 
-        // VK Image creation for the depth buffer.
+        // Create a single image for the depth buffer.
         VkImageCreateInfo depthImageInfo{};
         depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -193,7 +188,7 @@ namespace Anor
         depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         depthImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthImageInfo.flags = 0; // Optional
+        depthImageInfo.flags = 0;
 
         ASSERT(vkCreateImage(VulkanApplication::s_Device->GetVKDevice(), &depthImageInfo, nullptr, &m_DepthImage) == VK_SUCCESS, "Failed to create image!");
 
@@ -223,6 +218,8 @@ namespace Anor
         ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &depthImageviewInfo, nullptr, &m_DepthImageView) == VK_SUCCESS, "Failed to create textre image view");
 
         // Creating the necessary framebuffers for each of the image view we have in this class.
+
+        // If we already have the framebuffers created reset them.
         if (m_Framebuffers.size() > 0)
         {
             for (int i = 0; i < m_Framebuffers.size(); i++)
@@ -230,13 +227,16 @@ namespace Anor
                 m_Framebuffers[i].reset();
             }
         }
+        // If this is the first time we are initializing the framebuffers resize the vector.
         else
         {
             m_Framebuffers.resize(m_ImageViews.size());
         }
 
+        // Fill the frambuffer vector.
         for (int i = 0; i < m_Framebuffers.size(); i++)
         {
+            // Creating a framebuffer for each swapchain image. The depth image is shared across the images.
             std::vector<VkImageView> attachments =
             {
                 m_ImageViews[i],
@@ -247,6 +247,7 @@ namespace Anor
     }
     void Swapchain::CleanupSwapchain()
     {
+        // We need this helper function here to help us cleanup the swapchain because this is potentially a very common task (Eg: window resize).
         for (auto imageView : m_ImageViews)
         {
             vkDestroyImageView(VulkanApplication::s_Device->GetVKDevice(), imageView, nullptr);
@@ -282,9 +283,7 @@ namespace Anor
                 return format;
             }
         }
-
-        std::cerr << "Failed to find supported format!";
-        __debugbreak();
+        ASSERT(false, "Failed to find depth format");
     }
 
     bool Swapchain::HasStencilComponent(VkFormat format)
@@ -302,9 +301,7 @@ namespace Anor
                 return i;
             }
         }
-
-        std::cerr << "Failed to find suitable memory type" << std::endl;
-        __debugbreak();
+        ASSERT(false, "Failed to find suitable memory type");
     }
 
     Swapchain::~Swapchain()

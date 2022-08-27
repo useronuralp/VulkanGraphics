@@ -43,40 +43,13 @@ namespace Anor
     {
         ASSERT(vkEndCommandBuffer(cmdBuffer) == VK_SUCCESS, "Failed to record command buffer");
     }
-    void CommandBuffer::BeginRenderPass(const VkCommandBuffer& cmdBuffer, const Ref<RenderPass>& renderPass, const Ref<Framebuffer>& framebuffer)
+    void CommandBuffer::BeginRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo, VkSubpassContents contents)
     {
-        // WARNING: The clear value order shoould be identical to your attachment orders.
-        std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color = { {0.18f, 0.18f, 0.7f, 1.0f} };
-        clearValues[1].depthStencil = { 1.0f, 0 };
-
-        // TO DO: Check this part might not work.
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = renderPass->GetRenderPass();
-        renderPassInfo.framebuffer = framebuffer->GetVKFramebuffer();
-        renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
-
-        vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    }
-    void CommandBuffer::BeginRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderingInfoKHR& renderingInfo)
-    {
-        //vkCmdBeginRenderingKHR(cmdBuffer, &renderingInfo);
-    }
-    void CommandBuffer::BeginCustomRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo)
-    {
-        vkCmdBeginRenderPass(cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(cmdBuffer, &renderPassBeginInfo, contents);
     }
     void CommandBuffer::EndRenderPass(const VkCommandBuffer& cmdBuffer)
     {
         vkCmdEndRenderPass(cmdBuffer);
-    }
-    void CommandBuffer::EndRendering(const VkCommandBuffer& cmdBuffer)
-    {
-        //vkCmdEndRenderingKHR(cmdBuffer);
     }
     void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline, const VkDeviceSize& offset)
     {
@@ -102,17 +75,11 @@ namespace Anor
     {
         vkCmdDraw(cmdBuffer, vertexCount, 1, 0, 0);
     }
-    void CommandBuffer::SetViewport(const VkCommandBuffer& cmdBuffer, const VkViewport& viewport)
+    void CommandBuffer::FreeCommandBuffer(const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool)
     {
-        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-    }
-    void CommandBuffer::SetScissor(const VkCommandBuffer& cmdBuffer, const VkRect2D& scissor)
-    {
-        vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
-    }
-    void CommandBuffer::SetDepthBias(const VkCommandBuffer& cmdBuffer, float depthBiasConstant, float depthBiasSlope)
-    {
-        vkCmdSetDepthBias(cmdBuffer, depthBiasConstant, 0.0f, depthBiasSlope);
+        vkQueueWaitIdle(VulkanApplication::s_Device->GetGraphicsQueue());
+        vkFreeCommandBuffers(VulkanApplication::s_Device->GetVKDevice(), cmdPool, 1, &cmdBuffer);
+        vkDestroyCommandPool(VulkanApplication::s_Device->GetVKDevice(), cmdPool, nullptr); // WARNING: This part could be problematic. Test.
     }
     void CommandBuffer::Submit(const VkCommandBuffer& cmdBuffer)
     {
@@ -123,15 +90,9 @@ namespace Anor
 
         vkQueueSubmit(VulkanApplication::s_Device->GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
     }
-    void CommandBuffer::FreeCommandBuffer(const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool)
-    {
-        vkQueueWaitIdle(VulkanApplication::s_Device->GetGraphicsQueue());
-        vkFreeCommandBuffers(VulkanApplication::s_Device->GetVKDevice(), cmdPool, 1, &cmdBuffer);
-        vkDestroyCommandPool(VulkanApplication::s_Device->GetVKDevice(), cmdPool, nullptr); // WARNING: This part could be problematic. Test.
-    }
-
     void CommandBuffer::Reset(const VkCommandBuffer& cmdBuffer)
     {
+        vkDeviceWaitIdle(VulkanApplication::s_Device->GetVKDevice());
         vkResetCommandBuffer(cmdBuffer, 0);
     }
 }

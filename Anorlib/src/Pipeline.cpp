@@ -62,8 +62,6 @@ namespace Anor
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-        //VkVertexInputBindingDescription bindingDescription = m_CI.VertexBindingDesc;
-        //VkVertexInputAttributeDescription* attributeDescriptions = m_CI.pVertexAttributeDescriptons;
 
         // This "VkPipelineVertexInputStateCreateInfo" strcut specifies the format of the data that you are going to pass to the vertex shader.
         // Bindings: Spacing between data and whether the data is per-vertex or per-instance.
@@ -144,18 +142,6 @@ namespace Anor
         multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
         multisampling.alphaToOneEnable = VK_FALSE; // Optional
 
-        // Color blebding configuration. This blends the current color that the fragment shader returns with that is already present in the framebuffer with the 
-        // parameters specified below. The below setting is usually what you need most of the time.
-        //VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        //colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        //colorBlendAttachment.blendEnable = m_CI.EnableBlending;
-        //colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        //colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        //colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        //colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        //colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        //colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
         VkPipelineColorBlendStateCreateInfo colorBlending{};
         colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         colorBlending.logicOpEnable = VK_FALSE;
@@ -192,33 +178,16 @@ namespace Anor
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 1;
         pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
-
-        //// TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        //VkPushConstantRange PC;
-        //PC.offset = 0;
-        //PC.size = (uint32_t)sizeof(glm::vec4);
-        //PC.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        //// TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
         pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
         pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
         ASSERT(vkCreatePipelineLayout(VulkanApplication::s_Device->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout");
-
-        //VkPipelineRenderingCreateInfoKHR pipeline_rendering_create_info{};
-        //pipeline_rendering_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
-        //pipeline_rendering_create_info.colorAttachmentCount = 1;
-        //pipeline_rendering_create_info.pColorAttachmentFormats = &VulkanApplication::s_Surface->GetVKSurfaceFormat().format;
-        //pipeline_rendering_create_info.depthAttachmentFormat = VulkanApplication::s_Swapchain->GetDepthFormat();
 
         // This struct binds together all the other structs we have created so far in this function up above.
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount = 2;
         pipelineInfo.pStages = shaderStages;
-
-        pipelineInfo.pNext = nullptr;
-
         pipelineInfo.pVertexInputState = &vertexInputInfo;
         pipelineInfo.pInputAssemblyState = &inputAssembly;
         pipelineInfo.pViewportState = &viewportState;
@@ -228,12 +197,9 @@ namespace Anor
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = nullptr; // Optional
         pipelineInfo.pDepthStencilState = &depthStencil;
-
         pipelineInfo.layout = m_PipelineLayout;
-
         pipelineInfo.renderPass = m_CI.RenderPass->GetRenderPass();
         pipelineInfo.subpass = 0;
-
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
         pipelineInfo.basePipelineIndex = -1; // Optional
 

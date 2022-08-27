@@ -126,7 +126,7 @@ namespace Anor
         }
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
-        CommandBuffer::Create(VulkanApplication::s_GraphicsANDComputeQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
         CommandBuffer::Begin(singleCmdBuffer);
 
         VkImageMemoryBarrier barrier{};
@@ -175,7 +175,7 @@ namespace Anor
     {
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
-        CommandBuffer::Create(VulkanApplication::s_GraphicsANDComputeQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
         CommandBuffer::Begin(singleCmdBuffer);
 
         VkImageMemoryBarrier barrier{};
@@ -215,7 +215,7 @@ namespace Anor
     {
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
-        CommandBuffer::Create(VulkanApplication::s_GraphicsANDComputeQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
         CommandBuffer::Begin(singleCmdBuffer);
 
         VkBufferImageCopy region{};

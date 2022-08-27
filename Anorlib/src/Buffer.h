@@ -4,7 +4,6 @@
 #include "glm/glm.hpp"
 #include <array>
 #include "core.h"
-#include "Containers.h"
 #include "DescriptorSet.h"
 namespace Anor
 {
@@ -13,15 +12,15 @@ namespace Anor
 	class VertexBuffer
 	{
 	public:
-		VertexBuffer(const std::vector<Vertex>& vertices);
+		VertexBuffer(const std::vector<float>& vertices);
 		VertexBuffer(const float* vertices, size_t bufferSize);
 		~VertexBuffer();
-		const std::vector<Vertex>&	GetVertices() { return m_Vertices; }
+		const std::vector<float>&	GetVertices() { return m_Vertices; }
 		const VkBuffer&				GetVKBuffer() { return m_Buffer; }
 	private:
 		VkBuffer	   m_Buffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_BufferMemory = VK_NULL_HANDLE;
-		std::vector<Vertex> m_Vertices;
+		std::vector<float> m_Vertices;
 	};
 
 	class IndexBuffer 

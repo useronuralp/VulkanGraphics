@@ -40,7 +40,7 @@ namespace Anor
 		void Draw(const VkCommandBuffer& cmdBuffer);
 
 		Mesh() = default;
-		Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture, const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap = nullptr);
+		Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture, const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap = nullptr);
 		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex);
 		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices);
 		~Mesh();
@@ -48,8 +48,6 @@ namespace Anor
 		Ref<VertexBuffer> GetVBO() { return m_VBO; }
 		Ref<IndexBuffer>  GetIBO() { return m_IBO; }
 
-		const std::vector<uint32_t>& GetIndices()  { return m_Indices;  }
-		const std::vector<Vertex>&	 GetVertices() { return m_Vertices; }
 
 
 		void AddConfiguration(const char* configName, Pipeline::Specs pipelineCI, std::vector<DescriptorLayout> descriptorLayout);
@@ -72,10 +70,8 @@ namespace Anor
 		Configuration						m_ActiveConfiguration;
 		std::vector<Configuration>			m_Configurations;
 
-		// Vertex data.
-		std::vector<Vertex>					m_Vertices;
-		std::vector<uint32_t>				m_Indices;
 		uint32_t							m_VertexCount;
+		uint32_t							m_IndexCount;
 
 		// Vertex & Index Buffers
 		Ref<VertexBuffer>					m_VBO = nullptr;

@@ -6,7 +6,6 @@
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "DescriptorSet.h"
-#include "Containers.h"
 #include "CommandBuffer.h"
 #include <unordered_map>
 #include "Framebuffer.h"
@@ -16,7 +15,7 @@
 #include "Swapchain.h"
 namespace Anor
 {
-    Model::Model(const std::string& path) :m_FullPath(path)
+    Model::Model(const std::string& path, LoadingFlags flags) :m_FullPath(path), m_Flags(flags)
 	{
         m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
         Assimp::Importer importer;
@@ -66,7 +65,7 @@ namespace Anor
     }
     Ref<Mesh> Model::ProcessMesh(aiMesh* mesh, const aiScene* scene)
     {
-        std::vector<Vertex>    vertices;
+        std::vector<float>     vertices;
         std::vector<uint32_t>  indices;
         Ref<Texture>           diffuseTexture;
         Ref<Texture>           normalTexture;
@@ -74,62 +73,74 @@ namespace Anor
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
-            Vertex vertex;
-            //Vertex Positions
-            glm::vec3 vector;
-            vector.x = mesh->mVertices[i].x;
-            vector.y = mesh->mVertices[i].y;
-            vector.z = mesh->mVertices[i].z;
-            vertex.pos = vector;
+            if (m_Flags & LOAD_VERTICES)
+            {
+                //Vertex Positions
+                vertices.push_back(mesh->mVertices[i].x);
+                vertices.push_back(mesh->mVertices[i].y);
+                vertices.push_back(mesh->mVertices[i].z);
+            }
 
-            //Normals
-            vector.x = mesh->mNormals[i].x;
-            vector.y = mesh->mNormals[i].y;
-            vector.z = mesh->mNormals[i].z;
-            vertex.normal = vector;
-
-            //UV
             bool dontCalcTangent = false;
-            if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
+            if (m_Flags & LOAD_UV)
             {
-                glm::vec2 vector;
-                vector.x = mesh->mTextureCoords[0][i].x;
-                vector.y = mesh->mTextureCoords[0][i].y;
-                vertex.texCoord= vector;
-            }
-            else
-            {
-                vertex.texCoord = glm::vec2(0.0f, 0.0f);
-                dontCalcTangent = true;
+                //UV
+                if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
+                {
+                    vertices.push_back(mesh->mTextureCoords[0][i].x);
+                    vertices.push_back(mesh->mTextureCoords[0][i].y);
+                }
+                else
+                {
+                    vertices.push_back(0);
+                    vertices.push_back(0);
+                    dontCalcTangent = true;
+                }
             }
 
-            if (dontCalcTangent)
+            if (m_Flags & LOAD_NORMALS)
             {
-                vector.x = 0.0f;
-                vector.y = 0.0f;
-                vector.z = 0.0f;
-                vertex.tangent = vector;
-
-                vector.x = 0.0f;
-                vector.y = 0.0f;
-                vector.z = 0.0f;
-                vertex.bitangent = vector;
-            
+                //Normals
+                vertices.push_back(mesh->mNormals[i].x);
+                vertices.push_back(mesh->mNormals[i].y);
+                vertices.push_back(mesh->mNormals[i].z);
             }
-            else
+
+
+            if (m_Flags & LOAD_TANGENT)
             {
-                vector.x = mesh->mTangents[i].x;
-                vector.y = mesh->mTangents[i].y;
-                vector.z = mesh->mTangents[i].z;
-                vertex.tangent = vector;
-            
-
-                vector.x = mesh->mBitangents[i].x;
-                vector.y = mesh->mBitangents[i].y;
-                vector.z = mesh->mBitangents[i].z;
-                vertex.bitangent = vector;
+                if (dontCalcTangent)
+                {
+                    // Tangnet
+                    vertices.push_back(0);
+                    vertices.push_back(0);
+                    vertices.push_back(0);
+                }
+                else
+                {
+                    // Tangent
+                    vertices.push_back(mesh->mTangents[i].x);
+                    vertices.push_back(mesh->mTangents[i].y);
+                    vertices.push_back(mesh->mTangents[i].z);
+                }
             }
-            vertices.push_back(vertex);
+            if (m_Flags & LOAD_BITANGENT)
+            {
+                if (dontCalcTangent)
+                {
+                    // Bitangent
+                    vertices.push_back(0);
+                    vertices.push_back(0);
+                    vertices.push_back(0);
+                }
+                else
+                {
+                    // Bitangent
+                    vertices.push_back(mesh->mBitangents[i].x);
+                    vertices.push_back(mesh->mBitangents[i].y);
+                    vertices.push_back(mesh->mBitangents[i].z);
+                }
+            }
         }
 
         // Process indices

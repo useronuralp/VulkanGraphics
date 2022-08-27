@@ -11,10 +11,10 @@
 
 namespace Anor
 {
-    VertexBuffer::VertexBuffer(const std::vector<Vertex>& vertices)
+    VertexBuffer::VertexBuffer(const std::vector<float>& vertices)
         :m_Vertices(vertices)
     {
-        VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices.size();
+        VkDeviceSize bufferSize = m_Vertices.size() * sizeof(float);
         // The buffer we create on host side.
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -33,7 +33,7 @@ namespace Anor
         // The following buffer is not visible to CPU.
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsANDComputeQueueIndex);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsQueueFamily);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -59,7 +59,7 @@ namespace Anor
         // The following buffer is not visible to CPU.
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsANDComputeQueueIndex);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsQueueFamily);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -87,7 +87,7 @@ namespace Anor
 
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsANDComputeQueueIndex);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_GraphicsQueueFamily);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);

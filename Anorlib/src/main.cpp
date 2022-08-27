@@ -6,9 +6,13 @@
 #include "Surface.h"
 #include "Swapchain.h"
 #include "LogicalDevice.h"
+#include "RenderPass.h"
 #include "Utils.h"
 #include "PhysicalDevice.h"
 #include "CommandBuffer.h"
+#include "Window.h"
+#include "CommandBuffer.h"
+#include "Camera.h"
 #include <random>
 
 #define ENABLE_VALIDATION false
@@ -46,7 +50,6 @@ public:
     Model* lightSphere;
     Mesh* lightSphereMesh;
     Mesh* skybox;
-    Mesh* debugQuad;
     float timer = 0.0f;
     glm::vec3 pointLightPosition = glm::vec3(50.0f, 50.0f, 50.0f);
     glm::vec3 directionalLightPosition = glm::vec3(35.0f, 35.0f, 9.0f);
@@ -60,6 +63,7 @@ public:
     glm::mat4 depthMVP = lightProjectionMatrix * lightView * lightModel;
 
     VkClearValue clearValue;
+    std::array<VkClearValue, 2> clearValues{};
 
     float m_LastFrameRenderTime;
     float m_DeltaTimeLastFrame;
@@ -70,6 +74,9 @@ public:
 
     VkRenderPassBeginInfo depthPassBeginInfo;
     VkRenderPassBeginInfo finalScenePassBeginInfo;
+
+    VkCommandBuffer commandBuffer;
+    VkCommandPool commandPool;
 
 
     // EXPERIMENTAL PARTICLES
@@ -106,6 +113,11 @@ public:
     }
 
 
+    // Rendering semaphores
+    VkSemaphore		m_ImageAvailableSemaphore = VK_NULL_HANDLE;
+    VkSemaphore		m_RenderingCompleteSemaphore = VK_NULL_HANDLE;
+    VkFence			m_InRenderingFence = VK_NULL_HANDLE;
+
     void InitParticle(Particle* particle, glm::vec3 emitterPos)
     {
         particle->vel = glm::vec4(-10.0f, minVel.y + rnd(maxVel.y - minVel.y), 0.0f, 0.0f);
@@ -128,23 +140,6 @@ public:
         particle->pos += glm::vec4(emitterPos, 0.0f);
     }
 
-    void prepareParticles()
-    {
-        particles.resize(PARTICLE_COUNT);
-        for (auto& particle : particles)
-        {
-            InitParticle(&particle, emitterPos);
-            //particle.alpha = 1.0f - (abs(particle.pos.y) / (FLAME_RADIUS * 2.0f));
-        }
-
-        particleBufferSize = particles.size() * sizeof(Particle);
-
-        // Create a buffer and copy over the particle data into it. We also map this buffer so that we can change the data contained in there every frame.
-        Utils::CreateVKBuffer(particleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, particleBuffer, particleBufferMemory);
-        ASSERT(vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), particleBufferMemory, 0, particleBufferSize, 0, &mappedParticleBuffer) == VK_SUCCESS, "Failed to map the memory");
-        memcpy(mappedParticleBuffer, particles.data(), particleBufferSize);
-    }
-
     void updateParticles(float deltaTime)
     {
         float particleTimer = deltaTime * 0.01f;
@@ -162,7 +157,18 @@ public:
 
     void SetupParticles()
     {
-        prepareParticles();
+        particles.resize(PARTICLE_COUNT);
+        for (auto& particle : particles)
+        {
+            InitParticle(&particle, emitterPos);
+        }
+
+        particleBufferSize = particles.size() * sizeof(Particle);
+
+        // Create a buffer and copy over the particle data into it. We also map this buffer so that we can change the data contained in there every frame.
+        Utils::CreateVKBuffer(particleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, particleBuffer, particleBufferMemory);
+        ASSERT(vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), particleBufferMemory, 0, particleBufferSize, 0, &mappedParticleBuffer) == VK_SUCCESS, "Failed to map the memory");
+        memcpy(mappedParticleBuffer, particles.data(), particleBufferSize);
 
         std::vector<DescriptorLayout> dscLayout
         {
@@ -170,7 +176,6 @@ public:
             DescriptorLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       ShaderStage::VERTEX   }, // Index 1
             DescriptorLayout { Type::UNIFORM_BUFFER,  Size::VEC2,                       ShaderStage::VERTEX   }, // Index 2
             DescriptorLayout { Type::TEXTURE_SAMPLER,  Size::DIFFUSE_SAMPLER,           ShaderStage::FRAGMENT }, // Index 3
-
         };
 
         particlSystemDescriptorSet = std::make_shared<DescriptorSet>(dscLayout);
@@ -178,7 +183,7 @@ public:
         Pipeline::Specs particleSpecs{};
         particleSpecs.DescriptorSetLayout = particlSystemDescriptorSet->GetVKDescriptorSetLayout();
         particleSpecs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
-        particleSpecs.CullMode = VK_CULL_MODE_NONE;
+        particleSpecs.CullMode = VK_CULL_MODE_BACK_BIT;
         particleSpecs.DepthBiasClamp = 0.0f;
         particleSpecs.DepthBiasConstantFactor = 0.0f;
         particleSpecs.DepthBiasSlopeFactor = 0.0f;
@@ -253,7 +258,6 @@ public:
         samplerInfo.magFilter = VK_FILTER_LINEAR;
         samplerInfo.minFilter = VK_FILTER_LINEAR;
 
-        // Repeats the texture when going out of the sampling range. You might wanna expose this variable during ImageBufferCreation.
         samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
@@ -287,15 +291,15 @@ public:
         descriptorWrite.pImageInfo = &imageInfo;
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 
-        projUBO = std::make_shared<UniformBuffer>(particlSystemDescriptorSet, sizeof(glm::mat4), 0 );
+        projUBO = std::make_shared<UniformBuffer>(particlSystemDescriptorSet, sizeof(glm::mat4), 0);
         modelViewUBO = std::make_shared<UniformBuffer>(particlSystemDescriptorSet, sizeof(glm::mat4), 1);
         viewportDimUBO = std::make_shared<UniformBuffer>(particlSystemDescriptorSet, sizeof(glm::vec2), 2);
     }
 
     void updateParticleUBOs()
     {
-        glm::mat4 proj = GetCameraProjectionMatrix();
-        glm::mat4 modelView = GetCameraViewMatrix();
+        glm::mat4 proj = s_Camera->GetProjectionMatrix();
+        glm::mat4 modelView = s_Camera->GetViewMatrix();
         glm::vec2 viewportDim = glm::vec2(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
 
         projUBO->UpdateUniformBuffer(&proj, sizeof(proj));
@@ -354,7 +358,7 @@ public:
 
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.stride = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
         
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
@@ -362,34 +366,34 @@ public:
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Vertex, pos);
+        attributeDescriptions[0].offset = 0;
 
         attributeDescriptions[1].binding = 0;
         attributeDescriptions[1].location = 1;
         attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, texCoord);
+        attributeDescriptions[1].offset = sizeof(glm::vec3);
 
         attributeDescriptions[2].binding = 0;
         attributeDescriptions[2].location = 2;
         attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[2].offset = offsetof(Vertex, normal);
+        attributeDescriptions[2].offset = sizeof(glm::vec3) + sizeof(glm::vec2);
 
         attributeDescriptions[3].binding = 0;
         attributeDescriptions[3].location = 3;
         attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[3].offset = offsetof(Vertex, tangent);
+        attributeDescriptions[3].offset = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3);
 
         attributeDescriptions[4].binding = 0;
         attributeDescriptions[4].location = 4;
         attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[4].offset = offsetof(Vertex, bitangent);
+        attributeDescriptions[4].offset = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3);
 
         specs.VertexBindingDesc = bindingDescription;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
         // Finally, add the newly created configuration to the model to be used when drawing.
         model->AddConfiguration("NormalRenderPass", specs, dscLayout);
-
+        model->SetActiveConfiguration("NormalRenderPass");
     }
     void SetupShadowPassConfiguration(Model* model)
     {
@@ -403,7 +407,7 @@ public:
         Pipeline::Specs specs{};
         specs.DescriptorSetLayout = VK_NULL_HANDLE;
         specs.RenderPass = shadowMapPass;
-        specs.CullMode = VK_CULL_MODE_NONE;
+        specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 1.25f;
         specs.DepthBiasSlopeFactor = 1.75f;
@@ -433,7 +437,7 @@ public:
 
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex); // Since we've loaded this model using the Model class all the extra information has been loaded regardless of us defining the VertexInputState. We still need the stride to be the Vertex.
+        bindingDescription.stride = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
@@ -462,7 +466,7 @@ public:
         Pipeline::Specs specs{};
         specs.DescriptorSetLayout = VK_NULL_HANDLE;
         specs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
-        specs.CullMode = VK_CULL_MODE_NONE;
+        specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
         specs.DepthBiasSlopeFactor = 0.0f;
@@ -490,7 +494,7 @@ public:
 
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.stride = sizeof(glm::vec3);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
@@ -561,74 +565,11 @@ public:
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
         mesh->AddConfiguration("NormalRenderPass", specs, dscLayout);
+        mesh->SetActiveConfiguration("NormalRenderPass");
     }
-    void SetupDebugQuad(Mesh* mesh)
-    {
-        std::vector<DescriptorLayout> dscLayout =
-        {
-            DescriptorLayout {Type::UNIFORM_BUFFER,Size::MAT4,ShaderStage::VERTEX},
-            DescriptorLayout {Type::UNIFORM_BUFFER,Size::MAT4,ShaderStage::VERTEX},
-            DescriptorLayout {Type::UNIFORM_BUFFER,Size::MAT4,ShaderStage::VERTEX},
-            DescriptorLayout {Type::UNIFORM_BUFFER,Size::MAT4,ShaderStage::VERTEX},
-            DescriptorLayout {Type::TEXTURE_SAMPLER,Size::SHADOWMAP_SAMPLER,ShaderStage::FRAGMENT}
-        };
 
-
-        Pipeline::Specs specs{};
-        specs.DescriptorSetLayout = VK_NULL_HANDLE;
-        specs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
-        specs.CullMode = VK_CULL_MODE_NONE;
-        specs.DepthBiasClamp = 0.0f;
-        specs.DepthBiasConstantFactor = 0.0f;
-        specs.DepthBiasSlopeFactor = 0.0f;
-        specs.DepthCompareOp = VK_COMPARE_OP_LESS;
-        specs.EnableDepthBias = false;
-        specs.EnableDepthTesting = VK_TRUE;
-        specs.EnableDepthWriting = VK_TRUE;
-        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        specs.PolygonMode = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath = "shaders/debugQuadVERT.spv";
-        specs.FragmentShaderPath = "shaders/debugQuadFRAG.spv";
-
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = VK_FALSE;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-        specs.ColorBlendAttachmentState = colorBlendAttachment;
-
-
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(glm::vec3) + sizeof(glm::vec2);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(2);
-        // For position
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = 0;
-
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[1].offset = sizeof(glm::vec3);
-
-        specs.VertexBindingDesc = bindingDescription;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
-
-        mesh->AddConfiguration("NormalRenderPass", specs, dscLayout);
-    }
     void CreateShadowRenderPass()
     {
-        // Create a depth render pass here that we will pass to the engine.
         VkAttachmentDescription depthAttachmentDescription;
         VkAttachmentReference depthAttachmentRef;
 
@@ -680,12 +621,21 @@ public:
 
         VkRenderPass renderPass;
 
-        ASSERT(vkCreateRenderPass(VulkanApplication::GetVKDevice(), &renderPassInfo, nullptr, &renderPass) == VK_SUCCESS, "Failed to create a render pass.");
+        ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &renderPass) == VK_SUCCESS, "Failed to create a render pass.");
 
         shadowMapPass = std::make_shared<RenderPass>(renderPass);
     }
 
 private:
+    void OnVulkanInit()
+    {
+        // Set the device extensions we want Vulkan to enable.
+        SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE1_EXTENSION_NAME });
+
+        // Set the parameters of the main camera.
+        SetCameraConfiguration(45.0f, 0.1f, 1500.0f);
+    }
+
     void OnStart()
     {
         SetupParticles();
@@ -698,28 +648,33 @@ private:
 
         // Final piece of the puzzle is the framebuffer. We need a framebuffer to link the image we are rendering to with the render pass.
         shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapPass, shadowMapTexture);
+        
+        // Loading the model Sponza
+        model = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\Sponza\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
 
-        model = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\Sponza\\scene.gltf");
+        // Set the texture which will be sampled for shadow calculations.
         model->SetShadowMap(shadowMapTexture);
+
+        // Setup two configurations: one for shadow pass, the other for actual scene drawing.
         SetupScenePassConfiguration(model);
         SetupShadowPassConfiguration(model);
-        model->SetActiveConfiguration("NormalRenderPass");
         model->Scale(0.005f, 0.005f, 0.005f);
 
-        model2 = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\MaleniaHelmet\\scene.gltf");
+        // Loading the model Malenia's Helmet.
+        model2 = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         model2->SetShadowMap(shadowMapTexture);
         SetupScenePassConfiguration(model2);
         SetupShadowPassConfiguration(model2);
-        model2->SetActiveConfiguration("NormalRenderPass");
         model2->Scale(0.7f, 0.7f, 0.7f);
         
-	    lightSphere = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\Sphere\\scene.gltf");
+        // Loading the light sphere model.
+	    lightSphere = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\Sphere\\scene.gltf", LOAD_VERTICES);
         SetupLightSphere(lightSphere);
-        lightSphere->SetActiveConfiguration("NormalRenderPass");
         lightSphere->Scale(0.002f, 0.002f, 0.002f);
 
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
 
-        // TO DO: Remove unnecessart vertex data from here.
+        // Vertex data for the skybox.
         const float cubeVertices[3 * 6 * 6] = {
             -1.0f,  1.0f, -1.0f, 
             -1.0f, -1.0f, -1.0f, 
@@ -764,6 +719,7 @@ private:
              1.0f, -1.0f,  1.0f, 
         };
 
+        // Vertex information for the debug quad.
         const float quadVertices[5 * 4] =
         {
              -1.0f, -1.0f, 0.0f,  0.0f, 1.0f,
@@ -772,14 +728,10 @@ private:
              -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,
         };
 
+        // Index information for the quad.
         std::vector<uint32_t> quadIndices = { 0, 1, 2, 2, 3, 0 };
 
-        debugQuad = new Mesh(quadVertices, (size_t)(sizeof(float) * 5 * 4), 4, quadIndices);
-        debugQuad->SetShadowMap(shadowMapTexture);
-        SetupDebugQuad(debugQuad);
-        debugQuad->SetActiveConfiguration("NormalRenderPass");
-        debugQuad->Translate(5.0f, 7.4f, 0.0f);
-
+        // Loading the necessary images for the skybox one by one.
         std::string front   = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\MountainPath\\front.jpg");
         std::string back    = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\MountainPath\\back.jpg");
         std::string top     = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\MountainPath\\top.jpg");
@@ -787,16 +739,13 @@ private:
         std::string right   = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\MountainPath\\right.jpg");
         std::string left    = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\MountainPath\\left.jpg");
 
-
+        // Set up the 6 sided texture for the skybox by using the above images.
         std::array<std::string, 6> skyboxTex { right, left, top, bottom, front, back};
         Ref<Anor::CubemapTexture> cubemap = std::make_shared<CubemapTexture>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
 
+        // Create the mesh for the skybox.
         skybox = new Mesh(cubeVertices, (size_t)(sizeof(float) * 3 * 6 * 6), 6 * 6, cubemap);
-
         SetupSkybox(skybox);
-        skybox->SetActiveConfiguration("NormalRenderPass");
-
-        m_LastFrameRenderTime = GetRenderTime();
 
         // Configure the render pass begin info for the depth pass here.
         clearValue = { 1.0f, 0.0 };
@@ -809,14 +758,48 @@ private:
         depthPassBeginInfo.renderArea.extent.height = shadowMapFramebuffer->GetHeight();
         depthPassBeginInfo.clearValueCount = 1;
         depthPassBeginInfo.pClearValues = &clearValue;
+
+        // Setup the fences and semaphores needed to synchronize the rendering.
+        VkFenceCreateInfo fenceCreateInfo = {};
+        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphore) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
+        ASSERT(vkCreateFence(s_Device->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InRenderingFence) == VK_SUCCESS, "Failed to create is rendering fence.");
+        ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphore) == VK_SUCCESS, "Failed to create image available semaphore.");
+
+        CommandBuffer::Create(s_GraphicsQueueFamily, commandPool, commandBuffer);
 	}
     void OnUpdate()
     {
+        vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InRenderingFence, VK_TRUE, UINT64_MAX);
+
+        uint32_t imageIndex = -1;
+        VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+        // Return and start a new frame if the screen is resized.
+        if (rslt == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
+        {
+            vkDeviceWaitIdle(s_Device->GetVKDevice());
+            s_Swapchain->OnResize();
+            OnWindowResize();
+            s_Window->OnResize();
+            s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
+            return;
+        }
+        ASSERT(rslt == VK_SUCCESS, "Failed to acquire next image.");
+
+        vkResetFences(s_Device->GetVKDevice(), 1, &m_InRenderingFence);
+
+        // Begin command buffer recording.
+        CommandBuffer::Begin(commandBuffer);
+
         float currentTime, deltaTime;
         deltaTime = DeltaTime();
-        // FPS Counter
         currentTime = GetRenderTime();
-        //printf("%.2f\n", deltaTime / 1000);
         frameCount++;
         if (currentTime - m_LastFrameRenderTime >= 1.0)
         {
@@ -829,50 +812,69 @@ private:
         timer += 7.0f * deltaTime;
 
         // Animating the light
-        directionalLightPosition.z = std::sin(glm::radians(timer )) * 9.0f;
+        directionalLightPosition.z = std::sin(glm::radians(timer)) * 9.0f;
         lightView = glm::lookAt(directionalLightPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         depthMVP = lightProjectionMatrix * lightView * lightModel;
         pointLightPosition = glm::vec3(lightSphere->GetModelMatrix()[3][0], lightSphere->GetModelMatrix()[3][1], lightSphere->GetModelMatrix()[3][2]);
 
 
-        glm::mat4 view = GetCameraViewMatrix();         
-        glm::mat4 proj = GetCameraProjectionMatrix();   
-        glm::vec3 cameraPos = GetCameraPosition();      
+        glm::mat4 view = s_Camera->GetViewMatrix();
+        glm::mat4 proj = s_Camera->GetProjectionMatrix();
+        glm::vec3 cameraPos = s_Camera->GetPosition();
 
         glm::mat mat = model->GetModelMatrix();
         model2->Translate(0.0, 0.2f * deltaTime, 0.0f);
         glm::mat mat2 = model2->GetModelMatrix();
-        
-        // Beginning of the custom render pass.
-        BeginCustomRenderPass(depthPassBeginInfo);
-        
+
+        // Start shadow pass.
+        CommandBuffer::BeginRenderPass(commandBuffer, depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Render the objects you want to cast shadows.
         model2->SetActiveConfiguration("ShadowMapPass");
         model2->UpdateUniformBuffer(0, &mat2, sizeof(mat2));
         model2->UpdateUniformBuffer(1, &depthMVP, sizeof(depthMVP));
-        model2->DrawIndexed(GetActiveCommandBuffer()); // Call low level draw calls in here.
-        
+        model2->DrawIndexed(commandBuffer); 
+
         model->SetActiveConfiguration("ShadowMapPass");
         model->UpdateUniformBuffer(0, &mat, sizeof(mat));
         model->UpdateUniformBuffer(1, &depthMVP, sizeof(depthMVP));
-        model->DrawIndexed(GetActiveCommandBuffer()); // Call low level draw calls in here.
-        
-        EndDepthPass();
-        // End of the custom render pass.
+        model->DrawIndexed(commandBuffer);
 
-        // Beginning of the render pass thet will draw images to the swapchain.
-        BeginRenderPass();
-        
+        // End shadow pass.
+        CommandBuffer::EndRenderPass(commandBuffer);
+
+        // Setup the actual scene render pass here.
+        clearValues[0].color = { {0.18f, 0.18f, 0.7f, 1.0f} };
+        clearValues[1].depthStencil = { 1.0f, 0 };
+
+        finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass()->GetRenderPass();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[imageIndex]->GetVKFramebuffer();
+        finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
+        finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
+        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        finalScenePassBeginInfo.pClearValues = clearValues.data();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[imageIndex]->GetVKFramebuffer();
+
+        // Start final scene render pass.
+        CommandBuffer::BeginRenderPass(commandBuffer, finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
         updateParticles(deltaTime);
         updateParticleUBOs();
+
+        // Set the correct configuration for every object in the scene which is either a Mesh or Model.
         model->SetActiveConfiguration("NormalRenderPass");
         model2->SetActiveConfiguration("NormalRenderPass");
-        
+        skybox->SetActiveConfiguration("NormalRenderPass");
+        lightSphere->SetActiveConfiguration("NormalRenderPass");
+
+        // Drawing the skybox.
         glm::mat4 skyBoxView = glm::mat4(glm::mat3(view));
         skybox->UpdateUniformBuffer(0, &skyBoxView, sizeof(skyBoxView));
         skybox->UpdateUniformBuffer(1, &proj, sizeof(proj));
-        skybox->Draw(GetActiveCommandBuffer());
-        
-        
+        skybox->Draw(commandBuffer);
+
+        // Drawing the helmet.
         model2->UpdateUniformBuffer(0, &mat2, sizeof(mat2));
         model2->UpdateUniformBuffer(1, &view, sizeof(view));
         model2->UpdateUniformBuffer(2, &proj, sizeof(proj));
@@ -880,40 +882,80 @@ private:
         model2->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
         model2->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
         model2->UpdateUniformBuffer(6, &pointLightPosition, sizeof(pointLightPosition));
-        
-        model2->DrawIndexed(GetActiveCommandBuffer()); 
-        
-        
-        model->UpdateUniformBuffer(0, &mat, sizeof(mat)); 
+        model2->DrawIndexed(commandBuffer);
+
+        // Drawing the Sponza.
+        model->UpdateUniformBuffer(0, &mat, sizeof(mat));
         model->UpdateUniformBuffer(1, &view, sizeof(view));
         model->UpdateUniformBuffer(2, &proj, sizeof(proj));
         model->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
         model->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
         model->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
         model->UpdateUniformBuffer(6, &pointLightPosition, sizeof(pointLightPosition));
-        
-        model->DrawIndexed(GetActiveCommandBuffer());
+        model->DrawIndexed(commandBuffer);
 
         VkDeviceSize offsets[1] = { 0 };
+        // Draw the particles here. We are using a different logic to draw them so we need to do the following steps manually instead of expecting the Mesh / Model class to take care of it for us.
+        CommandBuffer::BindDescriptorSet(commandBuffer, particeSystemPipeline->GetPipelineLayout(), particlSystemDescriptorSet);
+        CommandBuffer::BindPipeline(commandBuffer, particeSystemPipeline, offsets[0]);
+        CommandBuffer::BindVertexBuffer(commandBuffer, particleBuffer, offsets[0]);
+        CommandBuffer::Draw(commandBuffer, PARTICLE_COUNT);
 
-        vkCmdBindDescriptorSets(GetActiveCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, particeSystemPipeline->GetPipelineLayout(), 0, 1, &particlSystemDescriptorSet->GetVKDescriptorSet(), 0, nullptr);
-        vkCmdBindPipeline(GetActiveCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, particeSystemPipeline->GetVKPipeline());
-        vkCmdBindVertexBuffers(GetActiveCommandBuffer(), 0, 1, &particleBuffer, offsets);
-        vkCmdDraw(GetActiveCommandBuffer(), PARTICLE_COUNT, 1, 0, 0);
-        
-        //debugQuad->UpdateUniformBuffer(1, &proj, sizeof(proj));
-        //debugQuad->UpdateUniformBuffer(2, &view, sizeof(view));
-        //glm::mat4 temp = lightProjectionMatrix * lightView * glm::mat4(1.0);
-        //debugQuad->UpdateUniformBuffer(3, &temp, sizeof(temp));
-        //debugQuad->DrawIndexed(GetActiveCommandBuffer());
-
-
+        // Draw the light sphere.
         lightSphere->UpdateUniformBuffer(1, &view, sizeof(view));
         lightSphere->UpdateUniformBuffer(2, &proj, sizeof(proj));
         lightSphere->Translate(0.0f, 10.0f * deltaTime, 10.0f * deltaTime);
-        lightSphere->DrawIndexed(GetActiveCommandBuffer());
-        
-        EndRenderPass();
+        lightSphere->DrawIndexed(commandBuffer);
+
+        // End the command buffer recording phase.
+        CommandBuffer::EndRenderPass(commandBuffer);
+        CommandBuffer::End(commandBuffer);
+
+        // Submit the command buffer to a queue.
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        VkSemaphore waitSemaphores[] = { m_ImageAvailableSemaphore };
+        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+        VkSemaphore signalSemaphores[] = { m_RenderingCompleteSemaphore };
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+
+        VkQueue graphicsQueue = s_Device->GetGraphicsQueue();
+        ASSERT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InRenderingFence) == VK_SUCCESS, "Failed to submit draw command buffer!");
+
+        // Present the drawn image to the swapchain when the drawing is completed. This check is done via a semaphore.
+        VkPresentInfoKHR presentInfo{};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = signalSemaphores;
+        VkSwapchainKHR swapChains[] = { s_Swapchain->GetVKSwapchain() };
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = swapChains;
+        presentInfo.pImageIndices = &imageIndex;
+        presentInfo.pResults = nullptr; // Optional
+
+        VkQueue presentQueue = s_Device->GetPresentQueue();
+        VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+        // Check if window has been resized.
+        if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            vkDeviceWaitIdle(s_Device->GetVKDevice());
+            s_Swapchain->OnResize();
+            OnWindowResize();
+            s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
+            return;
+        }
+        ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+
+        // Reset the command buffer so that we can record new command next frame.
+        CommandBuffer::Reset(commandBuffer);
     }
     void OnCleanup()
     {
@@ -921,7 +963,12 @@ private:
         delete model2;
         delete skybox;
         delete lightSphere;
-        delete debugQuad;
+
+        vkDestroySemaphore(s_Device->GetVKDevice(), m_ImageAvailableSemaphore, nullptr);
+        vkDestroySemaphore(s_Device->GetVKDevice(), m_RenderingCompleteSemaphore, nullptr);
+        vkDestroyFence(s_Device->GetVKDevice(), m_InRenderingFence, nullptr);
+
+        CommandBuffer::FreeCommandBuffer(commandBuffer, commandPool);
     }
     void OnWindowResize()
     {
@@ -929,7 +976,6 @@ private:
         skybox->OnResize();
         lightSphere->OnResize();
         model2->OnResize();
-        debugQuad->OnResize();
         particeSystemPipeline->OnResize();
     }
     float DeltaTime()
