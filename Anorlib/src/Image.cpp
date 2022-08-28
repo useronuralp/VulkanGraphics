@@ -3,13 +3,13 @@
 #include "LogicalDevice.h"
 #include "Utils.h"
 #include "CommandBuffer.h"
-
+#include "PhysicalDevice.h"
 #include <stb_image.h>
 namespace Anor
 {
 
     // This constructor is to be used when you want to initialize a VkImage with as a color/texture buffer:
-	Image::Image(std::vector<std::string> textures, VkFormat imageFormat)
+	Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageFormat(imageFormat)
 	{
         stbi_uc* pixels = nullptr;
         stbi_uc* cubemapTextures[6];
@@ -56,7 +56,14 @@ namespace Anor
         m_ImageSize = imageSize;
         m_LayerSize = layerSize;
 
-        m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        if (m_IsCubemap)
+        {
+            m_MipLevels = 1;
+        }
+        else
+        {
+            m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        }
 
         SetupImage(m_Width, m_Height, imageFormat);
 
@@ -85,10 +92,15 @@ namespace Anor
         // TO DO : Learn pipeline barriers.
         TransitionImageLayout(imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         CopyBufferToImage(stagingBuffer, m_Width, m_Height);
-        TransitionImageLayout(imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
+        if (m_IsCubemap)
+        {
+            TransitionImageLayout(imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        }
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
+
+        if(!m_IsCubemap)
+            GenerateMipmaps();
 
         if (m_IsCubemap)
         {
@@ -103,11 +115,12 @@ namespace Anor
         }
 	}
 
-    Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType)
+    Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType) : m_ImageFormat(imageFormat)
     {
         m_Width = width;
         m_Height = height;
         SetupImage(width, height, imageFormat, imageType);
+        m_MipLevels = 1;
     }
 
 	Image::~Image()
@@ -138,7 +151,7 @@ namespace Anor
         barrier.image = m_Image;
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.levelCount = m_MipLevels;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount = layerCount;
 
@@ -160,46 +173,6 @@ namespace Anor
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
             sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            supported = true;
-        }
-        ASSERT(supported, "Unsupported layout transition");
-
-        vkCmdPipelineBarrier(singleCmdBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-        CommandBuffer::End(singleCmdBuffer);
-        CommandBuffer::Submit(singleCmdBuffer);
-        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
-    }
-
-    void Image::TransitionDepthLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
-    {
-        VkCommandBuffer singleCmdBuffer;
-        VkCommandPool singleCmdPool;
-        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
-        CommandBuffer::Begin(singleCmdBuffer);
-
-        VkImageMemoryBarrier barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = oldLayout;
-        barrier.newLayout = newLayout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = m_Image;
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
-
-        VkPipelineStageFlags sourceStage;
-        VkPipelineStageFlags destinationStage;
-        bool supported = false;
-        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
-        {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             supported = true;
         }
@@ -293,12 +266,12 @@ namespace Anor
         imageCreateInfo.extent.width = width;
         imageCreateInfo.extent.height = height;
         imageCreateInfo.extent.depth = 1;
-        imageCreateInfo.mipLevels = 1;
-        imageCreateInfo.arrayLayers = arrayLayers;
+        imageCreateInfo.mipLevels = m_MipLevels;
+        imageCreateInfo.arrayLayers = arrayLayers; 
         imageCreateInfo.format = imageFormat;
         imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageCreateInfo.usage = imageType == ImageType::COLOR ? (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) : (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        imageCreateInfo.usage = imageType == ImageType::COLOR ? (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) : (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageCreateInfo.flags = flags;
@@ -325,11 +298,105 @@ namespace Anor
         viewInfo.format = imageFormat;
         viewInfo.subresourceRange.aspectMask = imageType == ImageType::COLOR ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT; // This part also changes when shadowmapping.
         viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.levelCount = m_MipLevels;
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = layerCount;
 
         ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS, "Failed to create texture image view!");
+    }
+
+    void Image::GenerateMipmaps()
+    {
+        VkFormatProperties formatProperties;
+        vkGetPhysicalDeviceFormatProperties(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_ImageFormat, &formatProperties);
+
+        ASSERT(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT, "Texture image format does not support linear blitting!");
+
+        VkCommandBuffer cmdBuffer;
+        VkCommandPool cmdPool;
+
+        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, cmdPool, cmdBuffer);
+        CommandBuffer::Begin(cmdBuffer);
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.image = m_Image;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.levelCount = 1;
+
+        int32_t mipWidth = m_Width;
+        int32_t mipHeight = m_Height;
+
+        for (uint32_t i = 1; i < m_MipLevels; i++)
+        {
+            barrier.subresourceRange.baseMipLevel = i - 1;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+            vkCmdPipelineBarrier(cmdBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
+
+            VkImageBlit blit{};
+            blit.srcOffsets[0] = { 0, 0, 0 };
+            blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
+            blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+            blit.dstOffsets[0] = { 0, 0, 0 };
+            blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
+            blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.dstSubresource.mipLevel = i;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+
+            vkCmdBlitImage(cmdBuffer,
+                m_Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1, &blit,
+                VK_FILTER_LINEAR);
+
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            vkCmdPipelineBarrier(cmdBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
+
+            if (mipWidth > 1) mipWidth /= 2;
+            if (mipHeight > 1) mipHeight /= 2;
+
+
+        }
+
+        barrier.subresourceRange.baseMipLevel = m_MipLevels - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(cmdBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        CommandBuffer::End(cmdBuffer);
+        CommandBuffer::Submit(cmdBuffer);
+        CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool);
     }
 
 }

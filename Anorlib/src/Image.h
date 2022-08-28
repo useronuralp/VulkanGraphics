@@ -25,15 +25,18 @@ namespace Anor
 		uint32_t			GetWidth()		{ return m_Width; }
 		VkDeviceSize		GetImageSize()	{ return m_ImageSize; }
 		const std::string&	GetPath()		{ return m_Path; }
+		uint32_t			GetMipLevel()   { return m_MipLevels; }
 	private:
 		void TransitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-		void TransitionDepthLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 		void CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height);
 		void SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType = ImageType::COLOR);
+		void GenerateMipmaps();
 	private:
 		VkImage			m_Image			= VK_NULL_HANDLE;
 		VkDeviceMemory	m_ImageMemory	= VK_NULL_HANDLE;
 		VkImageView		m_ImageView		= VK_NULL_HANDLE;
+
+		VkFormat		m_ImageFormat;
 
 		uint32_t		m_MipLevels = 1;
 		bool			m_IsCubemap = false;
