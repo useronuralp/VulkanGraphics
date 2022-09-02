@@ -32,7 +32,7 @@ namespace Anor
         return m_Meshes[0]->GetModelMatrix();
     }
 
-    void Model::AddConfiguration(const char* configName, const Pipeline::Specs pipelineCI, std::vector<DescriptorLayout> descriptorLayout)
+    void Model::AddConfiguration(const char* configName, const Pipeline::Specs pipelineCI, std::vector<DescriptorSetLayout> descriptorLayout)
     {
         for (const auto& mesh : m_Meshes)
             mesh->AddConfiguration(configName, pipelineCI, descriptorLayout);

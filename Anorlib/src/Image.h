@@ -27,7 +27,7 @@ namespace Anor
 		const std::string&	GetPath()		{ return m_Path; }
 		uint32_t			GetMipLevel()   { return m_MipLevels; }
 	private:
-		void TransitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout);
 		void CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height);
 		void SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType = ImageType::COLOR);
 		void GenerateMipmaps();

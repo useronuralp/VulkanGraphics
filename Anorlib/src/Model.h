@@ -51,7 +51,7 @@ namespace Anor
 		void UpdateUniformBuffer(uint32_t bufferIndex, void* dataToCopy, size_t dataSize);
 		glm::mat4 GetModelMatrix();
 
-		void AddConfiguration(const char* configName, const Pipeline::Specs pipelineCI, std::vector<DescriptorLayout> descriptorLayout);
+		void AddConfiguration(const char* configName, const Pipeline::Specs pipelineCI, std::vector<DescriptorSetLayout> descriptorLayout);
 		void SetActiveConfiguration(const char* configName);
 		void SetShadowMap(const Ref<Texture>& shadowMap);
 
@@ -64,7 +64,7 @@ namespace Anor
 		Ref<Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Texture>>& cache);
 	private:
 		std::vector<Ref<Mesh>>				 m_Meshes;
-		std::vector<DescriptorLayout>		 m_DescriptorLayout;
+		std::vector<DescriptorSetLayout>		 m_DescriptorLayout;
 
 
 		std::vector<Ref<Texture>> m_TextureCache;
@@ -80,7 +80,7 @@ namespace Anor
 
 		Ref<Texture> m_DefaultShadowMap = nullptr;
 		Ref<Texture> m_DefaultDiffuse = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\Magenta_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture> m_DefaultNormal = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\NormalMAP_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Texture> m_DefaultNormal = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\NormalMAP_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_UNORM);
 		Ref<Texture> m_DefaultRoughness = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
 		Ref<Texture> m_DefaultMetallic = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
 		Ref<Texture> m_DefaultAO = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);

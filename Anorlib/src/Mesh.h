@@ -14,9 +14,11 @@ namespace Anor
 	{
 		switch (type)
 		{
-			case Size::MAT4: return sizeof(glm::mat4);
-			case Size::VEC3: return sizeof(glm::vec3);
-			case Size::VEC2: return sizeof(glm::vec2);
+			case Size::MAT4:  return sizeof(glm::mat4);
+			case Size::VEC3:  return sizeof(glm::vec3);
+			case Size::VEC2:  return sizeof(glm::vec2);
+			case Size::VEC4:  return sizeof(glm::vec4);
+			case Size::FLOAT: return sizeof(float);
 		}
 	}
 
@@ -50,7 +52,7 @@ namespace Anor
 
 
 
-		void AddConfiguration(const char* configName, Pipeline::Specs pipelineCI, std::vector<DescriptorLayout> descriptorLayout);
+		void AddConfiguration(const char* configName, Pipeline::Specs pipelineCI, std::vector<DescriptorSetLayout> descriptorLayout);
 		void SetActiveConfiguration(const char* configName);
 		void SetShadowMap(const Ref<Texture>& shadowMap) { m_ShadowMap = shadowMap; }
 

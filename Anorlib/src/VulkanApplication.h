@@ -46,6 +46,7 @@ namespace Anor
 	private:
 		void Init();
 		void SetupQueueFamilies();
+		VkSampleCountFlagBits GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice);
 	private:
 		float			m_Time = 0.0f;
 		float			m_LastFrameRenderTime;
@@ -53,6 +54,9 @@ namespace Anor
 		// User defined variables.
 		std::vector<const char*> m_DeviceExtensions;
 		std::vector<const char*> m_InstanceExtensions;
+
+		VkSampleCountFlagBits    m_MSAA;
+
 
 		float m_CamFOV;
 		float m_CamNearClip;

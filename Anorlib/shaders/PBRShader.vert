@@ -13,31 +13,31 @@ layout(location = 1) out vec2 v_UV;
 layout(location = 2) out vec3 v_Normal;
 layout(location = 3) out vec4 v_FragPosLightSpace;
 layout(location = 4) out vec3 v_DirLightPos;
-layout(location = 5) out mat3 v_TBN;
+layout(location = 5) out smooth mat3 v_TBN;
 
-layout(binding = 0) uniform ModelMatrix
+layout(set = 0, binding = 0) uniform ModelMatrix
 {
     mat4 ModelMat;
 } Model;
 
-layout(binding = 1) uniform ViewMatrix
+layout(set = 0, binding = 1) uniform ViewMatrix
 {
     mat4 ViewMat;
 } View;
 
-layout(binding = 2) uniform ProjectionMatrix
+layout(set = 0, binding = 2) uniform ProjectionMatrix
 {
     mat4 ProjMat;
 } Proj;
 
-layout(binding = 3) uniform depthMVP
+layout(set = 0, binding = 3) uniform depthMVP
 {
     mat4 Matrix;
 } lightMVP;
 
-layout(binding = 4) uniform DirectionalLightPosition
+layout(set = 0, binding = 4) uniform DirectionalLightPosition
 {
-    vec3 pos;
+    vec4 pos;
 } dirLightPos;
 
 
@@ -53,17 +53,18 @@ void main()
     v_Pos               = vec3(Model.ModelMat * vec4(a_Position, 1.0));
     v_Normal            = mat3(Model.ModelMat) * a_Normal;   
 
-    mat3 normalMatrix   = transpose(mat3(Model.ModelMat));
+    mat3 normalMatrix = transpose(inverse(mat3(Model.ModelMat)));
 
     vec3 T              = normalize(normalMatrix * a_Tangent);
     vec3 N              = normalize(normalMatrix * a_Normal);
     vec3 B              = normalize(normalMatrix * a_Bitangent);
 
-    T                   = normalize(T - dot(T, N) * N);
+    //T                   = normalize(T - dot(T, N) * N);
 
-    v_TBN               = mat3(T, B, N);
+    v_TBN               = transpose(mat3(T, B, N));
+
     v_FragPosLightSpace = bias * lightMVP.Matrix * Model.ModelMat * vec4(a_Position, 1.0);
-    v_DirLightPos       = dirLightPos.pos;
+    v_DirLightPos       = dirLightPos.pos.xyz;
 
     gl_Position = Proj.ProjMat * View.ViewMat * Model.ModelMat * vec4(a_Position, 1.0);
 }

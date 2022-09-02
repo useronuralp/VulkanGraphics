@@ -4,8 +4,11 @@ layout (binding = 3) uniform sampler2D samplerFire;
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in float inAlpha;
-layout (location = 2) in flat int inType;
-layout (location = 3) in float inRotation;
+layout (location = 2) in float inRotation;
+layout (location = 3) in float inRowOffset;
+layout (location = 4) in float inColumnOffset;
+layout (location = 5) in float inRowCellSize;
+layout (location = 6) in float inColumnCellSize;
 
 layout (location = 0) out vec4 outFragColor;
 
@@ -23,11 +26,13 @@ void main ()
 		rotCos * (gl_PointCoord.x - rotCenter) + rotSin * (gl_PointCoord.y - rotCenter) + rotCenter,
 		rotCos * (gl_PointCoord.y - rotCenter) - rotSin * (gl_PointCoord.x - rotCenter) + rotCenter);
 
-	vec2 UV = vec2(gl_PointCoord.x, gl_PointCoord.y);
+	float mappedX = (gl_PointCoord.x * inRowCellSize) + (inRowOffset - inRowCellSize);
+	float mappedY = (gl_PointCoord.y * inColumnCellSize) + (inColumnOffset - inColumnCellSize);
+	vec2 UV = vec2(mappedX, mappedY);
 	
 	// Flame
 	color = texture(samplerFire, UV);
-	//color.a *= inAlpha;
+	color.a *= inAlpha;
 
 	
 	outFragColor = color;

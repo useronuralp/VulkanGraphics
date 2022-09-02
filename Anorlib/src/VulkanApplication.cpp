@@ -38,7 +38,7 @@ namespace Anor
         std::vector<PhysicalDevice> devices;
         devices = s_Instance->GetVKPhysicalDevices();
 
-        // Find a suitable device here.
+        // Find a suitable PHYSICAL (GPU) device here.
         bool found = false;
 
         std::cout << "Searching for a DISCREETE graphics card..." << std::endl;
@@ -66,6 +66,8 @@ namespace Anor
                 break;
             }
         }
+
+        m_MSAA = GetMaxUsableSampleCount(s_PhysicalDevice);
 
         ASSERT(found, "Could not find a GPU.");
 
@@ -158,6 +160,22 @@ namespace Anor
         // Try to find a compute queue family.
         index = s_PhysicalDevice->FindQueueFamily(VK_QUEUE_COMPUTE_BIT);
         s_ComputeQueueFamily = index;
+    }
+
+    VkSampleCountFlagBits VulkanApplication::GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice)
+    {
+        VkPhysicalDeviceProperties physicalDeviceProperties;
+        vkGetPhysicalDeviceProperties(physDevice->GetVKPhysicalDevice(), &physicalDeviceProperties);
+
+        VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+        if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+        if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+        if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+        if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+        if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+        if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+        return VK_SAMPLE_COUNT_1_BIT;
     }
 
     VkFormat VulkanApplication::FindSupportedFormat(const Ref<PhysicalDevice>& physDevice, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)

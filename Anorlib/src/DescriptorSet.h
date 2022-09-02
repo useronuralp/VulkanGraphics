@@ -22,7 +22,9 @@ namespace Anor
 		AMBIENT_OCCLUSION_SAMPLER,
 		SHADOWMAP_SAMPLER,
 		CUBEMAP_SAMPLER,
+		FLOAT,
 		MAT4,
+		VEC4,
 		VEC3,
 		VEC2
 	};
@@ -31,26 +33,27 @@ namespace Anor
 		FRAGMENT,
 		VERTEX
 	};
-	struct DescriptorLayout
+	struct DescriptorSetLayout
 	{
 		Type		Type;
 		Size		Size;
+		int			Count;
 		ShaderStage ShaderStage;
 	};
 	class Pipeline;
 	class DescriptorSet
 	{
 	public:
-		DescriptorSet(const std::vector<DescriptorLayout>& layout);
+		DescriptorSet(const std::vector<DescriptorSetLayout>& layout);
 		~DescriptorSet();
 		const VkDescriptorSet& GetVKDescriptorSet() { return m_DescriptorSet; }
 		const VkDescriptorSetLayout& GetVKDescriptorSetLayout() { return m_DescriptorSetLayout; }
-		const std::vector<DescriptorLayout>& GetShaderLayout() { return m_ShaderLayout; }
+		const std::vector<DescriptorSetLayout>& GetLayout() { return m_SetLayout; }
 	private:
-		VkDescriptorSet					 m_DescriptorSet = VK_NULL_HANDLE;
-		VkDescriptorPool				 m_DescriptorPool = VK_NULL_HANDLE;
-		VkDescriptorSetLayout			 m_DescriptorSetLayout = VK_NULL_HANDLE;
-		std::vector<DescriptorLayout>    m_ShaderLayout;
+		VkDescriptorSet					    m_DescriptorSet = VK_NULL_HANDLE;
+		VkDescriptorPool				    m_DescriptorPool = VK_NULL_HANDLE;
+		VkDescriptorSetLayout			    m_DescriptorSetLayout = VK_NULL_HANDLE;
+		std::vector<DescriptorSetLayout>    m_SetLayout;
 	};
 
 	static VkShaderStageFlags FromShaderStageToDescriptorType(ShaderStage stage)

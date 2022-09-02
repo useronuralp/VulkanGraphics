@@ -70,7 +70,7 @@ namespace Anor
 		}
 	}
 
-	void Mesh::AddConfiguration(const char* configName, Pipeline::Specs pipelineCI, std::vector<DescriptorLayout> descriptorLayout)
+	void Mesh::AddConfiguration(const char* configName, Pipeline::Specs pipelineCI, std::vector<DescriptorSetLayout> descriptorLayout)
 	{
 		// Create a descriptor set PER MESH.
 		Ref<DescriptorSet> newDescriptorSet = std::make_shared<DescriptorSet>(descriptorLayout);
@@ -87,11 +87,11 @@ namespace Anor
 		newConfiguration.DescriptorSet = newDescriptorSet;
 
 		int bindingIndex = 0;
-		for (const auto& bindingSpecs : newConfiguration.DescriptorSet->GetShaderLayout())
+		for (const auto& bindingSpecs : newConfiguration.DescriptorSet->GetLayout())
 		{
 			if (bindingSpecs.Type == Type::UNIFORM_BUFFER)
 			{
-				Ref<UniformBuffer> UB = std::make_shared<UniformBuffer>(newConfiguration.DescriptorSet, FromUsageTypeToSize(bindingSpecs.Size), bindingIndex);
+				Ref<UniformBuffer> UB = std::make_shared<UniformBuffer>(newConfiguration.DescriptorSet, FromUsageTypeToSize(bindingSpecs.Size) * bindingSpecs.Count, bindingIndex);
 				newConfiguration.UniformBuffers.insert(std::make_pair(bindingIndex, UB));
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER)

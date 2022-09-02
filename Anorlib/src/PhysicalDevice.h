@@ -42,6 +42,7 @@ namespace Anor
         std::vector<QueueFamily>             m_QueueFamilies; // Storing all the queue family properties in this vector.
         std::vector<VkExtensionProperties>   m_SupportedExtensions;
         VkPhysicalDeviceMemoryProperties     m_MemoryProperties;
+
 	};
 
 }

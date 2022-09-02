@@ -1,5 +1,6 @@
 #version 450 core
 
+#define MAX_LIGHTS 8;
 
 // INs
 layout(location = 0) in vec3 v_Pos;
@@ -10,20 +11,27 @@ layout(location = 4) in vec3 v_DirLightPos;
 layout(location = 5) in mat3 v_TBN;
 
 
-layout(binding = 5) uniform CameraPosition
+layout(set = 0, binding = 5) uniform CameraPosition
 {
-    vec3 pos;
+    vec4 pos;
 } camPos;
 
-layout(binding = 6) uniform PointLightPosition
+layout(set = 0, binding = 6) uniform PointLightPosition
 {
-    vec3 pos;
+    vec4 positions[4];
 } pointLightPos;
 
-layout(binding = 7) uniform sampler2D u_DiffuseSampler;
-layout(binding = 8) uniform sampler2D u_NormalSampler;
-layout(binding = 9) uniform sampler2D u_RoughnessMetallicSampler;
-layout(binding = 10) uniform sampler2D u_DirectionalShadowMap;
+layout(set = 0, binding = 7) uniform sampler2D u_DiffuseSampler;
+layout(set = 0, binding = 8) uniform sampler2D u_NormalSampler;
+layout(set = 0, binding = 9) uniform sampler2D u_RoughnessMetallicSampler;
+layout(set = 0, binding = 10) uniform sampler2D u_DirectionalShadowMap;
+
+
+layout(set = 0, binding = 11) uniform u_PointLightIntensity
+{
+    vec2 intensity[4];
+}PLIns;
+
 
 
 layout(location = 0) out vec4 FragColor;
@@ -91,7 +99,7 @@ float DirectionalShadowCalculation(vec4 fragPosLightSpace, vec3 fragPos, vec3 li
 	float currentDepth = shadowCoords.z;
 
 
-	vec3 lightDir = normalize(lightPosition - fragPos);
+	vec3 lightDir = normalize(v_TBN * lightPosition - v_TBN * fragPos);
 	float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
 	float shadow = 0.0;
 	vec2 texelSize = 1.0 / textureSize(u_DirectionalShadowMap, 0);
@@ -123,12 +131,12 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    // reflectance equation 
    vec3 Lo = vec3(0.0);
    
-   vec3 L = normalize(dirLightPos - v_Pos);
+   vec3 L = normalize(v_TBN * dirLightPos - v_TBN * v_Pos);
    vec3 H = normalize(viewDir + L);
    
    float distance    = length(dirLightPos - v_Pos);
    float attenuation = 1.0 / (distance * distance);
-   vec3 radiance     = lightColor * 1.0;        
+   vec3 radiance     = lightColor;        
    
    // cook-torrance brdf
    float NDF  = DistributionGGX(normal, H, roughness);        
@@ -146,7 +154,7 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.001f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.0001f) * vec3(albedo) * ao;
    vec3 color = ambient + (Lo * (1.0 - shadow));
    
    color = color / (color + vec3(1.0));
@@ -155,7 +163,7 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    return color;
 }
 
-vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, vec3 roughnessMetallic, vec3 lightColor)
+vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, vec3 roughnessMetallic, vec3 lightColor, float intensity)
 {
    float ao  = roughnessMetallic.r;
    float roughness = roughnessMetallic.g;
@@ -167,12 +175,16 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    // reflectance equation 
    vec3 Lo = vec3(0.0);
    
-   vec3 L = normalize(pointLightPos - v_Pos);
+   vec3 L = normalize(v_TBN * pointLightPos - v_TBN * v_Pos);
    vec3 H = normalize(viewDir + L);
    
+   float linear = 200.0;
+   float quadratic = 200.0;
+   float constant = 1.0;
+
    float distance    = length(pointLightPos - v_Pos);
-   float attenuation = 1.0 / (distance * distance);
-   vec3 radiance     = lightColor * attenuation * 1.0;        
+   float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance * distance * distance));  
+   vec3 radiance     = lightColor * attenuation * intensity;        
    
    // cook-torrance brdf
    float NDF  = DistributionGGX(normal, H, roughness);        
@@ -191,7 +203,7 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
    vec3 ambient = vec3(0.001f) * vec3(albedo) * ao;
-   vec3 color = ambient + Lo;
+   vec3 color = Lo;
    
    color = color / (color + vec3(1.0));
    color = pow(color, vec3(1.0/2.2));  
@@ -199,6 +211,7 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    return color;
 }
 
+const vec4 v05 = vec4(0.5,0.5,0.5,0.5);
 
 void main()
 {		
@@ -206,19 +219,23 @@ void main()
    vec3 albedo = pow(texture(u_DiffuseSampler, v_UV).rgb, vec3(2.2));
    vec3 roughnessMetallicTex = texture(u_RoughnessMetallicSampler, v_UV).rgb;
    
-
+   
    // -------Sample the normals from the normal map---------
    vec3 normal = texture(u_NormalSampler, v_UV).rgb;
    normal = normal * 2.0 - 1.0;
-   normal = normalize(v_TBN * normal);
-   
-   vec3 viewDir = normalize(camPos.pos - v_Pos);
 
+   //normal = v_Normal;
+   
+   vec3 viewDir = normalize(v_TBN * camPos.pos.xyz - v_TBN * v_Pos);
+   
    float directionalShadow = DirectionalShadowCalculation(v_FragPosLightSpace, v_Pos, v_DirLightPos, normal);
    
-
+   
    vec3 color = vec3(0.0);
-   color += CalcDirectionalLight(normal, viewDir, v_DirLightPos, directionalShadow, albedo, roughnessMetallicTex, vec3(1.0));
-   color += CalcPointLight(normal, viewDir, pointLightPos.pos, albedo, roughnessMetallicTex, vec3(1.0, 0.0, 0.0));
+   color += CalcDirectionalLight(normal, viewDir, v_DirLightPos, directionalShadow, albedo, roughnessMetallicTex, vec3(0.74, 0.57, 0.70));
+   color += CalcPointLight(normal, viewDir, pointLightPos.positions[0].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), PLIns.intensity[0].x);
+   color += CalcPointLight(normal, viewDir, pointLightPos.positions[1].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), PLIns.intensity[1].x);
+   color += CalcPointLight(normal, viewDir, pointLightPos.positions[2].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), PLIns.intensity[2].x);
+   color += CalcPointLight(normal, viewDir, pointLightPos.positions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), PLIns.intensity[3].x);
    FragColor = vec4(color, 1.0);
 }  

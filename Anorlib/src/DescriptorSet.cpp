@@ -8,16 +8,16 @@
 */
 namespace Anor
 {
-	DescriptorSet::DescriptorSet(const std::vector<DescriptorLayout>& layout) // Descriptors are "pointers" to a resource. Programmer defines these resources.
-		:m_ShaderLayout(layout)
+	DescriptorSet::DescriptorSet(const std::vector<DescriptorSetLayout>& layout) // Descriptors are "pointers" to a resource. Programmer defines these resources.
+		:m_SetLayout(layout)
 	{
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
-		bindings.resize(m_ShaderLayout.size());
+		bindings.resize(m_SetLayout.size());
 		std::vector<VkDescriptorPoolSize> poolSizes;
-		poolSizes.resize(m_ShaderLayout.size());
+		poolSizes.resize(m_SetLayout.size());
 		
 		uint32_t bindingIndex = 0;
-		for (const auto& bindingSpecs : m_ShaderLayout)
+		for (const auto& bindingSpecs : m_SetLayout)
 		{
 			switch (bindingSpecs.Type)
 			{
@@ -48,6 +48,11 @@ namespace Anor
 			bindingIndex++;
 		}
 
+		// REMARK: This class currently allocates a SINGLE descriptor set whenever it is constructed. However, in reality, you can allocate more than one descriptor sets 
+		// AT THE SAME TIME when you are calling the "vkAllocateDescriptorSets" command. You just need to create a vector of "VkDescriptorSetLayoutCreateInfo" instead of creating a single one.
+
+
+		// A single "VkDescriptorSetLayoutCreateInfo" is created here.
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -59,15 +64,16 @@ namespace Anor
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = 1;
+		poolInfo.maxSets = 1; // Needs to reflect the number of descriptor sets you want to create. We are currently creating only 1.
 
 		ASSERT(vkCreateDescriptorPool(VulkanApplication::s_Device->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) == VK_SUCCESS, "Failed to create descriptor pool!");
+
 
 		VkDescriptorSetAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocInfo.descriptorPool = m_DescriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = &m_DescriptorSetLayout;
+		allocInfo.descriptorSetCount = 1; // Need to reflect the number of descriptor sets you are creating.
+		allocInfo.pSetLayouts = &m_DescriptorSetLayout; 
 
 		ASSERT(vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &m_DescriptorSet) == VK_SUCCESS, "Failed to allocate descriptor sets!");
 	}

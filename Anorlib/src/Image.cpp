@@ -65,7 +65,7 @@ namespace Anor
             m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
         }
 
-        SetupImage(m_Width, m_Height, imageFormat);
+        SetupImage(m_Width, m_Height, m_ImageFormat);
 
         // Prep the staging buffer.
         VkBuffer       stagingBuffer;
@@ -90,11 +90,11 @@ namespace Anor
 
         // Do a layout transition operation to move the data from the staging buffer to the VkImage.
         // TO DO : Learn pipeline barriers.
-        TransitionImageLayout(imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        TransitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         CopyBufferToImage(stagingBuffer, m_Width, m_Height);
         if (m_IsCubemap)
         {
-            TransitionImageLayout(imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            TransitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -119,7 +119,7 @@ namespace Anor
     {
         m_Width = width;
         m_Height = height;
-        SetupImage(width, height, imageFormat, imageType);
+        SetupImage(width, height, m_ImageFormat, imageType);
         m_MipLevels = 1;
     }
 
@@ -130,7 +130,7 @@ namespace Anor
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), m_ImageMemory, nullptr);
 	}
 
-    void Image::TransitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+    void Image::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout)
     {
         uint32_t layerCount = 1;
         if (m_IsCubemap)
