@@ -43,6 +43,7 @@ namespace Anor
 
 		Mesh() = default;
 		Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture, const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap = nullptr);
+		Mesh(const Ref<VertexBuffer>& VBO, const Ref<IndexBuffer>& IBO, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture, const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap = nullptr);
 		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex);
 		Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const std::vector<uint32_t>& indices);
 		~Mesh();
@@ -51,16 +52,21 @@ namespace Anor
 		Ref<IndexBuffer>  GetIBO() { return m_IBO; }
 
 
+		Ref<Texture> GetAlbedo() { return m_Albedo; }
+		Ref<Texture> GetNormals() { return m_Normals; }
+		Ref<Texture> GetRoughnessMetallic() { return m_RoughnessMetallic; }
+		Ref<Texture> GetShadowMap() { return m_ShadowMap; }
 
 		void AddConfiguration(const char* configName, Pipeline::Specs pipelineCI, std::vector<DescriptorSetLayout> descriptorLayout);
+		void AddConfiguration(const char* configName, Ref<Pipeline> pipeline, std::vector<DescriptorSetLayout> descriptorLayout);
 		void SetActiveConfiguration(const char* configName);
 		void SetShadowMap(const Ref<Texture>& shadowMap) { m_ShadowMap = shadowMap; }
 
 		void UpdateUniformBuffer(uint32_t bufferIndex, void* dataToCopy, size_t dataSize);
 		void OnResize();
 
-		glm::mat4 GetModelMatrix() { return m_ModelMatrix; }
-
+		glm::mat4& GetModelMatrix() { return m_ModelMatrix; }
+		Ref<DescriptorSet> GetActiveDescriptorSet() { return m_ActiveConfiguration.DescriptorSet; }
 
 		void Rotate(const float& degree, const float& x, const float& y, const float& z);
 		void Translate(const float& x, const float& y, const float& z);

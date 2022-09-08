@@ -23,7 +23,7 @@ namespace Anor
 			{
 				case Type::UNIFORM_BUFFER:
 					// For the Uniform Buffer object.
-					bindings[bindingIndex].binding = bindingIndex; // binding number used in the shader.
+					bindings[bindingIndex].binding = bindingSpecs.Binding; // binding number used in the shader.
 					bindings[bindingIndex].descriptorCount = 1;
 					bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 					bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.ShaderStage);
@@ -34,7 +34,7 @@ namespace Anor
 					break;
 				case Type::TEXTURE_SAMPLER:
 					// For the texture sampler in the fragment shader 
-					bindings[bindingIndex].binding = bindingIndex;
+					bindings[bindingIndex].binding = bindingSpecs.Binding;
 					bindings[bindingIndex].descriptorCount = 1;
 					bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 					bindings[bindingIndex].pImmutableSamplers = nullptr;
@@ -76,6 +76,20 @@ namespace Anor
 		allocInfo.pSetLayouts = &m_DescriptorSetLayout; 
 
 		ASSERT(vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &m_DescriptorSet) == VK_SUCCESS, "Failed to allocate descriptor sets!");
+	}
+	void DescriptorSet::WriteDescriptorSet(uint32_t bindingIndex, const VkDescriptorBufferInfo& bufferInfo, const VkDescriptorImageInfo& imageInfo)
+	{
+		VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = m_DescriptorSet;
+		descriptorWrite.dstBinding = bindingIndex;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pBufferInfo = &bufferInfo;
+		descriptorWrite.pImageInfo = &imageInfo; // Optional
+		descriptorWrite.pTexelBufferView = nullptr; // Optional
+		vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 	}
 	DescriptorSet::~DescriptorSet()
 	{

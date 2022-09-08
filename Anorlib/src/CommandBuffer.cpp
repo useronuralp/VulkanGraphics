@@ -51,7 +51,7 @@ namespace Anor
     {
         vkCmdEndRenderPass(cmdBuffer);
     }
-    void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline, const VkDeviceSize& offset)
+    void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline)
     {
         vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
     }

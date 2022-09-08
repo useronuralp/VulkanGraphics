@@ -11,7 +11,7 @@ namespace Anor
 {
 	void Mesh::DrawIndexed(const VkCommandBuffer& cmdBuffer)
 	{
-		CommandBuffer::BindPipeline(cmdBuffer, m_ActiveConfiguration.Pipeline, 0);
+		CommandBuffer::BindPipeline(cmdBuffer, m_ActiveConfiguration.Pipeline);
 		CommandBuffer::BindDescriptorSet(cmdBuffer, m_ActiveConfiguration.Pipeline->GetPipelineLayout(), m_ActiveConfiguration.DescriptorSet);
 		CommandBuffer::BindVertexBuffer(cmdBuffer, m_VBO->GetVKBuffer(), 0);
 		CommandBuffer::BindIndexBuffer(cmdBuffer, m_IBO->GetVKBuffer());
@@ -19,7 +19,7 @@ namespace Anor
 	}
 	void Mesh::Draw(const VkCommandBuffer& cmdBuffer)
 	{
-		CommandBuffer::BindPipeline(cmdBuffer, m_ActiveConfiguration.Pipeline, 0);
+		CommandBuffer::BindPipeline(cmdBuffer, m_ActiveConfiguration.Pipeline);
 		CommandBuffer::BindDescriptorSet(cmdBuffer, m_ActiveConfiguration.Pipeline->GetPipelineLayout(), m_ActiveConfiguration.DescriptorSet);
 		CommandBuffer::BindVertexBuffer(cmdBuffer, m_VBO->GetVKBuffer(), 0);
 		CommandBuffer::Draw(cmdBuffer, m_VertexCount);
@@ -37,6 +37,19 @@ namespace Anor
 		{
 			m_IBO = std::make_shared<IndexBuffer>(indices);
 		}
+		m_ShadowMap = shadowMap;
+	}
+
+	Mesh::Mesh(const Ref<VertexBuffer>& VBO, const Ref<IndexBuffer>& IBO, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture,
+		const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap)
+		:m_ModelMatrix(glm::mat4(1.0f)), m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture)
+	{
+		// Vertex Buffer creation.
+		m_VBO = VBO;
+		m_VertexCount = static_cast<uint32_t>(VBO->GetVertices().size());
+		m_IndexCount = IBO->GetIndices().size();
+		// Index Buffer creation. (If there is one passed.)
+		m_IBO = IBO;
 		m_ShadowMap = shadowMap;
 	}
 
@@ -80,6 +93,55 @@ namespace Anor
 
 		// Create the pipeline.
 		Ref<Pipeline> newPipeline = std::make_shared<Pipeline>(pipelineCI);
+
+		Configuration newConfiguration{};
+		newConfiguration.ConfigurationName = configName;
+		newConfiguration.Pipeline = newPipeline;
+		newConfiguration.DescriptorSet = newDescriptorSet;
+
+		int bindingIndex = 0;
+		for (const auto& bindingSpecs : newConfiguration.DescriptorSet->GetLayout())
+		{
+			if (bindingSpecs.Type == Type::UNIFORM_BUFFER)
+			{
+				Ref<UniformBuffer> UB = std::make_shared<UniformBuffer>(newConfiguration.DescriptorSet, FromUsageTypeToSize(bindingSpecs.Size) * bindingSpecs.Count, bindingIndex);
+				newConfiguration.UniformBuffers.insert(std::make_pair(bindingIndex, UB));
+			}
+			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER)
+			{
+				if (bindingSpecs.Size == Size::NORMAL_SAMPLER)
+				{
+					newConfiguration.ImageSamplers.push_back(m_Normals->CreateSamplerFromThisTexture(newConfiguration.DescriptorSet, bindingIndex));
+				}
+				else if (bindingSpecs.Size == Size::DIFFUSE_SAMPLER)
+				{
+					newConfiguration.ImageSamplers.push_back(m_Albedo->CreateSamplerFromThisTexture(newConfiguration.DescriptorSet, bindingIndex));
+				}
+				else if (bindingSpecs.Size == Size::ROUGHNESS_METALLIC_SAMPLER)
+				{
+					newConfiguration.ImageSamplers.push_back(m_RoughnessMetallic->CreateSamplerFromThisTexture(newConfiguration.DescriptorSet, bindingIndex));
+				}
+				else if (bindingSpecs.Size == Size::CUBEMAP_SAMPLER)
+				{
+					newConfiguration.ImageSamplers.push_back(m_CubemapTexture->CreateSamplerFromThisTexture(newConfiguration.DescriptorSet, bindingIndex));
+				}
+				else if (bindingSpecs.Size == Size::SHADOWMAP_SAMPLER)
+				{
+					newConfiguration.ImageSamplers.push_back(m_ShadowMap->CreateSamplerFromThisTexture(newConfiguration.DescriptorSet, bindingIndex, ImageType::DEPTH));
+				}
+			}
+			bindingIndex++;
+		}
+		m_Configurations.push_back(newConfiguration);
+	}
+
+	void Mesh::AddConfiguration(const char* configName, Ref<Pipeline> pipeline, std::vector<DescriptorSetLayout> descriptorLayout)
+	{
+		// Create a descriptor set PER MESH.
+		Ref<DescriptorSet> newDescriptorSet = std::make_shared<DescriptorSet>(descriptorLayout);
+
+		// Create the pipeline.
+		Ref<Pipeline> newPipeline = pipeline;
 
 		Configuration newConfiguration{};
 		newConfiguration.ConfigurationName = configName;

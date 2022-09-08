@@ -1,0 +1,11 @@
+Model Information:
+* title:	Medieval Torch - Free
+* source:	https://sketchfab.com/3d-models/medieval-torch-free-065861234a824cb982764f04627331c9
+* author:	Typhen (https://sketchfab.com/typhen)
+
+Model License:
+* license type:	CC-BY-NC-SA-4.0 (http://creativecommons.org/licenses/by-nc-sa/4.0/)
+* requirements:	Author must be credited. No commercial use. Modified versions must have the same license.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Medieval Torch - Free" (https://sketchfab.com/3d-models/medieval-torch-free-065861234a824cb982764f04627331c9) by Typhen (https://sketchfab.com/typhen) licensed under CC-BY-NC-SA-4.0 (http://creativecommons.org/licenses/by-nc-sa/4.0/)

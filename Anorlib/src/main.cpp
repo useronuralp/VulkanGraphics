@@ -211,10 +211,10 @@ class MyApplication : public Anor::VulkanApplication
 
             std::vector<DescriptorSetLayout> dscLayout
             {
-                DescriptorSetLayout { Type::UNIFORM_BUFFER,   Size::MAT4,             1, ShaderStage::VERTEX   }, // Index 0
-                DescriptorSetLayout { Type::UNIFORM_BUFFER,   Size::MAT4,             1, ShaderStage::VERTEX   }, // Index 1
-                DescriptorSetLayout { Type::UNIFORM_BUFFER,   Size::VEC2,             1, ShaderStage::VERTEX   }, // Index 2
-                DescriptorSetLayout { Type::TEXTURE_SAMPLER,  Size::DIFFUSE_SAMPLER,  1, ShaderStage::FRAGMENT }, // Index 3
+                DescriptorSetLayout { Type::UNIFORM_BUFFER,   Size::MAT4,             1, ShaderStage::VERTEX   , 0}, // Index 0
+                DescriptorSetLayout { Type::UNIFORM_BUFFER,   Size::MAT4,             1, ShaderStage::VERTEX   , 1}, // Index 1
+                DescriptorSetLayout { Type::UNIFORM_BUFFER,   Size::VEC2,             1, ShaderStage::VERTEX   , 2}, // Index 2
+                DescriptorSetLayout { Type::TEXTURE_SAMPLER,  Size::DIFFUSE_SAMPLER,  1, ShaderStage::FRAGMENT , 3}, // Index 3
             };
 
             m_ParticlSystemDescriptorSet = std::make_shared<DescriptorSet>(dscLayout);
@@ -300,7 +300,9 @@ class MyApplication : public Anor::VulkanApplication
             attributeDescriptions[8].format = VK_FORMAT_R32_SFLOAT;
             attributeDescriptions[8].offset = offsetof(Particle, ColumnCellSize);
 
-            particleSpecs.VertexBindingDesc = bindingDescription;
+            std::vector<VkVertexInputBindingDescription> bindingDescs;
+            bindingDescs.push_back(bindingDescription);
+            particleSpecs.pVertexBindingDesc = bindingDescs;
             particleSpecs.pVertexAttributeDescriptons = attributeDescriptions;
 
             m_ParticeSystemPipeline = std::make_shared<Pipeline>(particleSpecs);
@@ -426,7 +428,7 @@ class MyApplication : public Anor::VulkanApplication
             VkDeviceSize offsets[1] = { 0 };
             // Draw the particles here. We are using a different logic to draw them so we need to do the following steps manually instead of expecting the Mesh / Model class to take care of it for us.
             CommandBuffer::BindDescriptorSet(cmdBuffer, m_ParticeSystemPipeline->GetPipelineLayout(), m_ParticlSystemDescriptorSet);
-            CommandBuffer::BindPipeline(cmdBuffer, m_ParticeSystemPipeline, offsets[0]);
+            CommandBuffer::BindPipeline(cmdBuffer, m_ParticeSystemPipeline);
             CommandBuffer::BindVertexBuffer(cmdBuffer, m_ParticleBuffer, offsets[0]);
             CommandBuffer::Draw(cmdBuffer, m_ParticleCount);
 
@@ -446,7 +448,6 @@ public:
 
     Model* model;
     Model* model2;
-    Model* model3;
     Model* torch;
     Model* torch2;
     Model* torch3;
@@ -519,19 +520,26 @@ public:
         // Specify the layout of the descriptor set that you'll use in your shaders.
         std::vector<DescriptorSetLayout> dscLayout 
         {
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   }, // Index 0
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   }, // Index 1
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   }, // Index 2
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   }, // Index 3
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       1, ShaderStage::VERTEX   }, // Index 4
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       1, ShaderStage::FRAGMENT }, // Index 5
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       POINT_LIGHT_COUNT, ShaderStage::FRAGMENT }, // Index 6
-            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::DIFFUSE_SAMPLER,            1, ShaderStage::FRAGMENT }, // Index 7
-            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::NORMAL_SAMPLER,             1, ShaderStage::FRAGMENT }, // Index 8
-            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::ROUGHNESS_METALLIC_SAMPLER, 1, ShaderStage::FRAGMENT }, // Index 9
-            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::SHADOWMAP_SAMPLER,          1, ShaderStage::FRAGMENT }, // Index 10
-            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       POINT_LIGHT_COUNT, ShaderStage::FRAGMENT }, // Index 11
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   , 0}, // Index 0
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   , 1}, // Index 1
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   , 2}, // Index 2
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::MAT4,                       1, ShaderStage::VERTEX   , 3}, // Index 3
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       1, ShaderStage::VERTEX   , 4}, // Index 4
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       1, ShaderStage::FRAGMENT , 5}, // Index 5
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       POINT_LIGHT_COUNT, ShaderStage::FRAGMENT, 6 }, // Index 6
+            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::DIFFUSE_SAMPLER,            1, ShaderStage::FRAGMENT , 7}, // Index 7
+            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::NORMAL_SAMPLER,             1, ShaderStage::FRAGMENT , 8}, // Index 8
+            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::ROUGHNESS_METALLIC_SAMPLER, 1, ShaderStage::FRAGMENT , 9}, // Index 9
+            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::SHADOWMAP_SAMPLER,          1, ShaderStage::FRAGMENT , 10}, // Index 10
+            DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       POINT_LIGHT_COUNT, ShaderStage::FRAGMENT , 11}, // Index 11
         };
+
+        //std::vector<Ref<DescriptorSet>> dscSets;
+        //for(int i = 0; i < model->GetMeshes().size(); i++)
+        //{
+        //    model->GetMeshes()[i]->get
+        //    dscSets.push_back(std::make_shared<DescriptorSet>(dscLayout));
+        //}
 
         // Configure the pipeline spcifications. All of these fields except the "DescriptorSetLayout" is mandatory.
         Pipeline::Specs specs{};
@@ -595,7 +603,9 @@ public:
         attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[4].offset = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3);
 
-        specs.VertexBindingDesc = bindingDescription;
+        std::vector<VkVertexInputBindingDescription> bindingDescs;
+        bindingDescs.push_back(bindingDescription);
+        specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
         // Finally, add the newly created configuration to the model to be used when drawing.
@@ -606,8 +616,8 @@ public:
     {
         std::vector<DescriptorSetLayout> dscLayout
         {
-            DescriptorSetLayout { Type::UNIFORM_BUFFER, Size::MAT4, 1, ShaderStage::VERTEX },  // Index 0
-            DescriptorSetLayout { Type::UNIFORM_BUFFER, Size::MAT4, 1, ShaderStage::VERTEX },  // Index 0
+            DescriptorSetLayout { Type::UNIFORM_BUFFER, Size::MAT4, 1, ShaderStage::VERTEX , 0},  // Index 0
+            DescriptorSetLayout { Type::UNIFORM_BUFFER, Size::MAT4, 1, ShaderStage::VERTEX , 1},  // Index 0
         };
 
 
@@ -655,7 +665,9 @@ public:
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = 0;
 
-        specs.VertexBindingDesc = bindingDescription;
+        std::vector<VkVertexInputBindingDescription> bindingDescs;
+        bindingDescs.push_back(bindingDescription);
+        specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
 
@@ -665,9 +677,9 @@ public:
     {
         std::vector<DescriptorSetLayout> dscLayout
         { 
-            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4, 1, ShaderStage::VERTEX },
-            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4, 1, ShaderStage::VERTEX },
-            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4, 1, ShaderStage::VERTEX },
+            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4, 1, ShaderStage::VERTEX , 0},
+            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4, 1, ShaderStage::VERTEX , 1},
+            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4, 1, ShaderStage::VERTEX , 2},
         };
 
         Pipeline::Specs specs{};
@@ -712,7 +724,9 @@ public:
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = 0;
 
-        specs.VertexBindingDesc = bindingDescription;
+        std::vector<VkVertexInputBindingDescription> bindingDescs;
+        bindingDescs.push_back(bindingDescription);
+        specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
         model->AddConfiguration("NormalRenderPass", specs, dscLayout);
@@ -722,9 +736,9 @@ public:
     {
         std::vector<DescriptorSetLayout> dscLayout =
         {
-            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4,             1, ShaderStage::VERTEX  },
-            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4,             1, ShaderStage::VERTEX  },
-            DescriptorSetLayout {Type::TEXTURE_SAMPLER,Size::CUBEMAP_SAMPLER, 1, ShaderStage::FRAGMENT}
+            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4,             1, ShaderStage::VERTEX  , 0},
+            DescriptorSetLayout {Type::UNIFORM_BUFFER,Size::MAT4,             1, ShaderStage::VERTEX  , 1},
+            DescriptorSetLayout {Type::TEXTURE_SAMPLER,Size::CUBEMAP_SAMPLER, 1, ShaderStage::FRAGMENT, 2}
         };
 
         Pipeline::Specs specs{};
@@ -768,7 +782,9 @@ public:
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = 0;
 
-        specs.VertexBindingDesc = bindingDescription;
+        std::vector<VkVertexInputBindingDescription> bindingDescs;
+        bindingDescs.push_back(bindingDescription);
+        specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
         mesh->AddConfiguration("NormalRenderPass", specs, dscLayout);
@@ -1013,15 +1029,6 @@ private:
         model2->Translate(2.0f, 2.0f, -0.2f);
         model2->Rotate(90, 0, 1, 0);
 
-        // Loading the Sword.
-        model3 = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\sword\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-        model3->SetShadowMap(shadowMapTexture);
-        SetupScenePassConfiguration(model3);
-        SetupShadowPassConfiguration(model3);
-        model3->Scale(0.7, 0.7, 0.7);
-        model3->Translate(0, 10.0, 0);
-        //model3->Rotate(90, 0, 0, 0);
-
         // Loading 4 torches. TO DO: This part should be converted to instanced drawing. There are unnecessary data duplications happening here.
         torch = new Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         torch->SetShadowMap(shadowMapTexture);
@@ -1229,13 +1236,11 @@ private:
 
         glm::mat4 mat = model->GetModelMatrix();
         model2->Rotate(5.0f * deltaTime, 0.0, 1, 0.0f);
-        model3->Rotate(5.0f * deltaTime, 0, 1, 0);
         glm::mat4 mat2 = model2->GetModelMatrix();
         glm::mat4 mat3 = torch->GetModelMatrix();
         glm::mat4 mat4 = torch2->GetModelMatrix();
         glm::mat4 mat5 = torch3->GetModelMatrix();
         glm::mat4 mat6 = torch4->GetModelMatrix();
-        glm::mat4 mat7 = model3->GetModelMatrix();
 
         // Start shadow pass.
         CommandBuffer::BeginRenderPass(cmdBuffers[CURRENT_FRAME], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -1250,11 +1255,6 @@ private:
         model2->UpdateUniformBuffer(0, &mat2, sizeof(mat2));
         model2->UpdateUniformBuffer(1, &depthMVP, sizeof(depthMVP));
         model2->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
-
-        model3->SetActiveConfiguration("ShadowMapPass");
-        model3->UpdateUniformBuffer(0, &mat7, sizeof(mat2));
-        model3->UpdateUniformBuffer(1, &depthMVP, sizeof(depthMVP));
-        model3->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
 
         // End shadow pass.
         CommandBuffer::EndRenderPass(cmdBuffers[CURRENT_FRAME]);
@@ -1347,7 +1347,6 @@ private:
         // Set the correct configuration for every object in the scene which is either a Mesh or Model.
         model->SetActiveConfiguration("NormalRenderPass");
         model2->SetActiveConfiguration("NormalRenderPass");
-        model3->SetActiveConfiguration("NormalRenderPass");
         skybox->SetActiveConfiguration("NormalRenderPass");
 
         // Drawing the skybox.
@@ -1378,17 +1377,6 @@ private:
         model2->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
         model2->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0]) * POINT_LIGHT_COUNT);
         model2->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
-
-        // Drawing the Sword.
-        model3->UpdateUniformBuffer(0, &mat7, sizeof(mat7));
-        model3->UpdateUniformBuffer(1, &view, sizeof(view));
-        model3->UpdateUniformBuffer(2, &proj, sizeof(proj));
-        model3->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
-        model3->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
-        model3->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
-        model3->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
-        model3->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0]) * POINT_LIGHT_COUNT);
-        model3->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
 
 
         // Drawing the torch.
@@ -1504,7 +1492,6 @@ private:
     {
         delete model;
         delete model2;
-        delete model3;
         delete skybox;
         delete torch;
         delete torch2;
@@ -1538,7 +1525,6 @@ private:
         model->OnResize();
         skybox->OnResize();
         model2->OnResize();
-        model3->OnResize();
         fireSparks->OnResize();
         fireBase->OnResize();
         torch->OnResize();

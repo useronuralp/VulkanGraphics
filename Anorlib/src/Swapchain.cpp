@@ -110,6 +110,7 @@ namespace Anor
         {
             m_PresentMode = VK_PRESENT_MODE_FIFO_KHR;
         }
+        m_PresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
         // Find the optimal image count to request from the swapchain.
         m_ImageCount = VulkanApplication::s_Surface->GetVKSurfaceCapabilities().minImageCount + 1;
 

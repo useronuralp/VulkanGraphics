@@ -19,7 +19,7 @@ namespace Anor
 		static void End(const VkCommandBuffer& cmdBuffer);
 		static void BeginRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo, VkSubpassContents contents);
 		static void EndRenderPass(const VkCommandBuffer& cmdBuffer);
-		static void BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline, const VkDeviceSize& offset);
+		static void BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline);
 		static void BindVertexBuffer(const VkCommandBuffer& cmdBuffer, const VkBuffer& VBO, const VkDeviceSize& offset);
 		static void BindIndexBuffer(const VkCommandBuffer& cmdBuffer, const VkBuffer& IBO);
 		static void BindDescriptorSet(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet);

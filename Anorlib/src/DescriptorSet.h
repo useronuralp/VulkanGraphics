@@ -39,12 +39,14 @@ namespace Anor
 		Size		Size;
 		int			Count;
 		ShaderStage ShaderStage;
+		uint32_t	Binding;
 	};
 	class Pipeline;
 	class DescriptorSet
 	{
 	public:
 		DescriptorSet(const std::vector<DescriptorSetLayout>& layout);
+		void WriteDescriptorSet(uint32_t bindingIndex, const VkDescriptorBufferInfo& bufferInfo, const VkDescriptorImageInfo& imageInfo);
 		~DescriptorSet();
 		const VkDescriptorSet& GetVKDescriptorSet() { return m_DescriptorSet; }
 		const VkDescriptorSetLayout& GetVKDescriptorSetLayout() { return m_DescriptorSetLayout; }

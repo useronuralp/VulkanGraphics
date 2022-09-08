@@ -68,8 +68,8 @@ namespace Anor
         // Attribute: Type of the attributes passed to the vertex shader, which binding to load them from and at which offset.
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.pVertexBindingDescriptions = &m_CI.VertexBindingDesc;
+        vertexInputInfo.vertexBindingDescriptionCount = m_CI.pVertexBindingDesc.size();
+        vertexInputInfo.pVertexBindingDescriptions = m_CI.pVertexBindingDesc.data();
         vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(m_CI.pVertexAttributeDescriptons.size());
         vertexInputInfo.pVertexAttributeDescriptions = m_CI.pVertexAttributeDescriptons.data();
 

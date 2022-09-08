@@ -30,7 +30,7 @@ namespace Anor
 			VkCompareOp						    DepthCompareOp;
 			uint32_t						    ViewportWidth  = UINT32_MAX;
 			uint32_t						    ViewportHeight = UINT32_MAX;
-			VkVertexInputBindingDescription     VertexBindingDesc;
+			std::vector<VkVertexInputBindingDescription> pVertexBindingDesc;
 			VkPrimitiveTopology				    PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 			VkPipelineColorBlendAttachmentState ColorBlendAttachmentState;
 			std::vector<VkVertexInputAttributeDescription>  pVertexAttributeDescriptons;

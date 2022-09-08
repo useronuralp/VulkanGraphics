@@ -1,3 +1,5 @@
+..\vendor\VULKAN\1.3.211.0\bin\glslc.exe shaderTest.frag -o shaderTestFRAG.spv
+..\vendor\VULKAN\1.3.211.0\bin\glslc.exe shaderTest.vert -o shaderTestVERT.spv
 ..\vendor\VULKAN\1.3.211.0\bin\glslc.exe particle.frag -o particleFRAG.spv
 ..\vendor\VULKAN\1.3.211.0\bin\glslc.exe particle.vert -o particleVERT.spv
 ..\vendor\VULKAN\1.3.211.0\bin\glslc.exe debugQuad.frag -o debugQuadFRAG.spv
