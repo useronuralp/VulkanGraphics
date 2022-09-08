@@ -40,16 +40,9 @@ namespace Anor
 		m_ShadowMap = shadowMap;
 	}
 
-	Mesh::Mesh(const Ref<VertexBuffer>& VBO, const Ref<IndexBuffer>& IBO, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture,
-		const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap)
+	Mesh::Mesh(const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture, const Ref<Texture>& roughnessMetallicTexture, const Ref<Texture>& shadowMap)
 		:m_ModelMatrix(glm::mat4(1.0f)), m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture)
 	{
-		// Vertex Buffer creation.
-		m_VBO = VBO;
-		m_VertexCount = static_cast<uint32_t>(VBO->GetVertices().size());
-		m_IndexCount = IBO->GetIndices().size();
-		// Index Buffer creation. (If there is one passed.)
-		m_IBO = IBO;
 		m_ShadowMap = shadowMap;
 	}
 

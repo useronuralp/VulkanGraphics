@@ -98,6 +98,8 @@ public:
     Ref<Texture>            normal;
     Ref<Texture>            RM;
     Ref<Texture>            shadowMap = nullptr;
+    Ref<VertexBuffer>       VBO;
+    Ref<IndexBuffer>        IBO;
     std::vector<glm::mat4>  modelMatrices;
     std::vector<Ref<DescriptorSet>> dscSets;
 
@@ -148,6 +150,8 @@ private:
         diffuse     = modelLoad->GetMeshes()[0]->GetAlbedo();
         normal      = modelLoad->GetMeshes()[0]->GetNormals();
         RM          = modelLoad->GetMeshes()[0]->GetRoughnessMetallic();
+        VBO         = modelLoad->GetMeshes()[0]->GetVBO();
+        IBO         = modelLoad->GetMeshes()[0]->GetIBO();
         shadowMap   = nullptr;
 
         // Pipeline--------------------------------------------
@@ -282,7 +286,7 @@ private:
         for (int i = 0; i < OBJECT_COUNT; i++)
         {
             // Create a sossig.
-            meshes[i] = Mesh(modelLoad->GetMeshes()[0]->GetVBO(), modelLoad->GetMeshes()[0]->GetIBO(), diffuse, normal, RM, shadowMap);
+            meshes[i] = Mesh(diffuse, normal, RM, shadowMap);
             meshes[i].GetModelMatrix() = glm::scale(meshes[i].GetModelMatrix(), glm::vec3(0.03f, 0.03f, 0.03f));
 
             // Write the corresponding area in the big model matrix buffer.
@@ -529,14 +533,14 @@ private:
         memcpy(mappedModelUBO, modelMatrices.data(), sizeof(glm::mat4) * OBJECT_COUNT);
 #endif 
         vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
-        vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &meshes[0].GetVBO()->GetVKBuffer(), &offsets);
+        vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &VBO->GetVKBuffer(), &offsets);
         vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 1, 1, &instancedDataBuffer, &offsets);
-        vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], meshes[0].GetIBO()->GetVKBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], IBO->GetVKBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 #if defined(INSTANCED_DRAWING_TEST)
 
         vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &dscSets[0]->GetVKDescriptorSet(), 0, nullptr);
-        vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], meshes[0].GetIBO()->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
+        vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], IBO->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
 #elif defined(SEPARATE_DRAW_CALL_TEST) 
 
         for (int i = 0; i < OBJECT_COUNT; i++)
