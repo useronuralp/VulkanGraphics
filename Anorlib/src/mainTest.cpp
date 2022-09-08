@@ -568,15 +568,15 @@ private:
         VkQueue graphicsQueue = s_Device->GetGraphicsQueue();
         ASSERT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inRenderingFences[CURRENT_FRAME]) == VK_SUCCESS, "Failed to submit draw command buffer!");
 
-        currentTime = GetRenderTime();
-        frameCount++;
-        if (currentTime - m_LastFrameRenderTime >= 1.0)
-        {
-            std::cout << frameCount << std::endl;
-
-            frameCount = 0;
-            m_LastFrameRenderTime = currentTime;
-        }
+        //currentTime = GetRenderTime();
+        //frameCount++;
+        //if (currentTime - m_LastFrameRenderTime >= 1.0)
+        //{
+        //    std::cout << frameCount << std::endl;
+        //
+        //    frameCount = 0;
+        //    m_LastFrameRenderTime = currentTime;
+        //}
 
         // Present the drawn image to the swapchain when the drawing is completed. This check is done via a semaphore.
         VkPresentInfoKHR presentInfo{};

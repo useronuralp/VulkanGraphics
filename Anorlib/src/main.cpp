@@ -1193,18 +1193,9 @@ private:
         // Begin command buffer recording.
         CommandBuffer::Begin(cmdBuffers[CURRENT_FRAME]);
 
-        float currentTime, deltaTime;
+        // Timer.
+        float deltaTime;
         deltaTime = DeltaTime();
-        currentTime = GetRenderTime();
-        frameCount++;
-        if (currentTime - m_LastFrameRenderTime >= 1.0)
-        {
-            std::cout << frameCount << std::endl;
-
-            frameCount = 0;
-            m_LastFrameRenderTime = currentTime;
-        }
-
         timer += 7.0f * deltaTime;
 
         // Animating the light

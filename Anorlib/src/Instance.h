@@ -34,7 +34,7 @@ namespace Anor
 	private:
 		VkInstance						      m_Instance		 = VK_NULL_HANDLE;
 		VkDebugUtilsMessengerEXT		      m_DebugMessenger	 = VK_NULL_HANDLE;
-		const std::vector<const char*>		  m_ValidationLayers = { "VK_LAYER_KHRONOS_validation" };
+		const std::vector<const char*>		  m_ValidationLayers = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"};
 		std::vector<PhysicalDevice>			  m_PhysicalDevices;
 	};
 }
