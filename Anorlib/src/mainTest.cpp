@@ -19,7 +19,7 @@
 *   Test #2: define "INSTANCED_DRAWING_TEST"
 */
 #define INSTANCED_DRAWING_TEST
-#define OBJECT_COUNT 10000
+#define OBJECT_COUNT 5000
 // -----------------------------------------------------
 // -----------------------------------------------------
 
@@ -41,8 +41,8 @@ public:
     VkCommandPool           commandPool;
     VkDeviceSize            offsets;
     VkSampler               diffuseSampler;
-    VkSampler               normalSampler;
-    VkSampler               RMSampler;
+    //VkSampler               normalSampler;
+    //VkSampler               RMSampler;
 
     // Buffers
     VkBuffer                modelMatUBOBuffer;
@@ -138,8 +138,6 @@ private:
             DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::FLOAT,                      1, ShaderStage::VERTEX   , 4},
             DescriptorSetLayout { Type::UNIFORM_BUFFER,  Size::VEC4,                       1, ShaderStage::FRAGMENT , 5},
             DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::DIFFUSE_SAMPLER,            1, ShaderStage::FRAGMENT , 6},
-            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::NORMAL_SAMPLER,             1, ShaderStage::FRAGMENT , 7},
-            DescriptorSetLayout { Type::TEXTURE_SAMPLER, Size::ROUGHNESS_METALLIC_SAMPLER, 1, ShaderStage::FRAGMENT , 8},
         };
 
         for (int i = 0; i < OBJECT_COUNT; i++)
@@ -278,8 +276,8 @@ private:
 
         // Sampler creations
         Utils::CreateSampler(diffuse, diffuseSampler);
-        Utils::CreateSampler(normal, normalSampler);
-        Utils::CreateSampler(RM, RMSampler);
+        //Utils::CreateSampler(normal, normalSampler);
+        //Utils::CreateSampler(RM, RMSampler);
        
 
         // Write descriptor sets of every single object.
@@ -399,32 +397,7 @@ private:
             descriptorWrite.pImageInfo = &imageInfo;
             vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = normal->GetImage()->GetImageView();
-            imageInfo.sampler = normalSampler;
-
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = dscSets[i]->GetVKDescriptorSet();
-            descriptorWrite.dstBinding = 7;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pImageInfo = &imageInfo;
-            vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = RM->GetImage()->GetImageView();
-            imageInfo.sampler = RMSampler;
-
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = dscSets[i]->GetVKDescriptorSet();
-            descriptorWrite.dstBinding = 8;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pImageInfo = &imageInfo;
-            vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-
+            
             rotations[i] = glm::vec3(rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f));
             positions[i] = glm::vec3(300 * rnd(-1.0f, 1.0f), 300 * rnd(-1.0f, 1.0f), 300 * rnd(-1.0f, 1.0f));
 
@@ -546,7 +519,7 @@ private:
         for (int i = 0; i < OBJECT_COUNT; i++)
         {
             vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &dscSets[i]->GetVKDescriptorSet(), 0, nullptr);
-            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], meshes[0].GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], IBO->GetIndices().size(), 1, 0, 0, 0);
         }
 #endif 
 
@@ -617,8 +590,8 @@ private:
     {
 
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), diffuseSampler, nullptr);
-        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), normalSampler, nullptr);
-        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), RMSampler, nullptr);
+        //vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), normalSampler, nullptr);
+        //vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), RMSampler, nullptr);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), modelMatUBOBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), modelMatUBOBufferMemory, nullptr);

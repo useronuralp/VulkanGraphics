@@ -35,10 +35,6 @@ namespace Anor
 			VkPipelineColorBlendAttachmentState ColorBlendAttachmentState;
 			std::vector<VkVertexInputAttributeDescription>  pVertexAttributeDescriptons;
 		};
-
-		struct CreateInfo
-		{
-		};
 	public:
 		Pipeline(const Specs& CI);
 		~Pipeline();

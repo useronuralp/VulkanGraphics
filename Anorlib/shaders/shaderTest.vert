@@ -14,7 +14,6 @@ layout(location = 0) out vec3 v_Pos;
 layout(location = 1) out vec2 v_UV;
 layout(location = 2) out vec3 v_Normal;
 layout(location = 3) out vec3 v_DirLightPos;
-layout(location = 4) out smooth mat3 v_TBN;
 
 layout(set = 0, binding = 0) uniform ModelMatrix
 {
@@ -41,11 +40,6 @@ layout(set = 0, binding = 4) uniform test
     float flag;
 }Flag;
 
-const mat4 bias = mat4( 
-  0.5, 0.0, 0.0, 0.0,
-  0.0, 0.5, 0.0, 0.0,
-  0.0, 0.0, 1.0, 0.0,
-  0.5, 0.5, 0.0, 1.0 );
 
 void main()
 {
@@ -62,18 +56,6 @@ void main()
     v_UV                = a_UV;
     v_Pos               = vec3(modelMat * vec4(a_Position, 1.0));
     v_Normal            = mat3(modelMat) * a_Normal;   
-
-    mat3 normalMatrix = transpose(inverse(mat3(modelMat)));
-
-    vec3 T              = normalize(normalMatrix * a_Tangent);
-    vec3 N              = normalize(normalMatrix * a_Normal);
-    vec3 B              = normalize(normalMatrix * a_Bitangent);
-
-    //T                   = normalize(T - dot(T, N) * N);
-
-    v_TBN               = transpose(mat3(T, B, N));
-
     v_DirLightPos       = dirLightPos.pos.xyz;
-
-    gl_Position = Proj.ProjMat * View.ViewMat * modelMat * vec4(a_Position, 1.0);
+    gl_Position         = Proj.ProjMat * View.ViewMat * modelMat * vec4(a_Position, 1.0);
 }
