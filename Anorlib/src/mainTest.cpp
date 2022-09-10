@@ -18,12 +18,12 @@
 *   Test #1: define "SEPARATE_DRAW_CALL_TEST" 
 *   Test #2: define "INSTANCED_DRAWING_TEST"
 */
-#define INSTANCED_DRAWING_TEST
+#define SEPARATE_DRAW_CALL_TEST
 #define OBJECT_COUNT 5000
 // -----------------------------------------------------
 // -----------------------------------------------------
 
-#define MAX_FRAMES_IN_FLIGHT 2 
+#define MAX_FRAMES_IN_FLIGHT 1 
 int CURRENT_FRAME = 0;
 using namespace Anor;
 class MyApplication : public Anor::VulkanApplication
@@ -498,13 +498,10 @@ private:
             meshes[i].GetModelMatrix() = glm::rotate(meshes[i].GetModelMatrix(), glm::radians(150 * deltaTime), rotations[i]);
             modelMatrices[i] = meshes[i].GetModelMatrix();
         }
-#if defined(INSTANCED_DRAWING_TEST)
-
         memcpy(mappedInstancedData, modelMatrices.data(), sizeof(glm::mat4) * OBJECT_COUNT);
-#elif defined(SEPARATE_DRAW_CALL_TEST) 
-
         memcpy(mappedModelUBO, modelMatrices.data(), sizeof(glm::mat4) * OBJECT_COUNT);
-#endif 
+
+
         vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
         vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &VBO->GetVKBuffer(), &offsets);
         vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 1, 1, &instancedDataBuffer, &offsets);

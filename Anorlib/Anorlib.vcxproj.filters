@@ -78,7 +78,7 @@
     <ClCompile Include="vendor\Simplex\include\simplexnoise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\main.cpp">
+    <ClCompile Include="src\mainTest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
