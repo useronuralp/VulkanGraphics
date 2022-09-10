@@ -13,7 +13,8 @@ layout(location = 1) out vec2 v_UV;
 layout(location = 2) out vec3 v_Normal;
 layout(location = 3) out vec4 v_FragPosLightSpace;
 layout(location = 4) out vec3 v_DirLightPos;
-layout(location = 5) out smooth mat3 v_TBN;
+layout(location = 5) out mat4 v_ViewMatrix;
+layout(location = 9) out smooth mat3 v_TBN;
 
 layout(set = 0, binding = 0) uniform ModelMatrix
 {

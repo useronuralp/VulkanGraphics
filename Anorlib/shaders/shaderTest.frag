@@ -4,7 +4,7 @@ layout(location = 0) in vec3 v_Pos;
 layout(location = 1) in vec2 v_UV;
 layout(location = 2) in vec3 v_Normal;
 layout(location = 3) in vec3 v_DirLightPos;
-
+layout(location = 4) in mat4 v_ViewMat;
 
 layout(set = 0, binding = 5) uniform CameraPosition
 {

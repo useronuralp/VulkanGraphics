@@ -14,6 +14,7 @@ layout(location = 0) out vec3 v_Pos;
 layout(location = 1) out vec2 v_UV;
 layout(location = 2) out vec3 v_Normal;
 layout(location = 3) out vec3 v_DirLightPos;
+layout(location = 4) out mat4 v_ViewMatrix;
 
 layout(set = 0, binding = 0) uniform ModelMatrix
 {
@@ -57,5 +58,6 @@ void main()
     v_Pos               = vec3(modelMat * vec4(a_Position, 1.0));
     v_Normal            = mat3(modelMat) * a_Normal;   
     v_DirLightPos       = dirLightPos.pos.xyz;
+    v_ViewMatrix        = View.ViewMat;
     gl_Position         = Proj.ProjMat * View.ViewMat * modelMat * vec4(a_Position, 1.0);
 }

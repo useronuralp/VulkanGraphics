@@ -8,7 +8,8 @@ layout(location = 1) in vec2 v_UV;
 layout(location = 2) in vec3 v_Normal;
 layout(location = 3) in vec4 v_FragPosLightSpace;
 layout(location = 4) in vec3 v_DirLightPos;
-layout(location = 5) in mat3 v_TBN;
+layout(location = 5) in mat4 v_ViewMatrix;
+layout(location = 9) in mat3 v_TBN;
 
 
 layout(set = 0, binding = 5) uniform CameraPosition
@@ -99,7 +100,7 @@ float DirectionalShadowCalculation(vec4 fragPosLightSpace, vec3 fragPos, vec3 li
 	float currentDepth = shadowCoords.z;
 
 
-	vec3 lightDir = normalize(v_TBN * lightPosition - v_TBN * fragPos);
+	vec3 lightDir = normalize(v_TBN * lightPosition * mat3(v_ViewMatrix));
 	float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
 	float shadow = 0.0;
 	vec2 texelSize = 1.0 / textureSize(u_DirectionalShadowMap, 0);
