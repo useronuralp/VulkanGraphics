@@ -3,7 +3,7 @@
 #include "Window.h"
 
 
-namespace Anor
+namespace OVK
 {
 	Camera::Camera(float fov, float aspectRatio, float nearClip, float farClip)
 		:m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip)

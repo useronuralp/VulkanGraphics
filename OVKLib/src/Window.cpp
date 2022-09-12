@@ -1,7 +1,7 @@
 #include "Window.h"
 #include <iostream>
 #include "core.h"
-namespace Anor
+namespace OVK
 {
     uint32_t Window::GetHeight()
     {

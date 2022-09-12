@@ -4,7 +4,7 @@
 #include "glm/glm.hpp"
 #include <vector>
 #include "core.h"
-namespace Anor
+namespace OVK
 {
 	class Swapchain;
 	class DescriptorSet;

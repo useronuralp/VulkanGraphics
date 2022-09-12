@@ -7,7 +7,7 @@
 #include "Texture.h"
 #include "RenderPass.h"
 
-namespace Anor
+namespace OVK
 {
 	void Mesh::DrawIndexed(const VkCommandBuffer& cmdBuffer)
 	{

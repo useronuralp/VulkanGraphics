@@ -2,7 +2,7 @@
 #include "vulkan/vulkan.h"
 #include <vector>
 #include "core.h"
-namespace Anor
+namespace OVK
 {
 	class Surface
 	{

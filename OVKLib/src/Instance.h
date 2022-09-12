@@ -5,7 +5,7 @@
 #include <iostream>
 #include "PhysicalDevice.h"
 #include "core.h"
-namespace Anor
+namespace OVK
 {
 	class Instance
 	{

@@ -6,7 +6,7 @@
 /*
 * Descriptors can be changed in between draw calls. This way shaders can access different resources.
 */
-namespace Anor
+namespace OVK
 {
 	DescriptorSet::DescriptorSet(const std::vector<DescriptorBindingSpecs>& layout) // Descriptors are "pointers" to a resource. Programmer defines these resources.
 		:m_SetLayout(layout)

@@ -6,7 +6,7 @@
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "CommandBuffer.h"
-namespace Anor
+namespace OVK
 {
 	void Utils::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo, PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC)
 	{
@@ -21,7 +21,7 @@ namespace Anor
         // ate : Start reading at the end of the file
         // binary: read the file as binary, don't do char conversion.
         
-        std::string path = std::string(SOLUTION_DIR) + "Anorlib\\" + filePath;
+        std::string path = std::string(SOLUTION_DIR) + "OVKLib\\" + filePath;
         std::ifstream file(path, std::ios::ate | std::ios::binary);
 
         //std::cout << std::filesystem::current_path() << std::endl;

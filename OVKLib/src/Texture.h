@@ -4,7 +4,7 @@
 #include "core.h"
 #include "Image.h"
 #include <array>
-namespace Anor
+namespace OVK
 {
 	class DescriptorSet;
 	class Texture

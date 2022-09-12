@@ -6,7 +6,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "Texture.h"
-namespace Anor
+namespace OVK
 {
 	enum LoadingFlags
 	{
@@ -79,10 +79,10 @@ namespace Anor
 		std::string m_Directory;
 
 		Ref<Texture> m_DefaultShadowMap = nullptr;
-		Ref<Texture> m_DefaultDiffuse = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\Magenta_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture> m_DefaultNormal = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\NormalMAP_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_UNORM);
-		Ref<Texture> m_DefaultRoughness = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture> m_DefaultMetallic = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture> m_DefaultAO = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "Anorlib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Texture> m_DefaultDiffuse = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\Magenta_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Texture> m_DefaultNormal = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\NormalMAP_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_UNORM);
+		Ref<Texture> m_DefaultRoughness = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Texture> m_DefaultMetallic = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Texture> m_DefaultAO = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
 	};
 }

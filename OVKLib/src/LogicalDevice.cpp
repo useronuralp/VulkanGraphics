@@ -4,7 +4,7 @@
 #include "Instance.h"
 #include "Window.h"
 #include "Surface.h"
-namespace Anor
+namespace OVK
 {
     LogicalDevice::LogicalDevice(std::vector<const char*> extensions)
         : m_DeviceExtensions(extensions)
@@ -131,7 +131,7 @@ namespace Anor
         std::cout << "Logical device has been created." << std::endl;
 	}
 
-	Anor::LogicalDevice::~LogicalDevice()
+	OVK::LogicalDevice::~LogicalDevice()
 	{
         vkDestroyDevice(m_Device, nullptr);
 	}

@@ -4,7 +4,7 @@
 #include "LogicalDevice.h"
 #include <iostream>
 #include <array>
-namespace Anor
+namespace OVK
 {
 	RenderPass::RenderPass(std::vector<Attachment>& colorAttachments, std::vector<Attachment>& depthAttachments)
 	{

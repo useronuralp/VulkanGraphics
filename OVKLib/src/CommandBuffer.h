@@ -2,7 +2,7 @@
 #include "vulkan/vulkan.hpp"
 #include "core.h"
 #include <glm/glm.hpp>
-namespace Anor
+namespace OVK
 {
 	class RenderPass;
 	class Swapchain;

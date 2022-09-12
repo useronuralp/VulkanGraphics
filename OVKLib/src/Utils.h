@@ -3,7 +3,7 @@
 #include "Texture.h"
 #include <vector>
 #include <string>
-namespace Anor
+namespace OVK
 {
 	struct Utils
 	{

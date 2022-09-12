@@ -4,7 +4,7 @@
 #include <iostream>
 #include <set>
 #include "core.h"
-namespace Anor
+namespace OVK
 {
     struct QueueFamily
     {

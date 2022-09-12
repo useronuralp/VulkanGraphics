@@ -2,7 +2,7 @@
 #include "vulkan/vulkan.h"
 #include "core.h"
 #include <vector>
-namespace Anor
+namespace OVK
 {
 
 	enum class Type

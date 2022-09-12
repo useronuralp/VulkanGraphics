@@ -3,7 +3,7 @@
 #include "core.h"
 #include <string>
 #include <vector>
-namespace Anor
+namespace OVK
 {
 	enum class ImageType
 	{

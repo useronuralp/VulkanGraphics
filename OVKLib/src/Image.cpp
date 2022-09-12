@@ -5,7 +5,7 @@
 #include "CommandBuffer.h"
 #include "PhysicalDevice.h"
 #include <stb_image.h>
-namespace Anor
+namespace OVK
 {
 
     // This constructor is to be used when you want to initialize a VkImage with as a color/texture buffer:

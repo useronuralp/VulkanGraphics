@@ -1,6 +1,6 @@
 #include "Instance.h"
 #include "Utils.h"
-namespace Anor
+namespace OVK
 {
     // A callback that will print error messages when validation layers are enabled.
     VKAPI_ATTR VkBool32 VKAPI_CALL Instance::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

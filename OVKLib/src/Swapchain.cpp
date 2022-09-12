@@ -8,7 +8,7 @@
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "Window.h" 
-namespace Anor
+namespace OVK
 {
 	Swapchain::Swapchain()
 	{

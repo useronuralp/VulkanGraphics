@@ -5,7 +5,7 @@
 #include "Texture.h"
 #include "VulkanApplication.h"
 #include <iostream>
-namespace Anor
+namespace OVK
 {
 	Framebuffer::Framebuffer(const Ref<RenderPass>& renderPass, std::vector<VkImageView> attachments)
 	{

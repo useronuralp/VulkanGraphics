@@ -124,7 +124,7 @@ private:
         // Single descriptor set used for every object.
         dscSet = std::make_shared<DescriptorSet>(dscLayout);
 
-        modelLoad   = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\sausage\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        modelLoad   = new Anor::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sausage\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         diffuse     = modelLoad->GetMeshes()[0]->GetAlbedo();
         normal      = modelLoad->GetMeshes()[0]->GetNormals();
         RM          = modelLoad->GetMeshes()[0]->GetRoughnessMetallic();

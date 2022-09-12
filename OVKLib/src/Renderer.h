@@ -1,7 +1,7 @@
 #pragma once
 #include "vulkan/vulkan.h"
 #include "core.h"
-namespace Anor
+namespace OVK
 {	
 	//class Renderer
 	//{

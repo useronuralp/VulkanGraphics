@@ -4,7 +4,7 @@
 #include "PhysicalDevice.h"
 #include "VulkanApplication.h"
 #include <algorithm>
-namespace Anor
+namespace OVK
 {
 	Surface::Surface()
 	{

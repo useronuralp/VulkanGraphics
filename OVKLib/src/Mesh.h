@@ -8,7 +8,7 @@
 #include <glm/matrix.hpp>
 #include <map>
 #include "Pipeline.h"
-namespace Anor
+namespace OVK
 {
 	struct Configuration
 	{

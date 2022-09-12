@@ -6,7 +6,7 @@
 #include "PhysicalDevice.h"
 #include "LogicalDevice.h"
 #include "DescriptorSet.h"
-namespace Anor
+namespace OVK
 {
 	Texture::Texture(const char* path, VkFormat imageFormat)
 	{

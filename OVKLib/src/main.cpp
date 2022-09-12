@@ -24,8 +24,8 @@ const float M_PI = 3.14159265359;
 #define MAX_FRAMES_IN_FLIGHT 2 // TO DO: I can't seem to get an FPS boost by rendering multiple frames at once.
 int CURRENT_FRAME = 0;
 
-using namespace Anor;
-class MyApplication : public Anor::VulkanApplication
+using namespace OVK;
+class MyApplication : public OVK::VulkanApplication
 {
     struct Particle
     {
@@ -862,7 +862,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks = new ParticleSystem("Anorlib/textures/spark.png", specs);
+        fireSparks = new ParticleSystem("OVKLib/textures/spark.png", specs);
 
         specs.ParticleMinLifetime = 0.1f;
         specs.ParticleMaxLifetime = 1.5f;
@@ -876,7 +876,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase = new ParticleSystem("Anorlib/textures/fire_sprite_sheet.png", specs);
+        fireBase = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
         fireBase->RowOffset = 0.0f;
         fireBase->RowCellSize = 0.0833333333333333333333f;
         fireBase->ColumnCellSize = 0.166666666666666f;
@@ -895,7 +895,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks2 = new ParticleSystem("Anorlib/textures/spark.png", specs);
+        fireSparks2 = new ParticleSystem("OVKLib/textures/spark.png", specs);
 
         specs.ParticleMinLifetime = 0.1f;
         specs.ParticleMaxLifetime = 1.5f;
@@ -909,7 +909,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase2 = new ParticleSystem("Anorlib/textures/fire_sprite_sheet.png", specs);
+        fireBase2 = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
         fireBase2->RowOffset = 0.0f;
         fireBase2->RowCellSize = 0.0833333333333333333333f;
         fireBase2->ColumnCellSize = 0.166666666666666f;
@@ -927,7 +927,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks3 = new ParticleSystem("Anorlib/textures/spark.png", specs);
+        fireSparks3 = new ParticleSystem("OVKLib/textures/spark.png", specs);
 
         specs.ParticleMinLifetime = 0.1f;
         specs.ParticleMaxLifetime = 1.5f;
@@ -941,7 +941,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase3 = new ParticleSystem("Anorlib/textures/fire_sprite_sheet.png", specs);
+        fireBase3 = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
         fireBase3->RowOffset = 0.0f;
         fireBase3->RowCellSize = 0.0833333333333333333333f;
         fireBase3->ColumnCellSize = 0.166666666666666f;
@@ -959,7 +959,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks4 = new ParticleSystem("Anorlib/textures/spark.png", specs);
+        fireSparks4 = new ParticleSystem("OVKLib/textures/spark.png", specs);
 
 
         specs.ParticleMinLifetime = 0.1f;
@@ -974,7 +974,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase4 = new ParticleSystem("Anorlib/textures/fire_sprite_sheet.png", specs);
+        fireBase4 = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
         fireBase4->RowOffset = 0.0f;
         fireBase4->RowCellSize = 0.0833333333333333333333f;
         fireBase4->ColumnCellSize = 0.166666666666666f;
@@ -1010,7 +1010,7 @@ private:
         shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, shadowMapTexture);
         
         // Loading the model Sponza
-        model = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\Sponza\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
 
         // Set the texture which will be sampled for shadow calculations.
         model->SetShadowMap(shadowMapTexture);
@@ -1021,7 +1021,7 @@ private:
         model->Scale(0.005f, 0.005f, 0.005f);
 
         // Loading the model Malenia's Helmet.
-        model2 = new Anor::Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         model2->SetShadowMap(shadowMapTexture);
         SetupScenePassConfiguration(model2);
         SetupShadowPassConfiguration(model2);
@@ -1030,7 +1030,7 @@ private:
         model2->Rotate(90, 0, 1, 0);
 
         // Loading 4 torches. TO DO: This part should be converted to instanced drawing. There are unnecessary data duplications happening here.
-        torch = new Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         torch->SetShadowMap(shadowMapTexture);
         SetupScenePassConfiguration(torch);
         SetupShadowPassConfiguration(torch);
@@ -1038,7 +1038,7 @@ private:
         torch->Rotate(90, 0, 1, 0);
         torch->Translate(-2.7f, 4.3f, 8.2f);
 
-        torch2 = new Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        torch2 = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         torch2->SetShadowMap(shadowMapTexture);
         SetupScenePassConfiguration(torch2);
         SetupShadowPassConfiguration(torch2);
@@ -1046,7 +1046,7 @@ private:
         torch2->Rotate(-90, 0, 1, 0);
         torch2->Translate(-3.88f, 4.3f, -8.2f);
 
-        torch3 = new Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        torch3 = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         torch3->SetShadowMap(shadowMapTexture);
         SetupScenePassConfiguration(torch3);
         SetupShadowPassConfiguration(torch3);
@@ -1054,7 +1054,7 @@ private:
         torch3->Rotate(90, 0, 1, 0);
         torch3->Translate(-2.7f, 4.3f, 2.0f);
 
-        torch4 = new Model(std::string(SOLUTION_DIR) + "Anorlib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        torch4 = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         torch4->SetShadowMap(shadowMapTexture);
         SetupScenePassConfiguration(torch4);
         SetupShadowPassConfiguration(torch4);
@@ -1120,16 +1120,16 @@ private:
         std::vector<uint32_t> quadIndices = { 0, 1, 2, 2, 3, 0 };
 
         // Loading the necessary images for the skybox one by one.
-        std::string front   = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\Starry\\front.png");
-        std::string back    = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\Starry\\back.png");
-        std::string top     = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\Starry\\top.png");
-        std::string bottom  = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\Starry\\bottom.png");
-        std::string right   = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\Starry\\right.png");
-        std::string left    = (std::string(SOLUTION_DIR) + "Anorlib\\textures\\skybox\\Starry\\left.png");
+        std::string front   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\front.png");
+        std::string back    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\back.png");
+        std::string top     = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\top.png");
+        std::string bottom  = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\bottom.png");
+        std::string right   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\right.png");
+        std::string left    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\left.png");
 
         // Set up the 6 sided texture for the skybox by using the above images.
         std::array<std::string, 6> skyboxTex { right, left, top, bottom, front, back};
-        Ref<Anor::CubemapTexture> cubemap = std::make_shared<CubemapTexture>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
+        Ref<OVK::CubemapTexture> cubemap = std::make_shared<CubemapTexture>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
 
         // Create the mesh for the skybox.
         skybox = new Mesh(cubeVertices, (size_t)(sizeof(float) * 3 * 6 * 6), 6 * 6, cubemap);

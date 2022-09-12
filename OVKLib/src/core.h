@@ -13,7 +13,7 @@
             __debugbreak(); \
         } \
     } while (false)
-namespace Anor
+namespace OVK
 {
 	template<typename T>
 	using Ref = std::shared_ptr<T>;

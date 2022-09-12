@@ -3,7 +3,7 @@
 #include <vector>
 #include "core.h"
 	class GLFWwindow;
-namespace Anor 
+namespace OVK 
 {
 	class Framebuffer;
 	class RenderPass;

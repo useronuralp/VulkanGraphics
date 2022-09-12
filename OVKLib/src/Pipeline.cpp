@@ -8,7 +8,7 @@
 #include "DescriptorSet.h"
 #include "Surface.h"
 #include <iostream>
-namespace Anor
+namespace OVK
 {
     Pipeline::Pipeline(const Specs& CI)
         : m_CI(CI), m_DescriptorSetLayout(CI.DescriptorBindingSpecs)

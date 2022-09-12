@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/matrix.hpp>
 #include "core.h"
-namespace Anor
+namespace OVK
 {
 	class Camera
 	{

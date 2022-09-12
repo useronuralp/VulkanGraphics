@@ -9,7 +9,7 @@
 #include "Texture.h"
 #include "Utils.h"
 
-namespace Anor
+namespace OVK
 {
     VertexBuffer::VertexBuffer(const std::vector<float>& vertices)
         :m_Vertices(vertices)

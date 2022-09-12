@@ -13,7 +13,7 @@
 #include "Surface.h"
 #include "Pipeline.h"
 #include "Swapchain.h"
-namespace Anor
+namespace OVK
 {
     Model::Model(const std::string& path, LoadingFlags flags) :m_FullPath(path), m_Flags(flags)
 	{

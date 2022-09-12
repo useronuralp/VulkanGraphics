@@ -10,7 +10,7 @@
 #include "Surface.h"
 #include <iostream>
 #include <chrono>
-namespace Anor
+namespace OVK
 {
     void CommandBuffer::Create(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool, VkCommandBuffer& outCmdBuffer)
     {

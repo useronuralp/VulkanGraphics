@@ -1,7 +1,7 @@
 #include "PhysicalDevice.h"
 #include "Instance.h"
 #include <string>
-namespace Anor
+namespace OVK
 {
     PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevice& physicalDevice)
         :m_PhysicalDevice(physicalDevice)
