@@ -349,7 +349,7 @@ class MyApplication : public OVK::VulkanApplication
 
             m_ProjUBO = std::make_shared<UniformBuffer>(m_ParticlSystemDescriptorSet, sizeof(glm::mat4), 0);
             m_ModelViewUBO = std::make_shared<UniformBuffer>(m_ParticlSystemDescriptorSet, sizeof(glm::mat4), 1);
-            m_ViewportDimUBO = std::make_shared<UniformBuffer>(m_ParticlSystemDescriptorSet, sizeof(glm::vec2), 2);
+            m_ViewportDimUBO = std::make_shared<UniformBuffer>(m_ParticlSystemDescriptorSet, sizeof(glm::vec4), 2);
         }
 
     public:
@@ -357,7 +357,7 @@ class MyApplication : public OVK::VulkanApplication
         {
             glm::mat4 proj = s_Camera->GetProjectionMatrix();
             glm::mat4 modelView = s_Camera->GetViewMatrix();
-            glm::vec2 viewportDim = glm::vec2(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
+            glm::vec4 viewportDim = glm::vec4(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height, 0.0f, 0.0f);
 
             m_ProjUBO->UpdateUniformBuffer(&proj, sizeof(proj));
             m_ModelViewUBO->UpdateUniformBuffer(&modelView, sizeof(modelView));

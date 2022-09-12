@@ -30,7 +30,7 @@ layout (binding = 1) uniform modelView
 
 layout (binding = 2) uniform viewPortDimension 
 {
-	vec2 dim;
+	vec4 dim;
 } dimension;
 
 out gl_PerVertex
