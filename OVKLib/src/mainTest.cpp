@@ -25,7 +25,7 @@
 
 #define MAX_FRAMES_IN_FLIGHT 1 
 int CURRENT_FRAME = 0;
-using namespace Anor;
+using namespace OVK;
 struct SausageUniformBuffer
 {
     glm::mat4 viewMat;
@@ -33,7 +33,7 @@ struct SausageUniformBuffer
     glm::vec4 dirLightPos;
     glm::vec4 cameraPos;
 };
-class MyApplication : public Anor::VulkanApplication
+class MyApplication : public OVK::VulkanApplication
 {
 public:
     // Vulkan Objects
@@ -124,7 +124,7 @@ private:
         // Single descriptor set used for every object.
         dscSet = std::make_shared<DescriptorSet>(dscLayout);
 
-        modelLoad   = new Anor::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sausage\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+        modelLoad   = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sausage\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
         diffuse     = modelLoad->GetMeshes()[0]->GetAlbedo();
         normal      = modelLoad->GetMeshes()[0]->GetNormals();
         RM          = modelLoad->GetMeshes()[0]->GetRoughnessMetallic();
