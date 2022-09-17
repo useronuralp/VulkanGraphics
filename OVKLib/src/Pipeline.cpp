@@ -3,15 +3,15 @@
 #include "Utils.h"
 #include "LogicalDevice.h"
 #include "Swapchain.h"
-#include "RenderPass.h"
 #include "Buffer.h"
 #include "DescriptorSet.h"
 #include "Surface.h"
 #include <iostream>
+#include "DescriptorSet.h"
 namespace OVK
 {
     Pipeline::Pipeline(const Specs& CI)
-        : m_CI(CI), m_DescriptorSetLayout(CI.DescriptorBindingSpecs)
+        : m_CI(CI)
 	{
         Init();
 	}
@@ -173,13 +173,27 @@ namespace OVK
         dynamicState.dynamicStateCount = static_cast<uint32_t>(m_DynamicStates.size());
         dynamicState.pDynamicStates = m_DynamicStates.data();
 
+
         // This struct specifies how the "UNIFORM" variables are going to be laid out. TO DO: Learn it better.
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
-        pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-        pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+        pipelineLayoutInfo.pSetLayouts = &m_CI.DescriptorLayout->GetDescriptorLayout();
+
+        VkPushConstantRange pushConstantRange;
+        if (m_CI.EnablePushConstant)
+        {
+            pushConstantRange.offset = m_CI.PushConstantOffset;
+            pushConstantRange.size = m_CI.PushConstantSize;
+            pushConstantRange.stageFlags = m_CI.PushConstantShaderStage;
+            pipelineLayoutInfo.pushConstantRangeCount = 1; // Optional
+            pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange; // Optional
+        }
+        else
+        {
+            pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+            pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+        }
 
         ASSERT(vkCreatePipelineLayout(VulkanApplication::s_Device->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout");
 
@@ -198,7 +212,7 @@ namespace OVK
         pipelineInfo.pDynamicState = nullptr; // Optional
         pipelineInfo.pDepthStencilState = &depthStencil;
         pipelineInfo.layout = m_PipelineLayout;
-        pipelineInfo.renderPass = m_CI.RenderPass->GetRenderPass();
+        pipelineInfo.renderPass = *m_CI.pRenderPass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
         pipelineInfo.basePipelineIndex = -1; // Optional

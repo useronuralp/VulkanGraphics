@@ -6,17 +6,18 @@
 #include "Surface.h"
 #include "Swapchain.h"
 #include "LogicalDevice.h"
-#include "RenderPass.h"
 #include "Utils.h"
 #include "PhysicalDevice.h"
 #include "CommandBuffer.h"
 #include "Window.h"
 #include "CommandBuffer.h"
 #include "Camera.h"
+#include "Buffer.h"
+#include "Mesh.h"
 
 #include <simplexnoise.h>
 #include <random>
-
+#include <Curl.h>
 
 const float M_PI = 3.14159265359;
 #define POINT_LIGHT_COUNT 4
@@ -27,6 +28,22 @@ int CURRENT_FRAME = 0;
 using namespace OVK;
 class MyApplication : public OVK::VulkanApplication
 {
+    struct ModelUBO
+    {
+        glm::mat4 viewMatrix;
+        glm::mat4 projMatrix;
+        glm::mat4 depthMVP;
+        glm::vec4 dirLightPos;
+        glm::vec4 cameraPosition;
+    };
+
+    struct LightPropertiesUBO
+    {
+        glm::vec4 lightPositions[POINT_LIGHT_COUNT];
+        glm::vec4 lightIntensities[POINT_LIGHT_COUNT];;
+    };
+
+
     struct Particle
     {
         glm::vec4 Position;
@@ -220,8 +237,9 @@ class MyApplication : public OVK::VulkanApplication
             m_ParticlSystemDescriptorSet = std::make_shared<DescriptorSet>(dscLayout);
 
             Pipeline::Specs particleSpecs{};
-            particleSpecs.DescriptorBindingSpecs = m_ParticlSystemDescriptorSet->GetVKDescriptorSetLayout();
-            particleSpecs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
+            Ref<DescriptorLayout> layout = std::make_shared<DescriptorLayout>(dscLayout);
+            particleSpecs.DescriptorLayout = layout;
+            particleSpecs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
             particleSpecs.CullMode = VK_CULL_MODE_BACK_BIT;
             particleSpecs.DepthBiasClamp = 0.0f;
             particleSpecs.DepthBiasConstantFactor = 0.0f;
@@ -368,10 +386,11 @@ class MyApplication : public OVK::VulkanApplication
             float particleTimer = deltaTime * 0.01f;
             for (uint64_t i = 0; i < m_Particles.size(); i++)
             {
+                CurlNoise::float3 curlNoise = CurlNoise::ComputeCurlNoBoundaries(Vectormath::Aos::Vector3(m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z));
                 float noise = scaled_raw_noise_3d(-20, 20, m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z);
-                m_Particles[i].Position.y += m_Particles[i].Velocity.y * 5.0f * particleTimer * 3.5f;
-                m_Particles[i].Position.x += m_Particles[i].Velocity.x * (m_EnableNoise ? noise : 1) * particleTimer * 3.5f;
-                m_Particles[i].Position.z += m_Particles[i].Velocity.z * (m_EnableNoise ? noise : 1) * particleTimer * 3.5f;
+                m_Particles[i].Position.y += m_Particles[i].Velocity.y * 3.0f * (m_EnableNoise ? (curlNoise.val[1] / 10) + 1 : 1) * particleTimer * 3.5f;
+                m_Particles[i].Position.x += m_Particles[i].Velocity.x * (m_EnableNoise ? curlNoise.val[0] : 1) * particleTimer * 3.5f;
+                m_Particles[i].Position.z += m_Particles[i].Velocity.z * (m_EnableNoise ? curlNoise.val[2] : 1) * particleTimer * 3.5f;
                 m_Particles[i].Velocity = m_Particles[i].Velocity;
                 m_Particles[i].LifeTime -= 1.0f * deltaTime;
                 m_Particles[i].Alpha = m_ImmortalParticle ? 1.0f : m_Particles[i].LifeTime / m_Particles[i].StartingLifeTime;
@@ -446,13 +465,47 @@ public:
     std::mt19937 gen; // seed the generator
     std::uniform_real_distribution<> distr;
 
+#pragma region Layouts
+    // Layouts
+    Ref<DescriptorLayout> setLayout;
+    Ref<DescriptorLayout> setLayout2;
+#pragma endregion
+
+#pragma region Pools
+    // Pools
+    Ref<DescriptorPool> pool;
+    Ref<DescriptorPool> pool2;
+#pragma endregion
+
+#pragma region Pipelines
+    // Pipelines
+    Ref<Pipeline> pipeline;
+    Ref<Pipeline> pipeline2;
+    Ref<Pipeline> pipeline3;
+#pragma endregion
+
+#pragma region Models
+    // Models
     Model* model;
     Model* model2;
     Model* torch;
-    Model* torch2;
-    Model* torch3;
-    Model* torch4;
-    Mesh*  skybox;
+    Model* skybox;
+#pragma endregion
+
+    glm::mat4 torch1modelMatrix {1.0};
+    glm::mat4 torch2modelMatrix {1.0};
+    glm::mat4 torch3modelMatrix {1.0};
+    glm::mat4 torch4modelMatrix {1.0};
+
+    ModelUBO                modelUBO;
+    VkBuffer                modelUBOBuffer;
+    VkDeviceMemory          modelUBOBufferMemory;
+    void*                   mappedModelUBOBuffer;
+
+    LightPropertiesUBO      lightUBO;
+    VkBuffer                lightUBOBuffer;
+    VkDeviceMemory          lightUBOBufferMemory;
+    void*                   mappedLightUBOBuffer;
 
     ParticleSystem* fireSparks;
     ParticleSystem* fireBase;
@@ -492,7 +545,7 @@ public:
     float m_DeltaTimeLastFrame = GetRenderTime();
 
     Ref<Texture>     shadowMapTexture;
-    Ref<RenderPass>  shadowMapRenderPass;
+    VkRenderPass     shadowMapRenderPass;
     Ref<Framebuffer> shadowMapFramebuffer;
 
     VkRenderPassBeginInfo depthPassBeginInfo;
@@ -513,38 +566,77 @@ public:
     VkSemaphore		m_RenderingCompleteSemaphore = VK_NULL_HANDLE;
     VkFence			m_InRenderingFence = VK_NULL_HANDLE;
 
-
     // Helpers
-    void SetupScenePassConfiguration(Model* model)
+    void WriteDescriptorSetWithUBOs(Model* model)
     {
-        // Specify the layout of the descriptor set that you'll use in your shaders.
-        std::vector<DescriptorBindingSpecs> dscLayout 
+        for (int i = 0; i < model->GetMeshes().size(); i++)
         {
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4),              1, ShaderStage::VERTEX   , 0}, // Index 0
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4),              1, ShaderStage::VERTEX   , 1}, // Index 1
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4),              1, ShaderStage::VERTEX   , 2}, // Index 2
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4),              1, ShaderStage::VERTEX   , 3}, // Index 3
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::vec4),              1, ShaderStage::VERTEX   , 4}, // Index 4
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::vec4),              1, ShaderStage::FRAGMENT , 5}, // Index 5
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::vec4),              POINT_LIGHT_COUNT, ShaderStage::FRAGMENT, 6 }, // Index 6
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                     1, ShaderStage::FRAGMENT , 7}, // Index 7
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_NORMAL,             UINT64_MAX,                     1, ShaderStage::FRAGMENT , 8}, // Index 8
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC,  UINT64_MAX,                     1, ShaderStage::FRAGMENT , 9}, // Index 9
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_SHADOWMAP,          UINT64_MAX,                     1, ShaderStage::FRAGMENT , 10}, // Index 10
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::vec4),              POINT_LIGHT_COUNT, ShaderStage::FRAGMENT , 11}, // Index 11
-        };
+            // Write the descriptor set.
+            VkWriteDescriptorSet descriptorWrite{};
+            VkDescriptorBufferInfo bufferInfo{};
 
-        //std::vector<Ref<DescriptorSet>> dscSets;
-        //for(int i = 0; i < model->GetMeshes().size(); i++)
-        //{
-        //    model->GetMeshes()[i]->get
-        //    dscSets.push_back(std::make_shared<DescriptorSet>(dscLayout));
-        //}
+            bufferInfo.buffer = modelUBOBuffer;
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(ModelUBO);
 
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = model->GetMeshes()[i]->GetDescriptorSet();
+            descriptorWrite.dstBinding = 0;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &bufferInfo;
+            descriptorWrite.pImageInfo = nullptr; // Optional
+            descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+            model->GetMeshes()[i]->WriteDescriptorSet(descriptorWrite);
+
+            bufferInfo.buffer = lightUBOBuffer;
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(LightPropertiesUBO);
+
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = model->GetMeshes()[i]->GetDescriptorSet();
+            descriptorWrite.dstBinding = 1;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &bufferInfo;
+            descriptorWrite.pImageInfo = nullptr; // Optional
+            descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+            model->GetMeshes()[i]->WriteDescriptorSet(descriptorWrite);         
+        }
+    }
+    void WriteDescriptorSetSkybox(Model* model)
+    {
+        // Write the descriptor set.
+        VkWriteDescriptorSet descriptorWrite{};
+        VkDescriptorBufferInfo bufferInfo{};
+
+        bufferInfo.buffer = modelUBOBuffer;
+        bufferInfo.offset = sizeof(glm::mat4);
+        bufferInfo.range = sizeof(glm::mat4);
+
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = model->GetMeshes()[0]->GetDescriptorSet();
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pImageInfo = nullptr; // Optional
+        descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+        model->GetMeshes()[0]->WriteDescriptorSet(descriptorWrite);
+    }
+
+    void SetupScenePassPipeline()
+    {
         // Configure the pipeline spcifications. All of these fields except the "DescriptorSetLayout" is mandatory.
         Pipeline::Specs specs{};
-        specs.DescriptorBindingSpecs = VK_NULL_HANDLE; 
-        specs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
+        specs.DescriptorLayout = setLayout;
+        specs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
@@ -557,6 +649,10 @@ public:
         specs.PolygonMode = VK_POLYGON_MODE_FILL;
         specs.VertexShaderPath = "shaders/PBRShaderVERT.spv";
         specs.FragmentShaderPath = "shaders/PBRShaderFRAG.spv";
+        specs.EnablePushConstant = true;
+        specs.PushConstantOffset = 0;
+        specs.PushConstantShaderStage = VK_SHADER_STAGE_VERTEX_BIT;
+        specs.PushConstantSize = sizeof(glm::mat4);
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -570,12 +666,11 @@ public:
 
         specs.ColorBlendAttachmentState = colorBlendAttachment;
 
-
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
         bindingDescription.stride = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        
+
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
         attributeDescriptions.resize(5);
         attributeDescriptions[0].binding = 0;
@@ -602,28 +697,17 @@ public:
         attributeDescriptions[4].location = 4;
         attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[4].offset = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3);
-
         std::vector<VkVertexInputBindingDescription> bindingDescs;
         bindingDescs.push_back(bindingDescription);
         specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
-
-        // Finally, add the newly created configuration to the model to be used when drawing.
-        model->AddConfiguration("NormalRenderPass", specs, dscLayout);
-        model->SetActiveConfiguration("NormalRenderPass");
+        pipeline = std::make_shared<Pipeline>(specs);
     }
-    void SetupShadowPassConfiguration(Model* model)
+    void SetupShadowPassPipeline()
     {
-        std::vector<DescriptorBindingSpecs> dscLayout
-        {
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER, sizeof(glm::mat4), 1, ShaderStage::VERTEX , 0},  // Index 0
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER, sizeof(glm::mat4), 1, ShaderStage::VERTEX , 1},  // Index 0
-        };
-
-
         Pipeline::Specs specs{};
-        specs.DescriptorBindingSpecs = VK_NULL_HANDLE;
-        specs.RenderPass = shadowMapRenderPass;
+        specs.DescriptorLayout = setLayout;
+        specs.pRenderPass = &shadowMapRenderPass;
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 1.25f;
@@ -638,6 +722,10 @@ public:
         specs.FragmentShaderPath = "shaders/shadowPassFRAG.spv";
         specs.ViewportHeight = SHADOW_DIM;
         specs.ViewportWidth = SHADOW_DIM;
+        specs.EnablePushConstant = true;
+        specs.PushConstantOffset = 0;
+        specs.PushConstantShaderStage = VK_SHADER_STAGE_VERTEX_BIT;
+        specs.PushConstantSize = sizeof(glm::mat4);
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -659,7 +747,7 @@ public:
 
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
         attributeDescriptions.resize(1);
-        
+
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -670,9 +758,63 @@ public:
         specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
-
-        model->AddConfiguration("ShadowMapPass", specs, dscLayout);
+        pipeline2 = std::make_shared<Pipeline>(specs);
     }
+    void SetupSkyboxPipeline()
+    {
+        Pipeline::Specs specs{};
+        specs.DescriptorLayout = setLayout2;
+        specs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
+        specs.CullMode = VK_CULL_MODE_BACK_BIT;
+        specs.DepthBiasClamp = 0.0f;
+        specs.DepthBiasConstantFactor = 0.0f;
+        specs.DepthBiasSlopeFactor = 0.0f;
+        specs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        specs.EnableDepthBias = false;
+        specs.EnableDepthTesting = VK_FALSE;
+        specs.EnableDepthWriting = VK_FALSE;
+        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        specs.PolygonMode = VK_POLYGON_MODE_FILL;
+        specs.VertexShaderPath = "shaders/cubemapVERT.spv";
+        specs.FragmentShaderPath = "shaders/cubemapFRAG.spv";
+        specs.EnablePushConstant = true;
+        specs.PushConstantOffset = 0;
+        specs.PushConstantShaderStage = VK_SHADER_STAGE_VERTEX_BIT;
+        specs.PushConstantSize = sizeof(glm::mat4);
+
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_FALSE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+        specs.ColorBlendAttachmentState = colorBlendAttachment;
+
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(glm::vec3);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+        attributeDescriptions.resize(1);
+        // For position
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[0].offset = 0;
+
+        std::vector<VkVertexInputBindingDescription> bindingDescs;
+        bindingDescs.push_back(bindingDescription);
+        specs.pVertexBindingDesc = bindingDescs;
+        specs.pVertexAttributeDescriptons = attributeDescriptions;
+
+        pipeline3 = std::make_shared<Pipeline>(specs);
+    }
+
     void SetupLightSphere(Model* model)
     {
         std::vector<DescriptorBindingSpecs> dscLayout
@@ -683,8 +825,8 @@ public:
         };
 
         Pipeline::Specs specs{};
-        specs.DescriptorBindingSpecs = VK_NULL_HANDLE;
-        specs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
+        specs.DescriptorLayout = VK_NULL_HANDLE;
+        specs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
@@ -729,66 +871,8 @@ public:
         specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
-        model->AddConfiguration("NormalRenderPass", specs, dscLayout);
-        model->SetActiveConfiguration("NormalRenderPass");
-    }
-    void SetupSkybox(Mesh* mesh)
-    {
-        std::vector<DescriptorBindingSpecs> dscLayout =
-        {
-            DescriptorBindingSpecs {Type::UNIFORM_BUFFER,sizeof(glm::mat4),             1, ShaderStage::VERTEX  , 0},
-            DescriptorBindingSpecs {Type::UNIFORM_BUFFER,sizeof(glm::mat4),             1, ShaderStage::VERTEX  , 1},
-            DescriptorBindingSpecs {Type::TEXTURE_SAMPLER_CUBEMAP,UINT64_MAX, 1, ShaderStage::FRAGMENT, 2}
-        };
-
-        Pipeline::Specs specs{};
-        specs.DescriptorBindingSpecs = VK_NULL_HANDLE;
-        specs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
-        specs.CullMode = VK_CULL_MODE_BACK_BIT;
-        specs.DepthBiasClamp = 0.0f;
-        specs.DepthBiasConstantFactor = 0.0f;
-        specs.DepthBiasSlopeFactor = 0.0f;
-        specs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-        specs.EnableDepthBias = false;
-        specs.EnableDepthTesting = VK_FALSE;
-        specs.EnableDepthWriting = VK_FALSE;
-        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        specs.PolygonMode = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath = "shaders/cubemapVERT.spv";
-        specs.FragmentShaderPath = "shaders/cubemapFRAG.spv";
-
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = VK_FALSE;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-        specs.ColorBlendAttachmentState = colorBlendAttachment;
-
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(glm::vec3);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(1);
-        // For position
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = 0;
-
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.push_back(bindingDescription);
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
-
-        mesh->AddConfiguration("NormalRenderPass", specs, dscLayout);
-        mesh->SetActiveConfiguration("NormalRenderPass");
+        //model->AddConfiguration("NormalRenderPass", specs, dscLayout);
+        //model->SetActiveConfiguration("NormalRenderPass");
     }
     void CreateShadowRenderPass()
     {
@@ -841,11 +925,7 @@ public:
         renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
         renderPassInfo.pDependencies = dependencies.data();
 
-        VkRenderPass renderPass;
-
-        ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &renderPass) == VK_SUCCESS, "Failed to create a render pass.");
-
-        shadowMapRenderPass = std::make_shared<RenderPass>(renderPass);
+        ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &shadowMapRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
     }
     void SetupParticleSystems()
     {
@@ -858,7 +938,7 @@ public:
         specs.ParticleSize = 0.5f;
         specs.EmitterPos = glm::vec3(2.45f, 1.55f, 0.8f);
         specs.ParticleMinLifetime = 0.1f;
-        specs.ParticleMaxLifetime = 1.5f;
+        specs.ParticleMaxLifetime = 3.0f;
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
@@ -891,7 +971,7 @@ public:
         specs.ParticleSize = 0.5f;
         specs.EmitterPos = glm::vec3(2.45f, 1.55f, -1.15f);
         specs.ParticleMinLifetime = 0.1f;
-        specs.ParticleMaxLifetime = 1.5f;
+        specs.ParticleMaxLifetime = 3.0f;
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
@@ -923,7 +1003,7 @@ public:
         specs.ParticleSize = 0.5f;
         specs.EmitterPos = glm::vec3(0.6f, 1.55f, 0.8f);
         specs.ParticleMinLifetime = 0.1f;
-        specs.ParticleMaxLifetime = 1.5f;
+        specs.ParticleMaxLifetime = 3.0f;;
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
@@ -955,7 +1035,7 @@ public:
         specs.ParticleSize = 0.5f;
         specs.EmitterPos = glm::vec3(0.6f, 1.55f, -1.15f);
         specs.ParticleMinLifetime = 0.1f;
-        specs.ParticleMaxLifetime = 1.5f;
+        specs.ParticleMaxLifetime = 3.0f;
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
@@ -992,11 +1072,53 @@ private:
 
     void OnStart()
     {
+        CurlNoise::SetCurlSettings(false, 4.0f, 6, 1.0, 0.0);
+
+        std::vector<DescriptorBindingSpecs> dscLayout
+        {
+            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(ModelUBO),               1, ShaderStage::VERTEX,    0, 5},
+            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(LightPropertiesUBO),     1, ShaderStage::FRAGMENT,  1, 2},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                     1, ShaderStage::FRAGMENT , 2, 1},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_NORMAL,             UINT64_MAX,                     1, ShaderStage::FRAGMENT , 3, 1},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC,  UINT64_MAX,                     1, ShaderStage::FRAGMENT , 4, 1},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_SHADOWMAP,          UINT64_MAX,                     1, ShaderStage::FRAGMENT , 5, 1},
+        };
+
+        std::vector<DescriptorBindingSpecs> dscLayout2
+        {
+            DescriptorBindingSpecs { Type::UNIFORM_BUFFER, sizeof(glm::mat4), 1, ShaderStage::VERTEX , 0},  // Index 0
+        };
+
+        std::vector<DescriptorBindingSpecs> dscLayout3
+        {
+            DescriptorBindingSpecs {Type::UNIFORM_BUFFER,           sizeof(glm::mat4),  1, ShaderStage::VERTEX  , 0},
+            DescriptorBindingSpecs {Type::TEXTURE_SAMPLER_CUBEMAP,  UINT64_MAX,         1, ShaderStage::FRAGMENT, 1}
+        };
+
+        std::vector<VkDescriptorType> types;
+        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        setLayout = std::make_shared<DescriptorLayout>(dscLayout);
+        pool = std::make_shared<DescriptorPool>(200, types);
+
+        types.clear();
+        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        setLayout2 = std::make_shared<DescriptorLayout>(dscLayout3);
+        pool2 = std::make_shared<DescriptorPool>(100, types);
+
+        // Following are the global Uniform Buffes shared by all shaders.
+        Utils::CreateVKBuffer(sizeof(ModelUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, modelUBOBuffer, modelUBOBufferMemory);
+        vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), modelUBOBufferMemory, 0, sizeof(ModelUBO), 0, &mappedModelUBOBuffer);
+        
+        Utils::CreateVKBuffer(sizeof(LightPropertiesUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, lightUBOBuffer, lightUBOBufferMemory);
+        vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), lightUBOBufferMemory, 0, sizeof(LightPropertiesUBO), 0, &mappedLightUBOBuffer);
+
         // Set the positions of the point lights in the scene we have 4 torches.
-        pointLightPositions[0] = glm::vec4(2.46f, 1.54f, 0.76f, 1.0f);
-        pointLightPositions[1] = glm::vec4(0.62f, 1.54f, 0.76f, 1.0f);
-        pointLightPositions[2] = glm::vec4(0.62f, 1.54f, -1.16f, 1.0f);
-        pointLightPositions[3] = glm::vec4(2.46f, 1.54f, -1.16f, 1.0f);
+        lightUBO.lightPositions[0] = glm::vec4(2.46f, 1.54f, 0.76f, 1.0f);
+        lightUBO.lightPositions[1] = glm::vec4(0.62f, 1.54f, 0.76f, 1.0f);
+        lightUBO.lightPositions[2] = glm::vec4(0.62f, 1.54f, -1.16f, 1.0f);
+        lightUBO.lightPositions[3] = glm::vec4(2.46f, 1.54f, -1.16f, 1.0f);
 
         SetupParticleSystems();
 
@@ -1006,61 +1128,45 @@ private:
         // Creating our shadow pass with this helper function.
         CreateShadowRenderPass();
 
+        // Create the pipelines for different works.
+        SetupScenePassPipeline();
+        SetupShadowPassPipeline();
+        SetupSkyboxPipeline();
+
         // Final piece of the puzzle is the framebuffer. We need a framebuffer to link the image we are rendering to with the render pass.
         shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, shadowMapTexture);
         
         // Loading the model Sponza
-        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-
-        // Set the texture which will be sampled for shadow calculations.
-        model->SetShadowMap(shadowMapTexture);
-
-        // Setup two configurations: one for shadow pass, the other for actual scene drawing.
-        SetupScenePassConfiguration(model);
-        SetupShadowPassConfiguration(model);
+        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
         model->Scale(0.005f, 0.005f, 0.005f);
+        WriteDescriptorSetWithUBOs(model);
 
         // Loading the model Malenia's Helmet.
-        model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-        model2->SetShadowMap(shadowMapTexture);
-        SetupScenePassConfiguration(model2);
-        SetupShadowPassConfiguration(model2);
+        model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
         model2->Scale(0.7f, 0.7f, 0.7f);
         model2->Translate(2.0f, 2.0f, -0.2f);
         model2->Rotate(90, 0, 1, 0);
+        WriteDescriptorSetWithUBOs(model2);
 
         // Loading 4 torches. TO DO: This part should be converted to instanced drawing. There are unnecessary data duplications happening here.
-        torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-        torch->SetShadowMap(shadowMapTexture);
-        SetupScenePassConfiguration(torch);
-        SetupShadowPassConfiguration(torch);
-        torch->Scale(0.3f, 0.3f, 0.3f);
-        torch->Rotate(90, 0, 1, 0);
-        torch->Translate(-2.7f, 4.3f, 8.2f);
+        torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
+        torch1modelMatrix = glm::scale(torch1modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
+        torch1modelMatrix = glm::rotate(torch1modelMatrix, glm::radians(90.0f), glm::vec3(0, 1, 0));
+        torch1modelMatrix = glm::translate(torch1modelMatrix, glm::vec3(-2.7f, 4.3f, 8.2f));
 
-        torch2 = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-        torch2->SetShadowMap(shadowMapTexture);
-        SetupScenePassConfiguration(torch2);
-        SetupShadowPassConfiguration(torch2);
-        torch2->Scale(0.3f, 0.3f, 0.3f);
-        torch2->Rotate(-90, 0, 1, 0);
-        torch2->Translate(-3.88f, 4.3f, -8.2f);
+        torch2modelMatrix = glm::scale(torch2modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
+        torch2modelMatrix = glm::rotate(torch2modelMatrix, glm::radians(-90.0f), glm::vec3(0, 1, 0));
+        torch2modelMatrix = glm::translate(torch2modelMatrix, glm::vec3(-3.88f, 4.3f, -8.2f));
 
-        torch3 = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-        torch3->SetShadowMap(shadowMapTexture);
-        SetupScenePassConfiguration(torch3);
-        SetupShadowPassConfiguration(torch3);
-        torch3->Scale(0.3f, 0.3f, 0.3f);
-        torch3->Rotate(90, 0, 1, 0);
-        torch3->Translate(-2.7f, 4.3f, 2.0f);
+        torch3modelMatrix = glm::scale(torch3modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
+        torch3modelMatrix = glm::rotate(torch3modelMatrix, glm::radians(90.0f), glm::vec3(0, 1, 0));
+        torch3modelMatrix = glm::translate(torch3modelMatrix, glm::vec3(-2.7f, 4.3f, 2.0f));
 
-        torch4 = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-        torch4->SetShadowMap(shadowMapTexture);
-        SetupScenePassConfiguration(torch4);
-        SetupShadowPassConfiguration(torch4);
-        torch4->Scale(0.3f, 0.3f, 0.3f);
-        torch4->Rotate(-90, 0, 1, 0);
-        torch4->Translate(-3.88f, 4.3f, -2.0f);
+        torch4modelMatrix = glm::scale(torch4modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
+        torch4modelMatrix = glm::rotate(torch4modelMatrix, glm::radians(-90.0f), glm::vec3(0, 1, 0));
+        torch4modelMatrix = glm::translate(torch4modelMatrix, glm::vec3(-3.88f, 4.3f, -2.0f));
+        WriteDescriptorSetWithUBOs(torch);
+
 
         // Vertex data for the skybox.
         const float cubeVertices[3 * 6 * 6] = {
@@ -1077,14 +1183,14 @@ private:
              -1.0f,  1.0f, -1.0f,
              -1.0f,  1.0f,  1.0f,
              -1.0f, -1.0f,  1.0f,
-
+        
              1.0f, -1.0f, -1.0f, 
              1.0f, -1.0f,  1.0f, 
              1.0f,  1.0f,  1.0f, 
              1.0f,  1.0f,  1.0f, 
              1.0f,  1.0f, -1.0f, 
              1.0f, -1.0f, -1.0f, 
-
+        
             -1.0f, -1.0f,  1.0f, 
             -1.0f,  1.0f,  1.0f, 
              1.0f,  1.0f,  1.0f, 
@@ -1106,19 +1212,7 @@ private:
             -1.0f, -1.0f,  1.0f, 
              1.0f, -1.0f,  1.0f, 
         };
-
-        // Vertex information for the debug quad.
-        const float quadVertices[5 * 4] =
-        {
-             -1.0f, -1.0f, 0.0f,  0.0f, 1.0f,
-              1.0f, -1.0f, 0.0f,  1.0f, 1.0f,
-              1.0f,  1.0f, 0.0f,  1.0f, 0.0f,
-             -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,
-        };
-
-        // Index information for the quad.
-        std::vector<uint32_t> quadIndices = { 0, 1, 2, 2, 3, 0 };
-
+        
         // Loading the necessary images for the skybox one by one.
         std::string front   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\front.png");
         std::string back    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\back.png");
@@ -1126,20 +1220,20 @@ private:
         std::string bottom  = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\bottom.png");
         std::string right   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\right.png");
         std::string left    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\left.png");
-
+        
         // Set up the 6 sided texture for the skybox by using the above images.
         std::array<std::string, 6> skyboxTex { right, left, top, bottom, front, back};
         Ref<OVK::CubemapTexture> cubemap = std::make_shared<CubemapTexture>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
-
+        
         // Create the mesh for the skybox.
-        skybox = new Mesh(cubeVertices, (size_t)(sizeof(float) * 3 * 6 * 6), 6 * 6, cubemap);
-        SetupSkybox(skybox);
+        skybox = new Model(cubeVertices, (size_t)(sizeof(float) * 3 * 6 * 6), 6 * 6, cubemap, pool2, setLayout2);
+        WriteDescriptorSetSkybox(skybox);
 
         // Configure the render pass begin info for the depth pass here.
         depthPassClearValue = { 1.0f, 0.0 };
-
+        
         depthPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        depthPassBeginInfo.renderPass = shadowMapRenderPass->GetRenderPass();
+        depthPassBeginInfo.renderPass = shadowMapRenderPass;
         depthPassBeginInfo.framebuffer = shadowMapFramebuffer->GetVKFramebuffer();
         depthPassBeginInfo.renderArea.offset = { 0, 0 };
         depthPassBeginInfo.renderArea.extent.width = shadowMapFramebuffer->GetWidth();
@@ -1215,38 +1309,54 @@ private:
             std::uniform_real_distribution<> distr2(30.0f, 40.0f);
             std::uniform_real_distribution<> distr3(5.0f, 10.0f); 
             std::uniform_real_distribution<> distr4(1.0f, 5.0f); 
-            pointLightIntensities[0] = glm::vec4(distr(gen));
-            pointLightIntensities[1] = glm::vec4(distr2(gen));
-            pointLightIntensities[2] = glm::vec4(distr3(gen));
-            pointLightIntensities[3] = glm::vec4(distr4(gen));
+            lightUBO.lightIntensities[0] = glm::vec4(distr(gen));
+            lightUBO.lightIntensities[1] = glm::vec4(distr2(gen));
+            lightUBO.lightIntensities[2] = glm::vec4(distr3(gen));
+            lightUBO.lightIntensities[3] = glm::vec4(distr4(gen));
         }
 
+        memcpy(mappedLightUBOBuffer, &lightUBO, sizeof(lightUBO));
         glm::mat4 view = s_Camera->GetViewMatrix();
         glm::mat4 proj = s_Camera->GetProjectionMatrix();
         glm::vec4 cameraPos = glm::vec4(s_Camera->GetPosition(), 1.0f);
 
+        modelUBO.viewMatrix = view;
+        modelUBO.projMatrix = proj;
+        modelUBO.cameraPosition = cameraPos;
+        modelUBO.dirLightPos = directionalLightPosition;
+        modelUBO.depthMVP = depthMVP;
+        memcpy(mappedModelUBOBuffer, &modelUBO, sizeof(modelUBO));
+
+
+        
         glm::mat4 mat = model->GetModelMatrix();
         model2->Rotate(5.0f * deltaTime, 0.0, 1, 0.0f);
         glm::mat4 mat2 = model2->GetModelMatrix();
-        glm::mat4 mat3 = torch->GetModelMatrix();
-        glm::mat4 mat4 = torch2->GetModelMatrix();
-        glm::mat4 mat5 = torch3->GetModelMatrix();
-        glm::mat4 mat6 = torch4->GetModelMatrix();
+
+        VkDeviceSize offset = 0;
 
         // Start shadow pass.
         CommandBuffer::BeginRenderPass(cmdBuffers[CURRENT_FRAME], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
+        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline2->GetVKPipeline());
         // Render the objects you want to cast shadows.
-        model->SetActiveConfiguration("ShadowMapPass");
-        model->UpdateUniformBuffer(0, &mat, sizeof(mat));
-        model->UpdateUniformBuffer(1, &depthMVP, sizeof(depthMVP));
-        model->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
-
-        model2->SetActiveConfiguration("ShadowMapPass");
-        model2->UpdateUniformBuffer(0, &mat2, sizeof(mat2));
-        model2->UpdateUniformBuffer(1, &depthMVP, sizeof(depthMVP));
-        model2->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
-
+        for (int i = 0; i < model->GetMeshes().size(); i++)
+        {
+            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline2->GetPipelineLayout(), 0, 1, &model->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &model->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
+            vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], model->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline2->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], model->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+        }
+        
+        for (int i = 0; i < model2->GetMeshes().size(); i++)
+        {
+            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline2->GetPipelineLayout(), 0, 1, &model2->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &model2->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
+            vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], model2->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline2->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], model2->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+        }
+        
         // End shadow pass.
         CommandBuffer::EndRenderPass(cmdBuffers[CURRENT_FRAME]);
 
@@ -1255,7 +1365,7 @@ private:
         scenePassClearValues[1].depthStencil = { 1.0f, 0 };
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass()->GetRenderPass();
+        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[imageIndex]->GetVKFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
         finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
@@ -1310,120 +1420,91 @@ private:
         // Update the particle systems.
         fireSparks->updateParticles(deltaTime);
         fireSparks->updateParticleUBOs();
-
+        
         fireSparks2->updateParticles(deltaTime);
         fireSparks2->updateParticleUBOs();
-
+        
         fireSparks3->updateParticles(deltaTime);
         fireSparks3->updateParticleUBOs();
-
+        
         fireSparks4->updateParticles(deltaTime);
         fireSparks4->updateParticleUBOs();
-
+        
         fireBase->updateParticles(deltaTime);
         fireBase->updateParticleUBOs();
-
+        
         fireBase2->updateParticles(deltaTime);
         fireBase2->updateParticleUBOs();
-
+        
         fireBase3->updateParticles(deltaTime);
         fireBase3->updateParticleUBOs();
-
+        
         fireBase4->updateParticles(deltaTime);
         fireBase4->updateParticleUBOs();
 
         // Start final scene render pass.
         CommandBuffer::BeginRenderPass(cmdBuffers[CURRENT_FRAME], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        // Set the correct configuration for every object in the scene which is either a Mesh or Model.
-        model->SetActiveConfiguration("NormalRenderPass");
-        model2->SetActiveConfiguration("NormalRenderPass");
-        skybox->SetActiveConfiguration("NormalRenderPass");
-
-        // Drawing the skybox.
         glm::mat4 skyBoxView = glm::mat4(glm::mat3(view));
-        skybox->UpdateUniformBuffer(0, &skyBoxView, sizeof(skyBoxView));
-        skybox->UpdateUniformBuffer(1, &proj, sizeof(proj));
-        skybox->Draw(cmdBuffers[CURRENT_FRAME]);
+        //// Drawing the skybox.
+        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline3->GetVKPipeline());
+        vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline3->GetPipelineLayout(), 0, 1, &skybox->GetMeshes()[0]->GetDescriptorSet(), 0, nullptr);
+        vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &skybox->GetMeshes()[0]->GetVBO()->GetVKBuffer(), &offset);
+        vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &skyBoxView);
+        vkCmdDraw(cmdBuffers[CURRENT_FRAME], 36, 1, 0, 0);
 
-        // Drawing the Sponza.
-        model->UpdateUniformBuffer(0, &mat, sizeof(mat));
-        model->UpdateUniformBuffer(1, &view, sizeof(view));
-        model->UpdateUniformBuffer(2, &proj, sizeof(proj));
-        model->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
-        model->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
-        model->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
-        model->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
-        model->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0]) * POINT_LIGHT_COUNT);
-        model->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
 
+        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
+        // Drawing the Sponza.        
+        for (int i = 0; i < model->GetMeshes().size(); i++)
+        {
+            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &model->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &model->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
+            vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], model->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], model->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+        }
 
         // Drawing the helmet.
-        model2->UpdateUniformBuffer(0, &mat2, sizeof(mat2));
-        model2->UpdateUniformBuffer(1, &view, sizeof(view));
-        model2->UpdateUniformBuffer(2, &proj, sizeof(proj));
-        model2->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
-        model2->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
-        model2->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
-        model2->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
-        model2->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0]) * POINT_LIGHT_COUNT);
-        model2->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
+        for (int i = 0; i < model2->GetMeshes().size(); i++)
+        {
+            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &model2->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &model2->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
+            vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], model2->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], model2->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+        }
 
+        // Drawing 4 torches.
+        for (int i = 0; i < torch->GetMeshes().size(); i++)
+        {
+            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &torch->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &torch->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
+            vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], torch->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
 
-        // Drawing the torch.
-        torch->UpdateUniformBuffer(0, &mat3, sizeof(mat3));
-        torch->UpdateUniformBuffer(1, &view, sizeof(view));
-        torch->UpdateUniformBuffer(2, &proj, sizeof(proj));
-        torch->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
-        torch->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
-        torch->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
-        torch->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
-        torch->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0]) * POINT_LIGHT_COUNT);
-        torch->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch1modelMatrix);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
 
-        // Drawing the torch2.
-        torch2->UpdateUniformBuffer(0, &mat4, sizeof(mat4));
-        torch2->UpdateUniformBuffer(1, &view, sizeof(view));
-        torch2->UpdateUniformBuffer(2, &proj, sizeof(proj));
-        torch2->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
-        torch2->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
-        torch2->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
-        torch2->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
-        torch2->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0]) * POINT_LIGHT_COUNT);
-        torch2->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch2modelMatrix);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
 
-        // Drawing the torch3.
-        torch3->UpdateUniformBuffer(0, &mat5, sizeof(mat5));
-        torch3->UpdateUniformBuffer(1, &view, sizeof(view));
-        torch3->UpdateUniformBuffer(2, &proj, sizeof(proj));
-        torch3->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
-        torch3->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
-        torch3->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
-        torch3->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
-        torch3->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0])* POINT_LIGHT_COUNT);
-        torch3->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch3modelMatrix);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
 
-        // Drawing the torch4.
-        torch4->UpdateUniformBuffer(0, &mat6, sizeof(mat6));
-        torch4->UpdateUniformBuffer(1, &view, sizeof(view));
-        torch4->UpdateUniformBuffer(2, &proj, sizeof(proj));
-        torch4->UpdateUniformBuffer(3, &depthMVP, sizeof(depthMVP));
-        torch4->UpdateUniformBuffer(4, &directionalLightPosition, sizeof(directionalLightPosition));
-        torch4->UpdateUniformBuffer(5, &cameraPos, sizeof(cameraPos));
-        torch4->UpdateUniformBuffer(6, &pointLightPositions, sizeof(pointLightPositions[0]) * POINT_LIGHT_COUNT);
-        torch4->UpdateUniformBuffer(11, &pointLightIntensities, sizeof(pointLightIntensities[0]) * POINT_LIGHT_COUNT);
-        torch4->DrawIndexed(cmdBuffers[CURRENT_FRAME]);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch4modelMatrix);
+            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+        }
 
-        // Draw the particles systems.
+        //// Draw the particles systems.
         fireSparks->Draw(cmdBuffers[CURRENT_FRAME]);
         fireBase->Draw(cmdBuffers[CURRENT_FRAME]);
-
+        
         fireSparks2->Draw(cmdBuffers[CURRENT_FRAME]);
         fireBase2->Draw(cmdBuffers[CURRENT_FRAME]);
-
+        
         fireSparks3->Draw(cmdBuffers[CURRENT_FRAME]);
         fireBase3->Draw(cmdBuffers[CURRENT_FRAME]);
-
+        
         fireSparks4->Draw(cmdBuffers[CURRENT_FRAME]);
         fireBase4->Draw(cmdBuffers[CURRENT_FRAME]);
 
@@ -1485,9 +1566,6 @@ private:
         delete model2;
         delete skybox;
         delete torch;
-        delete torch2;
-        delete torch3;
-        delete torch4;
         delete fireSparks;
         delete fireBase;
         delete fireSparks2;
@@ -1513,21 +1591,24 @@ private:
     }
     void OnWindowResize()
     {
-        model->OnResize();
-        skybox->OnResize();
-        model2->OnResize();
+        //model->OnResize();
+        //skybox->OnResize();
+        //model2->OnResize();
+        pipeline->OnResize();
+        pipeline2->OnResize();
+        pipeline3->OnResize();
         fireSparks->OnResize();
         fireBase->OnResize();
-        torch->OnResize();
+        //torch->OnResize();
         fireSparks2->OnResize();
         fireBase2->OnResize();
-        torch2->OnResize();
+        //torch2->OnResize();
         fireSparks3->OnResize();
         fireBase3->OnResize();
-        torch3->OnResize();
+        //torch3->OnResize();
         fireSparks4->OnResize();
         fireBase4->OnResize();
-        torch4->OnResize();
+        //torch4->OnResize();
     }
     float DeltaTime()
     {

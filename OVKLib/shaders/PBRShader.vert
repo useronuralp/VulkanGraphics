@@ -13,34 +13,24 @@ layout(location = 1) out vec2 v_UV;
 layout(location = 2) out vec3 v_Normal;
 layout(location = 3) out vec4 v_FragPosLightSpace;
 layout(location = 4) out vec3 v_DirLightPos;
-layout(location = 5) out mat4 v_ViewMatrix;
-layout(location = 9) out smooth mat3 v_TBN;
+layout(location = 5) out vec3 v_CameraPos;
+layout(location = 6) out mat4 v_ViewMatrix;
+layout(location = 10) out smooth mat3 v_TBN;
 
-layout(set = 0, binding = 0) uniform ModelMatrix
+
+layout(set = 0, binding = 0) uniform UBO
 {
-    mat4 ModelMat;
-} Model;
+    mat4 viewMat;
+    mat4 projMat;
+    mat4 lightMVP;
+    vec4 dirLightPosition;
+    vec4 cameraPos;
+};
 
-layout(set = 0, binding = 1) uniform ViewMatrix
+layout( push_constant ) uniform modelMat
 {
-    mat4 ViewMat;
-} View;
-
-layout(set = 0, binding = 2) uniform ProjectionMatrix
-{
-    mat4 ProjMat;
-} Proj;
-
-layout(set = 0, binding = 3) uniform depthMVP
-{
-    mat4 Matrix;
-} lightMVP;
-
-layout(set = 0, binding = 4) uniform DirectionalLightPosition
-{
-    vec4 pos;
-} dirLightPos;
-
+	mat4 modelMatrix;
+};
 
 const mat4 bias = mat4( 
   0.5, 0.0, 0.0, 0.0,
@@ -51,10 +41,10 @@ const mat4 bias = mat4(
 void main()
 {
     v_UV                = a_UV;
-    v_Pos               = vec3(Model.ModelMat * vec4(a_Position, 1.0));
-    v_Normal            = mat3(Model.ModelMat) * a_Normal;   
+    v_Pos               = vec3(modelMatrix * vec4(a_Position, 1.0));
+    v_Normal            = mat3(modelMatrix) * a_Normal;   
 
-    mat3 normalMatrix = transpose(inverse(mat3(Model.ModelMat)));
+    mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));
 
     vec3 T              = normalize(normalMatrix * a_Tangent);
     vec3 N              = normalize(normalMatrix * a_Normal);
@@ -64,8 +54,9 @@ void main()
 
     v_TBN               = transpose(mat3(T, B, N));
 
-    v_FragPosLightSpace = bias * lightMVP.Matrix * Model.ModelMat * vec4(a_Position, 1.0);
-    v_DirLightPos       = dirLightPos.pos.xyz;
+    v_FragPosLightSpace = bias * lightMVP * modelMatrix * vec4(a_Position, 1.0);
+    v_DirLightPos       = dirLightPosition.xyz;
+    v_CameraPos         = cameraPos.xyz;
 
-    gl_Position = Proj.ProjMat * View.ViewMat * Model.ModelMat * vec4(a_Position, 1.0);
+    gl_Position = projMat * viewMat * modelMatrix * vec4(a_Position, 1.0);
 }

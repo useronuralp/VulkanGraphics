@@ -9,13 +9,22 @@
 #include "CommandBuffer.h"
 #include <unordered_map>
 #include "Framebuffer.h"
-#include "RenderPass.h"
 #include "Surface.h"
 #include "Pipeline.h"
 #include "Swapchain.h"
+#include "Mesh.h"
+#include "Texture.h"
 namespace OVK
 {
-    Model::Model(const std::string& path, LoadingFlags flags) :m_FullPath(path), m_Flags(flags)
+    Model::~Model()
+    {
+        for (int i = 0; i < m_Meshes.size(); i++)
+        {
+            delete m_Meshes[i];
+        }
+    }
+    Model::Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Texture> shadowMap)
+        :m_FullPath(path), m_Flags(flags), m_DefaultShadowMap(shadowMap)
 	{
         m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
         Assimp::Importer importer;
@@ -24,46 +33,30 @@ namespace OVK
         ASSERT(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, importer.GetErrorString());
 
         // Process the model in a recursive way.
-        ProcessNode(scene->mRootNode, scene);
+        ProcessNode(scene->mRootNode, scene, pool, layout);
 	}
 
-    glm::mat4 Model::GetModelMatrix()
+    Model::Model(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
+        : m_FullPath("No path. Not loaded from a file"), m_DefaultCubeMap(cubemapTex), m_Flags(NONE)
     {
-        return m_Meshes[0]->GetModelMatrix();
+        m_Meshes.emplace_back(new Mesh(vertices, vertexBufferSize, vertexCount, cubemapTex, pool, layout));
     }
 
-    void Model::AddConfiguration(const char* configName, const Pipeline::Specs pipelineCI, std::vector<DescriptorBindingSpecs> descriptorLayout)
-    {
-        for (const auto& mesh : m_Meshes)
-            mesh->AddConfiguration(configName, pipelineCI, descriptorLayout);
-    }
-    void Model::SetActiveConfiguration(const char* configName)
-    {
-        for (const auto& mesh : m_Meshes)
-            mesh->SetActiveConfiguration(configName);
-    }
-
-    void Model::SetShadowMap(const Ref<Texture>& shadowMap)
-    {
-        for (const auto& mesh : m_Meshes)
-            mesh->SetShadowMap(shadowMap);
-    }
-
-    void Model::ProcessNode(aiNode* node, const aiScene* scene)
+    void Model::ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout)
     {
         // process all the node's meshes (if any)
         for (unsigned int i = 0; i < node->mNumMeshes; i++)
         {
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-            m_Meshes.push_back(ProcessMesh(mesh, scene));
+            m_Meshes.emplace_back(ProcessMesh(mesh, scene, pool, layout));
         }
         // then do the same for each of its children
         for (unsigned int i = 0; i < node->mNumChildren; i++)
         {
-            ProcessNode(node->mChildren[i], scene);
+            ProcessNode(node->mChildren[i], scene, pool, layout);
         }
     }
-    Ref<Mesh> Model::ProcessMesh(aiMesh* mesh, const aiScene* scene)
+    Mesh* Model::ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout)
     {
         std::vector<float>     vertices;
         std::vector<uint32_t>  indices;
@@ -150,16 +143,17 @@ namespace OVK
             for (unsigned int j = 0; j < face.mNumIndices; j++)
                 indices.push_back((uint32_t)face.mIndices[j]);
         }
-
+        //Mesh mesh2 = Mesh();
+        //mesh2.
         // Process materials (In our application only textures are loaded.)
         if (mesh->mMaterialIndex >= 0)
         {
             aiMaterial* material     = scene->mMaterials[mesh->mMaterialIndex];
-            diffuseTexture           = LoadMaterialTextures(material, aiTextureType_DIFFUSE, m_TextureCache);   // Load Albedo.
+            diffuseTexture           = LoadMaterialTextures(material, aiTextureType_DIFFUSE, m_AlbedoCache);   // Load Albedo.
             normalTexture            = LoadMaterialTextures(material, aiTextureType_NORMALS, m_NormalsCache);   // Load Normal map.
-            roughnessMetallicTexture = LoadMaterialTextures(material, aiTextureType_UNKNOWN, m_RoughnessCache); // Load RoughnessMetallic (.gltf) texture
+            roughnessMetallicTexture = LoadMaterialTextures(material, aiTextureType_UNKNOWN, m_RoughnessMetallicCache); // Load RoughnessMetallic (.gltf) texture
         }
-        return std::make_shared<Mesh>(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, m_DefaultShadowMap);
+        return new Mesh(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, pool, layout, m_DefaultShadowMap);
     }
 
     Ref<Texture> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Texture>>& cache)
@@ -198,58 +192,27 @@ namespace OVK
         if (!textureOUT)
         {
             if (type == aiTextureType_DIFFUSE)
-                textureOUT = m_DefaultDiffuse;
+                textureOUT = m_DefaultAlbedo;
             else if (type == aiTextureType_NORMALS || aiTextureType_HEIGHT)
                 textureOUT = m_DefaultNormal;
             else if (type == aiTextureType_DIFFUSE_ROUGHNESS)
-                textureOUT = m_DefaultRoughness;
-            else if (type == aiTextureType_METALNESS)
-                textureOUT = m_DefaultMetallic;
-            else if (type == aiTextureType_AMBIENT_OCCLUSION)
-                textureOUT = m_DefaultAO;
+                textureOUT = m_DefaultRoughnessMetallic;
         }
         return textureOUT;
     }
 
-    void Model::Draw(const VkCommandBuffer& cmdBuffer)
-    {
-        for (auto& mesh : m_Meshes)
-            mesh->Draw(cmdBuffer);
-    }
-
-    void Model::DrawIndexed(const VkCommandBuffer& cmdBuffer)
-    {
-        for (auto& mesh : m_Meshes)
-            mesh->DrawIndexed(cmdBuffer);
-    }
-
-    void Model::OnResize()
-    {
-        for (auto& mesh : m_Meshes)
-            mesh->OnResize();
-    }
-
-    void Model::UpdateUniformBuffer(uint32_t bufferIndex, void* dataToCopy, size_t dataSize)
-    {
-        for (auto& mesh : m_Meshes)
-            mesh->UpdateUniformBuffer(bufferIndex, dataToCopy, dataSize);
-    }
-
     void Model::Rotate(const float& degree, const float& x, const float& y, const float& z)
     {
-        for (auto& mesh : m_Meshes)
-            mesh->Rotate(degree, x, y, z);
+        m_ModelMatrix = glm::rotate(m_ModelMatrix, glm::radians(degree), glm::vec3(x, y, z));
     }
 
     void Model::Translate(const float& x, const float& y, const float& z)
     {
-        for (auto& mesh : m_Meshes)
-            mesh->Translate(x, y, z);
+        m_ModelMatrix = glm::translate(m_ModelMatrix, glm::vec3(x, y, z));
     }
 
     void Model::Scale(const float& x, const float& y, const float& z)
     {
-        for (auto& mesh : m_Meshes)
-            mesh->Scale(x, y, z);
+        m_ModelMatrix = glm::scale(m_ModelMatrix, glm::vec3(x, y, z));
     }
 }

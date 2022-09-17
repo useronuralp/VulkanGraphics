@@ -1,21 +1,21 @@
 #pragma once
-#include "vulkan/vulkan.h"
-#include <vector>
-#include "glm/glm.hpp"
-#include <vector>
 #include "core.h"
+// External
+#include <vector>
+#include <glm/glm.hpp>
+#include <vector>
+#include <vulkan/vulkan.h>
 namespace OVK
 {
-	class Swapchain;
-	class DescriptorSet;
-	class RenderPass;
+	class DescriptorLayout;
 	class Pipeline
 	{
 	public:
 		struct Specs
 		{
-			Ref<RenderPass>					    RenderPass;
-			VkDescriptorSetLayout			    DescriptorBindingSpecs; 
+			// TO DO: Check these references here. Can you make them Unique<> ?
+			VkRenderPass*						pRenderPass;
+			Ref<DescriptorLayout>		        DescriptorLayout; 
 			std::string						    VertexShaderPath; 
 			std::string						    FragmentShaderPath; 
 			VkPolygonMode					    PolygonMode;
@@ -30,6 +30,10 @@ namespace OVK
 			VkCompareOp						    DepthCompareOp;
 			uint32_t						    ViewportWidth  = UINT32_MAX;
 			uint32_t						    ViewportHeight = UINT32_MAX;
+			bool EnablePushConstant = false;
+			uint32_t PushConstantOffset  = 0;
+			uint32_t PushConstantSize = 0;
+			VkShaderStageFlags PushConstantShaderStage;
 			std::vector<VkVertexInputBindingDescription> pVertexBindingDesc;
 			VkPrimitiveTopology				    PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 			VkPipelineColorBlendAttachmentState ColorBlendAttachmentState;
@@ -49,7 +53,6 @@ namespace OVK
 		VkPipeline					m_Pipeline;
 		VkPipelineLayout			m_PipelineLayout;
 		std::vector<VkDynamicState> m_DynamicStates;
-		VkDescriptorSetLayout		m_DescriptorSetLayout;
 
 		// Used to store the configuration of the pipeline. When screen is resized, these values are reused that is why we are storing them here.
 		Specs	m_CI;

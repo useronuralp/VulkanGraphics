@@ -122,7 +122,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\tiny_obj_loader\include;$(SolutionDir)OVKLib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\tiny_obj_loader\include;$(SolutionDir)OVKLib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include;$(SolutionDir)OVKLib\vendor\Curl\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -144,7 +144,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\tiny_obj_loader\include;$(SolutionDir)OVKLib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\tiny_obj_loader\include;$(SolutionDir)OVKLib\vendor\VULKAN\1.3.211.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include;$(SolutionDir)OVKLib\vendor\Curl\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -171,8 +171,6 @@
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\PhysicalDevice.cpp" />
     <ClCompile Include="src\Pipeline.cpp" />
-    <ClCompile Include="src\Renderer.cpp" />
-    <ClCompile Include="src\RenderPass.cpp" />
     <ClCompile Include="src\Surface.cpp" />
     <ClCompile Include="src\Swapchain.cpp" />
     <ClCompile Include="src\Texture.cpp" />
@@ -180,6 +178,8 @@
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\VulkanApplication.cpp" />
     <ClCompile Include="src\Window.cpp" />
+    <ClCompile Include="vendor\Curl\include\Curl.cpp" />
+    <ClCompile Include="vendor\Curl\include\Noise.cpp" />
     <ClCompile Include="vendor\Simplex\include\simplexnoise.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -199,8 +199,6 @@
     <ClInclude Include="src\Model.h" />
     <ClInclude Include="src\PhysicalDevice.h" />
     <ClInclude Include="src\Pipeline.h" />
-    <ClInclude Include="src\Renderer.h" />
-    <ClInclude Include="src\RenderPass.h" />
     <ClInclude Include="src\Surface.h" />
     <ClInclude Include="src\Swapchain.h" />
     <ClInclude Include="src\Texture.h" />
@@ -208,6 +206,9 @@
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\VulkanApplication.h" />
     <ClInclude Include="src\Window.h" />
+    <ClInclude Include="vendor\Curl\include\Curl.h" />
+    <ClInclude Include="vendor\Curl\include\Noise.h" />
+    <ClInclude Include="vendor\Curl\include\vmath.hpp" />
     <ClInclude Include="vendor\Simplex\include\simplexnoise.h" />
   </ItemGroup>
   <ItemGroup>

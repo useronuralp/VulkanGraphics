@@ -1,6 +1,7 @@
 #pragma once
-#include "vulkan/vulkan.h"
 #include "core.h"
+// External
+#include <vulkan/vulkan.h>
 #include <vector>
 namespace OVK
 {
@@ -29,17 +30,43 @@ namespace OVK
 		int			Count;
 		ShaderStage ShaderStage;
 		uint32_t	Binding;
+		uint32_t	BufferDescriptorCount = 1;
 	};
 	class Pipeline;
+	class DescriptorLayout
+	{
+	public:
+		DescriptorLayout() = default;
+		DescriptorLayout(const std::vector<DescriptorBindingSpecs>& layout);
+		DescriptorLayout(const VkDescriptorSetLayout& layout) { m_DescriptorSetLayout = layout; }
+		~DescriptorLayout();
+		const std::vector<DescriptorBindingSpecs>& GetBindingSpecs() { return m_SetLayout; }
+		const VkDescriptorSetLayout& GetDescriptorLayout() { return m_DescriptorSetLayout; }
+	private:
+		VkDescriptorSetLayout m_DescriptorSetLayout = VK_NULL_HANDLE;
+		std::vector<DescriptorBindingSpecs>    m_SetLayout;
+	};
+	class DescriptorPool
+	{
+	public:
+		DescriptorPool() = default;
+		DescriptorPool(const VkDescriptorPool& pool) { m_DescriptorPool = pool; }
+		DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDescriptorType> dscTypes);
+		~DescriptorPool();
+		const VkDescriptorPool& GetDescriptorPool() const { return m_DescriptorPool; }
+	private:
+		VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
+	};
 	class DescriptorSet
 	{
 	public:
+		DescriptorSet() = default;
 		DescriptorSet(const std::vector<DescriptorBindingSpecs>& layout);
-		void WriteDescriptorSet(uint32_t bindingIndex, const VkDescriptorBufferInfo& bufferInfo, const VkDescriptorImageInfo& imageInfo);
+		DescriptorSet(const DescriptorPool& poolToAllocateFrom, DescriptorLayout& layout);
 		~DescriptorSet();
-		const VkDescriptorSet& GetVKDescriptorSet() { return m_DescriptorSet; }
-		const VkDescriptorSetLayout& GetVKDescriptorSetLayout() { return m_DescriptorSetLayout; }
-		const std::vector<DescriptorBindingSpecs>& GetLayout() { return m_SetLayout; }
+		const VkDescriptorSet& GetVKDescriptorSet() const { return m_DescriptorSet; }
+		const VkDescriptorSetLayout& GetVKDescriptorSetLayout() const { return m_DescriptorSetLayout; }
+		const std::vector<DescriptorBindingSpecs>& GetLayout() const { return m_SetLayout; }
 	private:
 		VkDescriptorSet					    m_DescriptorSet = VK_NULL_HANDLE;
 		VkDescriptorPool				    m_DescriptorPool = VK_NULL_HANDLE;

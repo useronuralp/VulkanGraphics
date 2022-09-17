@@ -1,28 +1,28 @@
 #pragma once
-#include "vulkan/vulkan.h"
-#include <vector>
 #include "core.h"
+// External
+#include <vulkan/vulkan.h>
+#include <vector>
 	class GLFWwindow;
 namespace OVK 
 {
 	class Framebuffer;
-	class RenderPass;
 	class Swapchain
 	{
 	public:
 		Swapchain();
 		~Swapchain();
 	public:
-		const VkSwapchainKHR&					GetVKSwapchain()						{ return m_Swapchain;			 }
-		const VkFormat&							GetSwapchainImageFormat()				{ return m_SwapchainImageFormat; }
-		const VkPresentModeKHR&					GetPresentMode()						{ return m_PresentMode;			 }
-		std::vector<VkImage>&					GetSwapchainImages()					{ return m_SwapchainImages;		 }
-		std::vector<VkImageView>&				GetSwapchainImageViews()				{ return m_ImageViews;			 }
-		Ref<RenderPass>							GetSwapchainRenderPass()				{ return m_RenderPass;			 }
-		VkImageView&							GetDepthImageView()						{ return m_DepthImageView;		 }
-		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()						{ return m_Framebuffers;		 }
-		VkFormat								GetDepthFormat()						{ return m_DepthBufferFormat;	 }
-		VkImage&								GetDepthImage()							{ return m_DepthImage;			 }
+		const VkSwapchainKHR&					GetVKSwapchain()			const	{ return m_Swapchain;			 }
+		const VkFormat&							GetSwapchainImageFormat()	const	{ return m_SwapchainImageFormat; }
+		const VkPresentModeKHR&					GetPresentMode()			const	{ return m_PresentMode;			 }
+		const std::vector<VkImage>&				GetSwapchainImages()		const	{ return m_SwapchainImages;		 }
+		const std::vector<VkImageView>&			GetSwapchainImageViews()	const	{ return m_ImageViews;			 }
+		VkRenderPass&							GetSwapchainRenderPass()	 		{ return m_RenderPass;			 }
+		const VkImageView&						GetDepthImageView()			const	{ return m_DepthImageView;		 }
+		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()			const	{ return m_Framebuffers;		 }
+		const VkFormat&							GetDepthFormat()			const	{ return m_DepthBufferFormat;	 }
+		const VkImage&							GetDepthImage()				const	{ return m_DepthImage;			 }
 		void									OnResize();
 	private:
 		void	 Init();
@@ -36,7 +36,7 @@ namespace OVK
 
 		// Variables needed for images / framebuffers.
 		std::vector<Ref<Framebuffer>>	m_Framebuffers;
-		Ref<RenderPass>					m_RenderPass;
+		VkRenderPass					m_RenderPass;
 		std::vector<VkImage>		    m_SwapchainImages;
 		std::vector<VkImageView>		m_ImageViews;
 		VkFormat						m_ImageFormat;

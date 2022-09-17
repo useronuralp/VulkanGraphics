@@ -4,7 +4,6 @@
 #include "Instance.h"
 #include "Surface.h"
 #include "LogicalDevice.h"
-#include "RenderPass.h"
 #include "Swapchain.h"
 #include "CommandBuffer.h"
 #include "Buffer.h"

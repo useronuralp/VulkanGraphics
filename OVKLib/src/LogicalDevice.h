@@ -1,7 +1,8 @@
 #pragma once
-#include "vulkan/vulkan.h"
-#include <vector>
 #include "core.h"
+// External
+#include <vulkan/vulkan.h>
+#include <vector>
 namespace OVK
 {
 	class LogicalDevice

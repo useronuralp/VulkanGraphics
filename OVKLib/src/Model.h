@@ -1,15 +1,21 @@
 #pragma once
 #include "core.h"
+// External
+#define GLM_ENABLE_EXPERIMENTAL
 #include <vector>
-#include "Mesh.h"
+#include <vulkan/vulkan.h>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/glm.hpp>
+#include <glm/matrix.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include "Texture.h"
+
 namespace OVK
 {
 	enum LoadingFlags
 	{
+		NONE		   = -1,
 		LOAD_VERTICES  = (uint32_t(1) << 0),
 		LOAD_NORMALS   = (uint32_t(1) << 1),
 		LOAD_UV		   = (uint32_t(1) << 2),
@@ -27,6 +33,9 @@ namespace OVK
 		return static_cast<LoadingFlags>(static_cast<int>(a) & static_cast<int>(b));
 	}
 
+	class CubemapTexture;
+	class Texture;
+	class Mesh;
 	class DescriptorSet;
 	class VertexBuffer;
 	class IndexBuffer;
@@ -34,6 +43,8 @@ namespace OVK
 	class ImageBuffer;
 	class RenderPass;
 	class Swapchain;
+	class DescriptorPool;
+	class DescriptorLayout;
 	class Pipeline;
 	class Framebuffer;
 	class CommandBuffer;
@@ -41,48 +52,38 @@ namespace OVK
 	class Model
 	{
 	public:
-		std::vector<Ref<Mesh>>& GetMeshes() { return m_Meshes; }
-		Model() = default;
-		Model(const std::string& path, LoadingFlags flags);
-		~Model() {};
-		void Draw(const VkCommandBuffer& cmdBuffer);
-		void DrawIndexed(const VkCommandBuffer& cmdBuffer);
-		void OnResize();
-		void UpdateUniformBuffer(uint32_t bufferIndex, void* dataToCopy, size_t dataSize);
-		glm::mat4 GetModelMatrix();
-
-		void AddConfiguration(const char* configName, const Pipeline::Specs pipelineCI, std::vector<DescriptorBindingSpecs> descriptorLayout);
-		void SetActiveConfiguration(const char* configName);
-		void SetShadowMap(const Ref<Texture>& shadowMap);
+		Model()  = default;
+		~Model();
+		// This constructor is used to construct a model that contains at least one mesh.
+		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout>layout, Ref<Texture> shadowMap = nullptr);
+		// This constructor is used to construct a single meshed model.
+		Model(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
+		const std::vector<Mesh*>&		GetMeshes() { return m_Meshes; }
+		const glm::mat4&				GetModelMatrix() { return m_ModelMatrix; }
 
 		void Rotate(const float& degree, const float& x, const float& y, const float& z);
 		void Translate(const float& x, const float& y, const float& z);
 		void Scale(const float& x, const float& y, const float& z);
 	private:
-		void ProcessNode(aiNode* node, const aiScene* scene);
-		Ref<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene);
-		Ref<Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Texture>>& cache);
+		void			ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
+		Mesh*		ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
+		Ref<Texture>	LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Texture>>& cache);
 	private:
-		std::vector<Ref<Mesh>>				 m_Meshes;
-		std::vector<DescriptorBindingSpecs>	 m_DescriptorLayout;
-
-
-		std::vector<Ref<Texture>> m_TextureCache;
-		std::vector<Ref<Texture>> m_NormalsCache;
-		std::vector<Ref<Texture>> m_RoughnessCache;
-		std::vector<Ref<Texture>> m_MetallicCache;
-		std::vector<Ref<Texture>> m_AOCache;
-
+		std::vector<Mesh*>		  m_Meshes;
+		glm::mat4				  m_ModelMatrix = glm::mat4(1.0f); 
 		LoadingFlags			  m_Flags;
 
-		std::string m_FullPath;
-		std::string m_Directory;
+		std::vector<Ref<Texture>> m_AlbedoCache;
+		std::vector<Ref<Texture>> m_NormalsCache;
+		std::vector<Ref<Texture>> m_RoughnessMetallicCache;
 
-		Ref<Texture> m_DefaultShadowMap = nullptr;
-		Ref<Texture> m_DefaultDiffuse = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\Magenta_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture> m_DefaultNormal = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\NormalMAP_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_UNORM);
-		Ref<Texture> m_DefaultRoughness = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture> m_DefaultMetallic = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture> m_DefaultAO = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		std::string  m_FullPath;
+		std::string  m_Directory;
+
+		Ref<Texture>		m_DefaultShadowMap = nullptr;
+		Ref<CubemapTexture> m_DefaultCubeMap = nullptr;
+		Ref<Texture>		m_DefaultAlbedo = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\Magenta_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Texture>		m_DefaultNormal = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\NormalMAP_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_UNORM);
+		Ref<Texture>		m_DefaultRoughnessMetallic = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
 	};
 }

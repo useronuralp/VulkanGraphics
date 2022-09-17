@@ -1,11 +1,13 @@
 #include "Texture.h"
-#include <iostream>
 #include "core.h"
-#include <stb_image.h>
 #include "VulkanApplication.h"
 #include "PhysicalDevice.h"
 #include "LogicalDevice.h"
 #include "DescriptorSet.h"
+#include "Image.h"
+// External
+#include <iostream>
+#include <stb_image.h>
 namespace OVK
 {
 	Texture::Texture(const char* path, VkFormat imageFormat)
@@ -16,7 +18,7 @@ namespace OVK
     {
         m_Image = std::make_shared<Image>(width, height, imageFormat, imageType);
     }
-	VkSampler Texture::CreateSamplerFromThisTexture(const Ref<DescriptorSet>& dscSet, uint32_t bindingIndex, ImageType imageType)
+	VkSampler Texture::CreateSamplerFromThisTexture(const VkDescriptorSet& dscSet, uint32_t bindingIndex, ImageType imageType)
 	{
         VkSampler samplerToReturn = VK_NULL_HANDLE;
 
@@ -69,7 +71,7 @@ namespace OVK
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = dscSet->GetVKDescriptorSet();
+        descriptorWrite.dstSet = dscSet;
         descriptorWrite.dstBinding = bindingIndex;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -86,7 +88,7 @@ namespace OVK
         m_Image = std::make_shared<Image>(texPaths, imageFormat);
     }
 
-    VkSampler CubemapTexture::CreateSamplerFromThisTexture(const Ref<DescriptorSet>& dscSet, uint32_t bindingIndex)
+    VkSampler CubemapTexture::CreateSamplerFromThisTexture(const VkDescriptorSet& dscSet, uint32_t bindingIndex)
     {
         VkSampler samplerToReturn;
 
@@ -120,7 +122,7 @@ namespace OVK
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = dscSet->GetVKDescriptorSet();
+        descriptorWrite.dstSet = dscSet;
         descriptorWrite.dstBinding = bindingIndex;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

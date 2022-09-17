@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <iostream>
 #include "Surface.h"
-#include "RenderPass.h" 
 #include "VulkanApplication.h"
 #include "Framebuffer.h"
 #include "LogicalDevice.h"
@@ -77,11 +76,8 @@ namespace OVK
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-        VkRenderPass swapchainRenderPass;
 
-        ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &swapchainRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
-        m_RenderPass = std::make_shared<RenderPass>(swapchainRenderPass);
-
+        ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS, "Failed to create a render pass.");
         Init();
 	}
     
@@ -110,7 +106,7 @@ namespace OVK
         {
             m_PresentMode = VK_PRESENT_MODE_FIFO_KHR;
         }
-        m_PresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        //m_PresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
         // Find the optimal image count to request from the swapchain.
         m_ImageCount = VulkanApplication::s_Surface->GetVKSurfaceCapabilities().minImageCount + 1;
 

@@ -75,23 +75,83 @@ namespace OVK
 
 		ASSERT(vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &m_DescriptorSet) == VK_SUCCESS, "Failed to allocate descriptor sets!");
 	}
-	void DescriptorSet::WriteDescriptorSet(uint32_t bindingIndex, const VkDescriptorBufferInfo& bufferInfo, const VkDescriptorImageInfo& imageInfo)
+	DescriptorSet::DescriptorSet(const DescriptorPool& poolToAllocateFrom,  DescriptorLayout& layout)
 	{
-		VkWriteDescriptorSet descriptorWrite{};
-		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrite.dstSet = m_DescriptorSet;
-		descriptorWrite.dstBinding = bindingIndex;
-		descriptorWrite.dstArrayElement = 0;
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrite.descriptorCount = 1;
-		descriptorWrite.pBufferInfo = &bufferInfo;
-		descriptorWrite.pImageInfo = &imageInfo; // Optional
-		descriptorWrite.pTexelBufferView = nullptr; // Optional
-		vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = poolToAllocateFrom.GetDescriptorPool();
+		allocInfo.descriptorSetCount = 1; // Need to reflect the number of descriptor sets you are creating.
+		allocInfo.pSetLayouts = &layout.GetDescriptorLayout();
+
+		VkResult rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+		ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 	}
 	DescriptorSet::~DescriptorSet()
 	{
 		vkDestroyDescriptorPool(VulkanApplication::s_Device->GetVKDevice(), m_DescriptorPool, nullptr);
+		vkDestroyDescriptorSetLayout(VulkanApplication::s_Device->GetVKDevice(), m_DescriptorSetLayout, nullptr);
+	}
+	DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDescriptorType> types)
+	{
+		std::vector<VkDescriptorPoolSize> poolSizes;
+		poolSizes.resize(types.size());
+		for (int i = 0; i < types.size(); i++)
+		{
+			poolSizes[i].type = types[i];
+			poolSizes[i].descriptorCount = 1; // TO DO: What does this variable do? 
+		}
+		VkDescriptorPoolCreateInfo poolInfo{};
+		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+		poolInfo.pPoolSizes = poolSizes.data();
+		poolInfo.maxSets = maximumDescriptorCount; // Increase this value as you reach the limit of allocations or just reallocate pools.
+		//poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+
+		ASSERT(vkCreateDescriptorPool(VulkanApplication::s_Device->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) == VK_SUCCESS, "Failed to create descriptor pool!");
+	}
+	DescriptorPool::~DescriptorPool()
+	{
+		vkDestroyDescriptorPool(VulkanApplication::s_Device->GetVKDevice(), m_DescriptorPool, nullptr);
+	}
+	DescriptorLayout::DescriptorLayout(const std::vector<DescriptorBindingSpecs>& layout)
+	{
+		m_SetLayout = layout;
+		std::vector<VkDescriptorSetLayoutBinding> bindings;
+		bindings.resize(layout.size());
+
+		for (int i = 0; i < layout.size(); i++)
+		{
+			if (layout[i].Type == Type::UNIFORM_BUFFER)
+			{
+				// For the Uniform Buffer object.
+				bindings[i].binding = layout[i].Binding; // binding number used in the shader.
+				bindings[i].descriptorCount = 1;
+				bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+				bindings[i].stageFlags = FromShaderStageToDescriptorType(layout[i].ShaderStage);
+				bindings[i].pImmutableSamplers = nullptr;
+
+			}
+			else
+			{
+				// For the texture sampler in the fragment shader 
+				bindings[i].binding = layout[i].Binding;
+				bindings[i].descriptorCount = 1;
+				bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				bindings[i].pImmutableSamplers = nullptr;
+				bindings[i].stageFlags = FromShaderStageToDescriptorType(layout[i].ShaderStage);
+
+			}
+		}
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+		layoutInfo.pBindings = bindings.data();
+
+		ASSERT(vkCreateDescriptorSetLayout(VulkanApplication::s_Device->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS, "Failed to create descriptor set layout!");
+	}
+	DescriptorLayout::~DescriptorLayout()
+	{
 		vkDestroyDescriptorSetLayout(VulkanApplication::s_Device->GetVKDevice(), m_DescriptorSetLayout, nullptr);
 	}
 }

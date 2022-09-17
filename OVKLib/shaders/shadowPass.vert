@@ -3,18 +3,19 @@
 layout(location = 0) in vec3 a_Position;
 
 
-layout(binding = 0) uniform OwnModelMat
+layout(set = 0, binding = 0) uniform UBO
 {
-    mat4 matrix;
-} Model;
+    mat4 viewMat;
+    mat4 projMat;
+    mat4 lightMVP;
+    vec4 dirLightPosition;
+    vec4 cameraPos;
+};
 
-
-layout(binding = 1) uniform depthMVP
+layout( push_constant ) uniform modelMat
 {
-    mat4 matrix;
-} MVP;
-
-
+	mat4 modelMatrix;
+};
 
 out gl_PerVertex 
 {
@@ -23,5 +24,5 @@ out gl_PerVertex
 
 void main()
 {
-	gl_Position = MVP.matrix * Model.matrix * vec4(a_Position, 1.0);
+	gl_Position = lightMVP * modelMatrix * vec4(a_Position, 1.0);
 }

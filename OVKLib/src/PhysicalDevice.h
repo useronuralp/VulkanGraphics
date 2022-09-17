@@ -1,9 +1,10 @@
 #pragma once
+#include "core.h"
+// External
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <iostream>
 #include <set>
-#include "core.h"
 namespace OVK
 {
     struct QueueFamily

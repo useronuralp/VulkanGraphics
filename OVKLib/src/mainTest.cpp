@@ -134,7 +134,7 @@ private:
 
         // Pipeline--------------------------------------------
         Pipeline::Specs specs{};
-        specs.DescriptorBindingSpecs = dscSet->GetVKDescriptorSetLayout();
+        specs.DescriptorLayout = dscSet->GetVKDescriptorSetLayout();
         specs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;

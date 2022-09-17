@@ -1,10 +1,11 @@
 #pragma once
-#define GLFW_INCLUDE_VULKAN
-#include "GLFW/glfw3.h"
-#include <vector>
-#include <iostream>
-#include "PhysicalDevice.h"
 #include "core.h"
+#include "PhysicalDevice.h"
+// External
+#define GLFW_INCLUDE_VULKAN
+#include <vector>
+#include <GLFW/glfw3.h>
+#include <iostream>
 namespace OVK
 {
 	class Instance
@@ -19,9 +20,9 @@ namespace OVK
 		Instance();
 		~Instance(); 
 	public:
-		const std::vector<const char*> 		  GetRequiredExtensions(bool isValLayersSupported);
+		const std::vector<const char*>  	  GetRequiredExtensions(bool isValLayersSupported);
 		const VkInstance&					  GetVkInstance() const	 { return m_Instance; }
-		std::vector<PhysicalDevice>			  GetVKPhysicalDevices() { return m_PhysicalDevices; }
+		const std::vector<PhysicalDevice>&    GetVKPhysicalDevices() { return m_PhysicalDevices; }
  	private:
 		void								  PrintAvailableExtensions();
 		static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
