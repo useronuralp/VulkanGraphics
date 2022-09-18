@@ -66,18 +66,34 @@ namespace OVK
         vkCreateInfo.enabledExtensionCount     = requiredExtensionCount;
         vkCreateInfo.ppEnabledExtensionNames   = requiredExtensions.data();
 
-        if (validationLayersSupported) {
-            VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-            vkCreateInfo.enabledLayerCount     = static_cast<uint32_t>(m_ValidationLayers.size());
-            vkCreateInfo.ppEnabledLayerNames   = m_ValidationLayers.data();
+        // Validation layer features
+        VkValidationFeatureEnableEXT enableFeatures[2] =
+        {
+            VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+            VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT
+        };
+        VkValidationFeaturesEXT validationFeatures{};
+        validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+        validationFeatures.enabledValidationFeatureCount = 2;
+        validationFeatures.pEnabledValidationFeatures = enableFeatures;
 
-            Utils::PopulateDebugMessengerCreateInfo(debugCreateInfo, DebugCallback);
-            vkCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+        // Debug messengar setup
+        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+        Utils::PopulateDebugMessengerCreateInfo(debugCreateInfo, DebugCallback);
+        //debugCreateInfo.pNext = &validationFeatures;
+
+        
+        if (validationLayersSupported) {
+
+            vkCreateInfo.pNext               = &debugCreateInfo;
+            vkCreateInfo.enabledLayerCount   = static_cast<uint32_t>(m_ValidationLayers.size());
+            vkCreateInfo.ppEnabledLayerNames = m_ValidationLayers.data();
         }
         else
         {
-            vkCreateInfo.enabledLayerCount = 0;
-            vkCreateInfo.pNext             = nullptr;
+            vkCreateInfo.pNext               = nullptr;
+            vkCreateInfo.enabledLayerCount   = 0;
+            vkCreateInfo.ppEnabledLayerNames = nullptr;
         }
 
         ASSERT(vkCreateInstance(&vkCreateInfo, nullptr, &m_Instance) == VK_SUCCESS, "Failed to create instance.");
@@ -134,6 +150,7 @@ namespace OVK
         if (isValLayersSupported)
         {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
         //extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         std::cout << "Required Instance Extensions: \n";

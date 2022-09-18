@@ -35,6 +35,7 @@ class MyApplication : public OVK::VulkanApplication
         glm::mat4 depthMVP;
         glm::vec4 dirLightPos;
         glm::vec4 cameraPosition;
+        glm::vec4 viewportDimension;
     };
 
     struct LightPropertiesUBO
@@ -42,7 +43,6 @@ class MyApplication : public OVK::VulkanApplication
         glm::vec4 lightPositions[POINT_LIGHT_COUNT];
         glm::vec4 lightIntensities[POINT_LIGHT_COUNT];;
     };
-
 
     struct Particle
     {
@@ -79,6 +79,7 @@ class MyApplication : public OVK::VulkanApplication
 
     class ParticleSystem
     {
+        
     public:
         // Variables to animate the sprites.
         float RowOffset = 1.0f;
@@ -86,8 +87,19 @@ class MyApplication : public OVK::VulkanApplication
         float RowCellSize = 1.0f;
         float ColumnCellSize = 1.0f;
 
-        ParticleSystem(const char* texturePath, const ParticleSpecs& specs) : m_TexturePath(texturePath)
+
+        ParticleSystem(const ParticleSpecs& specs, Ref<Texture> texture, const Ref<DescriptorLayout>& layout, const Ref<DescriptorPool>& pool) : m_ParticleTexture(texture)
         {
+            // Create shared descriptor set for all particle systems.
+            VkDescriptorSetAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = pool->GetDescriptorPool();
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = &layout->GetDescriptorLayout();
+
+            VkResult rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+            ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+
             m_ParticleCount = specs.ParticleCount;
             m_SphereRadius = specs.SphereRadius;
             m_TrailLength = specs.TrailLength;
@@ -130,33 +142,30 @@ class MyApplication : public OVK::VulkanApplication
         glm::vec3 m_MinVel;
         glm::vec3 m_MaxVel;
 
+        std::vector<Particle> m_Particles;
+        std::vector<Particle> m_Trails;
+
         std::default_random_engine rndEngine;
 
-        std::string m_TexturePath;
+        // Contains the position of particles.
         VkBuffer       m_ParticleBuffer;
         VkDeviceMemory m_ParticleBufferMemory;
         size_t         m_ParticleBufferSize;
+        void*          m_MappedParticleBuffer; 
 
-        void* m_MappedParticleBuffer; //Used to update the buffer every frame.
-        void* m_MappedTrailsBuffer; //Used to update the buffer every frame.
-
+        // Contains the position of trail particles if there are any.
         VkBuffer       m_TrailBuffer;
         VkDeviceMemory m_TrailBufferMemory;
         size_t         m_TrailBufferSize;
+        void*          m_MappedTrailsBuffer; 
 
-        Ref<Pipeline>         m_ParticeSystemPipeline;
-        Ref<DescriptorSet>    m_ParticlSystemDescriptorSet;
-        VkSampler             m_ParticleSampler;
-        VkRenderPassBeginInfo m_ParticleSystemRenderPassBeginInfo;
-        Ref<Texture>          m_ParticleTexture;
+        VkSampler       m_ParticleSampler;
+        Ref<Texture>    m_ParticleTexture;
 
-        Ref<UniformBuffer>    m_ProjUBO;
-        Ref<UniformBuffer>    m_ModelViewUBO;
-        Ref<UniformBuffer>    m_ViewportDimUBO;
-
-
-        std::vector<Particle> m_Particles;
-        std::vector<Particle> m_Trails;
+        VkDescriptorSet m_DescriptorSet;
+    private:
+        // Link the global UBO with this member from outside of the class.
+        VkBuffer*       m_ParticleUBOBuffer;
 
         float rnd(float min, float max)
         {
@@ -200,6 +209,7 @@ class MyApplication : public OVK::VulkanApplication
             particle->RotationSpeed = rnd(0.0f, 2.0f) - rnd(0.0f, 2.0f);
             particle->LifeTime = 0.04f;
         }
+
         void SetupParticles() 
         {
             m_Particles.resize(m_ParticleCount);
@@ -218,6 +228,7 @@ class MyApplication : public OVK::VulkanApplication
             ASSERT(vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), m_ParticleBufferMemory, 0, m_ParticleBufferSize, 0, &m_MappedParticleBuffer) == VK_SUCCESS, "Failed to map the memory");
             memcpy(m_MappedParticleBuffer, m_Particles.data(), m_ParticleBufferSize);
 
+
             if (m_TrailLength > 0)
             {
                 // Create a buffer and copy over the particle data into it. We also map this buffer so that we can change the data contained in there every frame.
@@ -226,107 +237,9 @@ class MyApplication : public OVK::VulkanApplication
                 memcpy(m_MappedTrailsBuffer, m_Trails.data(), m_TrailBufferSize);
             }
 
-            std::vector<DescriptorBindingSpecs> dscLayout
-            {
-                DescriptorBindingSpecs { Type::UNIFORM_BUFFER,   sizeof(glm::mat4),             1, ShaderStage::VERTEX   , 0}, // Index 0
-                DescriptorBindingSpecs { Type::UNIFORM_BUFFER,   sizeof(glm::mat4),             1, ShaderStage::VERTEX   , 1}, // Index 1
-                DescriptorBindingSpecs { Type::UNIFORM_BUFFER,   sizeof(glm::vec2),             1, ShaderStage::VERTEX   , 2}, // Index 2
-                DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,  UINT64_MAX,  1, ShaderStage::FRAGMENT , 3}, // Index 3
-            };
-
-            m_ParticlSystemDescriptorSet = std::make_shared<DescriptorSet>(dscLayout);
-
-            Pipeline::Specs particleSpecs{};
-            Ref<DescriptorLayout> layout = std::make_shared<DescriptorLayout>(dscLayout);
-            particleSpecs.DescriptorLayout = layout;
-            particleSpecs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
-            particleSpecs.CullMode = VK_CULL_MODE_BACK_BIT;
-            particleSpecs.DepthBiasClamp = 0.0f;
-            particleSpecs.DepthBiasConstantFactor = 0.0f;
-            particleSpecs.DepthBiasSlopeFactor = 0.0f;
-            particleSpecs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-            particleSpecs.EnableDepthBias = false;
-            particleSpecs.EnableDepthTesting = VK_TRUE;
-            particleSpecs.EnableDepthWriting = VK_FALSE;
-            particleSpecs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-            particleSpecs.PolygonMode = VK_POLYGON_MODE_FILL;
-            particleSpecs.VertexShaderPath = "shaders/particleVERT.spv";
-            particleSpecs.FragmentShaderPath = "shaders/particleFRAG.spv";
-            particleSpecs.PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-
-            VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-            colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-            colorBlendAttachment.blendEnable = VK_TRUE;
-            colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-            colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-            colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-            colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-            colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-            particleSpecs.ColorBlendAttachmentState = colorBlendAttachment;
-
-            VkVertexInputBindingDescription bindingDescription{};
-            bindingDescription.binding = 0;
-            bindingDescription.stride = sizeof(Particle);
-            bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-            std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-            attributeDescriptions.resize(9);
-            attributeDescriptions[0].binding = 0;
-            attributeDescriptions[0].location = 0;
-            attributeDescriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            attributeDescriptions[0].offset = offsetof(Particle, Position);
-
-            attributeDescriptions[1].binding = 0;
-            attributeDescriptions[1].location = 1;
-            attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            attributeDescriptions[1].offset = offsetof(Particle, Color);
-
-            attributeDescriptions[2].binding = 0;
-            attributeDescriptions[2].location = 2;
-            attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
-            attributeDescriptions[2].offset = offsetof(Particle, Alpha);
-
-            attributeDescriptions[3].binding = 0;
-            attributeDescriptions[3].location = 3;
-            attributeDescriptions[3].format = VK_FORMAT_R32_SFLOAT;
-            attributeDescriptions[3].offset = offsetof(Particle, SizeRadius);
-
-            attributeDescriptions[4].binding = 0;
-            attributeDescriptions[4].location = 4;
-            attributeDescriptions[4].format = VK_FORMAT_R32_SFLOAT;
-            attributeDescriptions[4].offset = offsetof(Particle, Rotation);
-
-            attributeDescriptions[5].binding = 0;
-            attributeDescriptions[5].location = 5;
-            attributeDescriptions[5].format = VK_FORMAT_R32_SFLOAT;
-            attributeDescriptions[5].offset = offsetof(Particle, RowOffset);
-
-            attributeDescriptions[6].binding = 0;
-            attributeDescriptions[6].location = 6;
-            attributeDescriptions[6].format = VK_FORMAT_R32_SFLOAT;
-            attributeDescriptions[6].offset = offsetof(Particle, ColumnOffset);
-
-            attributeDescriptions[7].binding = 0;
-            attributeDescriptions[7].location = 7;
-            attributeDescriptions[7].format = VK_FORMAT_R32_SFLOAT;
-            attributeDescriptions[7].offset = offsetof(Particle, RowCellSize);
-
-            attributeDescriptions[8].binding = 0;
-            attributeDescriptions[8].location = 8;
-            attributeDescriptions[8].format = VK_FORMAT_R32_SFLOAT;
-            attributeDescriptions[8].offset = offsetof(Particle, ColumnCellSize);
-
-            std::vector<VkVertexInputBindingDescription> bindingDescs;
-            bindingDescs.push_back(bindingDescription);
-            particleSpecs.pVertexBindingDesc = bindingDescs;
-            particleSpecs.pVertexAttributeDescriptons = attributeDescriptions;
-
-            m_ParticeSystemPipeline = std::make_shared<Pipeline>(particleSpecs);
             rndEngine.seed((unsigned)time(nullptr));
 
-
+            // Create the sampler for the particle texture.
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
             samplerInfo.magFilter = VK_FILTER_LINEAR;
@@ -348,8 +261,7 @@ class MyApplication : public OVK::VulkanApplication
 
             ASSERT(vkCreateSampler(s_Device->GetVKDevice(), &samplerInfo, nullptr, &m_ParticleSampler) == VK_SUCCESS, "Failed to create particle sampler!");
 
-            m_ParticleTexture = std::make_shared<Texture>((std::string(SOLUTION_DIR) + m_TexturePath).c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-
+            // Write the desriptor set with the above sampler.
             VkDescriptorImageInfo imageInfo{};
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             imageInfo.imageView = m_ParticleTexture->GetImage()->GetImageView();
@@ -357,29 +269,38 @@ class MyApplication : public OVK::VulkanApplication
 
             VkWriteDescriptorSet descriptorWrite{};
             descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = m_ParticlSystemDescriptorSet->GetVKDescriptorSet();
-            descriptorWrite.dstBinding = 3;
+            descriptorWrite.dstSet = m_DescriptorSet;
+            descriptorWrite.dstBinding = 1;
             descriptorWrite.dstArrayElement = 0;
             descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             descriptorWrite.descriptorCount = 1;
             descriptorWrite.pImageInfo = &imageInfo;
             vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-
-            m_ProjUBO = std::make_shared<UniformBuffer>(m_ParticlSystemDescriptorSet, sizeof(glm::mat4), 0);
-            m_ModelViewUBO = std::make_shared<UniformBuffer>(m_ParticlSystemDescriptorSet, sizeof(glm::mat4), 1);
-            m_ViewportDimUBO = std::make_shared<UniformBuffer>(m_ParticlSystemDescriptorSet, sizeof(glm::vec4), 2);
         }
 
     public:
-        void updateParticleUBOs()
+        void SetUBO(VkBuffer& buffer)
         {
-            glm::mat4 proj = s_Camera->GetProjectionMatrix();
-            glm::mat4 modelView = s_Camera->GetViewMatrix();
-            glm::vec4 viewportDim = glm::vec4(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height, 0.0f, 0.0f);
+            m_ParticleUBOBuffer = &buffer;
 
-            m_ProjUBO->UpdateUniformBuffer(&proj, sizeof(proj));
-            m_ModelViewUBO->UpdateUniformBuffer(&modelView, sizeof(modelView));
-            m_ViewportDimUBO->UpdateUniformBuffer(&viewportDim, sizeof(viewportDim));
+            VkWriteDescriptorSet descriptorWrite{};
+            VkDescriptorBufferInfo bufferInfo{};
+
+            bufferInfo.buffer = *m_ParticleUBOBuffer;
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(ModelUBO);
+
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = m_DescriptorSet;
+            descriptorWrite.dstBinding = 0;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &bufferInfo;
+            descriptorWrite.pImageInfo = nullptr; // Optional
+            descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+            vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
         }
         void updateParticles(float deltaTime)
         {
@@ -438,24 +359,19 @@ class MyApplication : public OVK::VulkanApplication
                 memcpy(m_MappedTrailsBuffer, m_Trails.data(), size);
             }
         }
-        void OnResize()
+        void Draw(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout)
         {
-            m_ParticeSystemPipeline->OnResize();
-        }
-        void Draw(const VkCommandBuffer& cmdBuffer)
-        {
+            // IMPORTANT: The shared pipeline for particle systems must be bound outside the class.
             VkDeviceSize offsets[1] = { 0 };
-            // Draw the particles here. We are using a different logic to draw them so we need to do the following steps manually instead of expecting the Mesh / Model class to take care of it for us.
-            CommandBuffer::BindDescriptorSet(cmdBuffer, m_ParticeSystemPipeline->GetPipelineLayout(), m_ParticlSystemDescriptorSet);
-            CommandBuffer::BindPipeline(cmdBuffer, m_ParticeSystemPipeline);
-            CommandBuffer::BindVertexBuffer(cmdBuffer, m_ParticleBuffer, offsets[0]);
-            CommandBuffer::Draw(cmdBuffer, m_ParticleCount);
+            vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_DescriptorSet, 0, nullptr);
+            vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &m_ParticleBuffer, offsets);
+            vkCmdDraw(cmdBuffer, m_ParticleCount, 1, 0, 0);
 
             // Only draw the trails if there are trails. Pretty obvious.
             if (m_TrailLength > 0)
             {
-                CommandBuffer::BindVertexBuffer(cmdBuffer, m_TrailBuffer, offsets[0]);
-                CommandBuffer::Draw(cmdBuffer, m_ParticleCount * m_TrailLength);
+                vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &m_TrailBuffer, offsets);
+                vkCmdDraw(cmdBuffer, m_ParticleCount * m_TrailLength, 1, 0, 0);
             }
         }
     };
@@ -469,12 +385,14 @@ public:
     // Layouts
     Ref<DescriptorLayout> setLayout;
     Ref<DescriptorLayout> setLayout2;
+    Ref<DescriptorLayout> particleSystemLayout;
 #pragma endregion
 
 #pragma region Pools
     // Pools
     Ref<DescriptorPool> pool;
     Ref<DescriptorPool> pool2;
+    Ref<DescriptorPool> particleSystemPool;
 #pragma endregion
 
 #pragma region Pipelines
@@ -482,30 +400,15 @@ public:
     Ref<Pipeline> pipeline;
     Ref<Pipeline> pipeline2;
     Ref<Pipeline> pipeline3;
+    Ref<Pipeline> particleSystemPipeline;
 #pragma endregion
 
-#pragma region Models
+#pragma region ModelsANDParticleSystems
     // Models
     Model* model;
     Model* model2;
     Model* torch;
     Model* skybox;
-#pragma endregion
-
-    glm::mat4 torch1modelMatrix {1.0};
-    glm::mat4 torch2modelMatrix {1.0};
-    glm::mat4 torch3modelMatrix {1.0};
-    glm::mat4 torch4modelMatrix {1.0};
-
-    ModelUBO                modelUBO;
-    VkBuffer                modelUBOBuffer;
-    VkDeviceMemory          modelUBOBufferMemory;
-    void*                   mappedModelUBOBuffer;
-
-    LightPropertiesUBO      lightUBO;
-    VkBuffer                lightUBOBuffer;
-    VkDeviceMemory          lightUBOBufferMemory;
-    void*                   mappedLightUBOBuffer;
 
     ParticleSystem* fireSparks;
     ParticleSystem* fireBase;
@@ -518,6 +421,28 @@ public:
 
     ParticleSystem* fireSparks4;
     ParticleSystem* fireBase4;
+#pragma endregion
+
+#pragma region UBOs
+    ModelUBO                modelUBO;
+    VkBuffer                modelUBOBuffer;
+    VkDeviceMemory          modelUBOBufferMemory;
+    void*                   mappedModelUBOBuffer;
+
+    LightPropertiesUBO      lightUBO;
+    VkBuffer                lightUBOBuffer;
+    VkDeviceMemory          lightUBOBufferMemory;
+    void*                   mappedLightUBOBuffer;
+#pragma endregion
+
+    glm::mat4 torch1modelMatrix {1.0};
+    glm::mat4 torch2modelMatrix {1.0};
+    glm::mat4 torch3modelMatrix {1.0};
+    glm::mat4 torch4modelMatrix {1.0};
+
+    Ref<Texture>    particleTexture;
+    Ref<Texture>    fireTexture;
+
 
     float lightFlickerRate = 0.07f;
     float aniamtionRate = 0.013888888f;
@@ -760,6 +685,99 @@ public:
 
         pipeline2 = std::make_shared<Pipeline>(specs);
     }
+    void SetupParticleSystemPipeline()
+    {
+        Pipeline::Specs particleSpecs{};
+        Ref<DescriptorLayout> layout = particleSystemLayout;
+        particleSpecs.DescriptorLayout = layout;
+        particleSpecs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
+        particleSpecs.CullMode = VK_CULL_MODE_BACK_BIT;
+        particleSpecs.DepthBiasClamp = 0.0f;
+        particleSpecs.DepthBiasConstantFactor = 0.0f;
+        particleSpecs.DepthBiasSlopeFactor = 0.0f;
+        particleSpecs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        particleSpecs.EnableDepthBias = false;
+        particleSpecs.EnableDepthTesting = VK_TRUE;
+        particleSpecs.EnableDepthWriting = VK_FALSE;
+        particleSpecs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        particleSpecs.PolygonMode = VK_POLYGON_MODE_FILL;
+        particleSpecs.VertexShaderPath = "shaders/particleVERT.spv";
+        particleSpecs.FragmentShaderPath = "shaders/particleFRAG.spv";
+        particleSpecs.PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+
+
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_TRUE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+        particleSpecs.ColorBlendAttachmentState = colorBlendAttachment;
+
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Particle);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+        attributeDescriptions.resize(9);
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Particle, Position);
+
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Particle, Color);
+
+        attributeDescriptions[2].binding = 0;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions[2].offset = offsetof(Particle, Alpha);
+
+        attributeDescriptions[3].binding = 0;
+        attributeDescriptions[3].location = 3;
+        attributeDescriptions[3].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions[3].offset = offsetof(Particle, SizeRadius);
+
+        attributeDescriptions[4].binding = 0;
+        attributeDescriptions[4].location = 4;
+        attributeDescriptions[4].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions[4].offset = offsetof(Particle, Rotation);
+
+        attributeDescriptions[5].binding = 0;
+        attributeDescriptions[5].location = 5;
+        attributeDescriptions[5].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions[5].offset = offsetof(Particle, RowOffset);
+
+        attributeDescriptions[6].binding = 0;
+        attributeDescriptions[6].location = 6;
+        attributeDescriptions[6].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions[6].offset = offsetof(Particle, ColumnOffset);
+
+        attributeDescriptions[7].binding = 0;
+        attributeDescriptions[7].location = 7;
+        attributeDescriptions[7].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions[7].offset = offsetof(Particle, RowCellSize);
+
+        attributeDescriptions[8].binding = 0;
+        attributeDescriptions[8].location = 8;
+        attributeDescriptions[8].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions[8].offset = offsetof(Particle, ColumnCellSize);
+
+        std::vector<VkVertexInputBindingDescription> bindingDescs;
+        bindingDescs.push_back(bindingDescription);
+        particleSpecs.pVertexBindingDesc = bindingDescs;
+        particleSpecs.pVertexAttributeDescriptons = attributeDescriptions;
+
+        particleSystemPipeline = std::make_shared<Pipeline>(particleSpecs);
+    }
+
     void SetupSkyboxPipeline()
     {
         Pipeline::Specs specs{};
@@ -929,6 +947,9 @@ public:
     }
     void SetupParticleSystems()
     {
+        particleTexture = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib/textures/spark.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+        fireTexture = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib/textures/fire_sprite_sheet.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+
         ParticleSpecs specs{};
         specs.ParticleCount = 10;
         specs.EnableNoise = true;
@@ -942,7 +963,8 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks = new ParticleSystem("OVKLib/textures/spark.png", specs);
+        fireSparks = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks->SetUBO(modelUBOBuffer);
 
         specs.ParticleMinLifetime = 0.1f;
         specs.ParticleMaxLifetime = 1.5f;
@@ -956,7 +978,8 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
+        fireBase = new ParticleSystem(specs , fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase->SetUBO(modelUBOBuffer);
         fireBase->RowOffset = 0.0f;
         fireBase->RowCellSize = 0.0833333333333333333333f;
         fireBase->ColumnCellSize = 0.166666666666666f;
@@ -975,7 +998,8 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks2 = new ParticleSystem("OVKLib/textures/spark.png", specs);
+        fireSparks2 = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks2->SetUBO(modelUBOBuffer);
 
         specs.ParticleMinLifetime = 0.1f;
         specs.ParticleMaxLifetime = 1.5f;
@@ -989,7 +1013,8 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase2 = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
+        fireBase2 = new ParticleSystem(specs, fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase2->SetUBO(modelUBOBuffer);
         fireBase2->RowOffset = 0.0f;
         fireBase2->RowCellSize = 0.0833333333333333333333f;
         fireBase2->ColumnCellSize = 0.166666666666666f;
@@ -1007,7 +1032,8 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks3 = new ParticleSystem("OVKLib/textures/spark.png", specs);
+        fireSparks3 = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks3->SetUBO(modelUBOBuffer);
 
         specs.ParticleMinLifetime = 0.1f;
         specs.ParticleMaxLifetime = 1.5f;
@@ -1021,7 +1047,8 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase3 = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
+        fireBase3 = new ParticleSystem(specs, fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase3->SetUBO(modelUBOBuffer);
         fireBase3->RowOffset = 0.0f;
         fireBase3->RowCellSize = 0.0833333333333333333333f;
         fireBase3->ColumnCellSize = 0.166666666666666f;
@@ -1039,8 +1066,8 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks4 = new ParticleSystem("OVKLib/textures/spark.png", specs);
-
+        fireSparks4 = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks4->SetUBO(modelUBOBuffer);
 
         specs.ParticleMinLifetime = 0.1f;
         specs.ParticleMaxLifetime = 1.5f;
@@ -1054,7 +1081,8 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase4 = new ParticleSystem("OVKLib/textures/fire_sprite_sheet.png", specs);
+        fireBase4 = new ParticleSystem(specs, fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase4->SetUBO(modelUBOBuffer);
         fireBase4->RowOffset = 0.0f;
         fireBase4->RowCellSize = 0.0833333333333333333333f;
         fireBase4->ColumnCellSize = 0.166666666666666f;
@@ -1095,6 +1123,12 @@ private:
             DescriptorBindingSpecs {Type::TEXTURE_SAMPLER_CUBEMAP,  UINT64_MAX,         1, ShaderStage::FRAGMENT, 1}
         };
 
+        std::vector<DescriptorBindingSpecs> dscLayout4
+        {
+            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,     sizeof(ModelUBO),             1, ShaderStage::VERTEX   , 0}, // Index 0
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,  UINT64_MAX,            1, ShaderStage::FRAGMENT , 1}, // Index 3
+        };
+
         std::vector<VkDescriptorType> types;
         types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1106,6 +1140,14 @@ private:
         types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         setLayout2 = std::make_shared<DescriptorLayout>(dscLayout3);
         pool2 = std::make_shared<DescriptorPool>(100, types);
+
+        types.clear();
+        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        particleSystemLayout = std::make_shared<DescriptorLayout>(dscLayout4);
+        particleSystemPool = std::make_shared<DescriptorPool>(100, types);
+
+
 
         // Following are the global Uniform Buffes shared by all shaders.
         Utils::CreateVKBuffer(sizeof(ModelUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, modelUBOBuffer, modelUBOBufferMemory);
@@ -1132,6 +1174,7 @@ private:
         SetupScenePassPipeline();
         SetupShadowPassPipeline();
         SetupSkyboxPipeline();
+        SetupParticleSystemPipeline();
 
         // Final piece of the puzzle is the framebuffer. We need a framebuffer to link the image we are rendering to with the render pass.
         shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, shadowMapTexture);
@@ -1325,9 +1368,8 @@ private:
         modelUBO.cameraPosition = cameraPos;
         modelUBO.dirLightPos = directionalLightPosition;
         modelUBO.depthMVP = depthMVP;
+        modelUBO.viewportDimension = glm::vec4(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height, 0.0f, 0.0f);
         memcpy(mappedModelUBOBuffer, &modelUBO, sizeof(modelUBO));
-
-
         
         glm::mat4 mat = model->GetModelMatrix();
         model2->Rotate(5.0f * deltaTime, 0.0, 1, 0.0f);
@@ -1417,31 +1459,6 @@ private:
             ct++;
         }
 
-        // Update the particle systems.
-        fireSparks->updateParticles(deltaTime);
-        fireSparks->updateParticleUBOs();
-        
-        fireSparks2->updateParticles(deltaTime);
-        fireSparks2->updateParticleUBOs();
-        
-        fireSparks3->updateParticles(deltaTime);
-        fireSparks3->updateParticleUBOs();
-        
-        fireSparks4->updateParticles(deltaTime);
-        fireSparks4->updateParticleUBOs();
-        
-        fireBase->updateParticles(deltaTime);
-        fireBase->updateParticleUBOs();
-        
-        fireBase2->updateParticles(deltaTime);
-        fireBase2->updateParticleUBOs();
-        
-        fireBase3->updateParticles(deltaTime);
-        fireBase3->updateParticleUBOs();
-        
-        fireBase4->updateParticles(deltaTime);
-        fireBase4->updateParticleUBOs();
-
         // Start final scene render pass.
         CommandBuffer::BeginRenderPass(cmdBuffers[CURRENT_FRAME], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1495,18 +1512,29 @@ private:
             vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
         }
 
-        //// Draw the particles systems.
-        fireSparks->Draw(cmdBuffers[CURRENT_FRAME]);
-        fireBase->Draw(cmdBuffers[CURRENT_FRAME]);
+        // Update the particle systems.
+        fireSparks->updateParticles(deltaTime);
+        fireSparks2->updateParticles(deltaTime);
+        fireSparks3->updateParticles(deltaTime);
+        fireSparks4->updateParticles(deltaTime);
+        fireBase->updateParticles(deltaTime);
+        fireBase2->updateParticles(deltaTime);
+        fireBase3->updateParticles(deltaTime);
+        fireBase4->updateParticles(deltaTime);
+
+        // Draw the particles systems.
+        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline->GetVKPipeline());
+        fireSparks->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
+        fireBase->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
         
-        fireSparks2->Draw(cmdBuffers[CURRENT_FRAME]);
-        fireBase2->Draw(cmdBuffers[CURRENT_FRAME]);
+        fireSparks2->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
+        fireBase2->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
         
-        fireSparks3->Draw(cmdBuffers[CURRENT_FRAME]);
-        fireBase3->Draw(cmdBuffers[CURRENT_FRAME]);
+        fireSparks3->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
+        fireBase3->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
         
-        fireSparks4->Draw(cmdBuffers[CURRENT_FRAME]);
-        fireBase4->Draw(cmdBuffers[CURRENT_FRAME]);
+        fireSparks4->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
+        fireBase4->Draw(cmdBuffers[CURRENT_FRAME], particleSystemPipeline->GetPipelineLayout());
 
 
         // End the command buffer recording phase.
@@ -1591,24 +1619,10 @@ private:
     }
     void OnWindowResize()
     {
-        //model->OnResize();
-        //skybox->OnResize();
-        //model2->OnResize();
         pipeline->OnResize();
         pipeline2->OnResize();
         pipeline3->OnResize();
-        fireSparks->OnResize();
-        fireBase->OnResize();
-        //torch->OnResize();
-        fireSparks2->OnResize();
-        fireBase2->OnResize();
-        //torch2->OnResize();
-        fireSparks3->OnResize();
-        fireBase3->OnResize();
-        //torch3->OnResize();
-        fireSparks4->OnResize();
-        fireBase4->OnResize();
-        //torch4->OnResize();
+        particleSystemPipeline->OnResize();
     }
     float DeltaTime()
     {

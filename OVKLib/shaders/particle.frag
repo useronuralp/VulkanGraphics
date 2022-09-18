@@ -1,6 +1,6 @@
 #version 450
 
-layout (binding = 3) uniform sampler2D samplerFire;
+layout (binding = 1) uniform sampler2D samplerFire;
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in float inAlpha;
