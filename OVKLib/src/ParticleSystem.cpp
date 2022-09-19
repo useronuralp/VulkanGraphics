@@ -89,7 +89,7 @@ namespace OVK
         particle->Color = glm::vec4(1.0f);
         particle->Rotation = rnd(0.0f, 2.0f * M_PI);
         particle->RotationSpeed = rnd(0.0f, 2.0f) - rnd(0.0f, 2.0f);
-        particle->LifeTime = 0.04f;
+        particle->LifeTime = 0.4f;
     }
     void ParticleSystem::SetupParticles()
     {
@@ -99,6 +99,11 @@ namespace OVK
         for (auto& particle : m_Particles)
         {
             InitParticle(&particle, m_EmitterPos);
+        }
+
+        for (auto& trail : m_Trails)
+        {
+            InitParticle(&trail, m_EmitterPos);
         }
 
         m_TrailBufferSize = m_Trails.size() * sizeof(Particle);
@@ -186,13 +191,23 @@ namespace OVK
     void ParticleSystem::UpdateParticles(float deltaTime)
     {
         float particleTimer = deltaTime * 0.01f;
+        deltaTimeSum += deltaTime;
         for (uint64_t i = 0; i < m_Particles.size(); i++)
         {
+            // Before updating the leading particle, first update the trail buffer with the outdated data so that we can draw the trail for the previous frame.
+            if (m_TrailLength > 0 && deltaTimeSum >= trailUpdateRate)
+            {
+                m_Trails[(i * m_TrailLength) + m_Particles[i].currentTrailIndex].Position = m_Particles[i].Position;
+                m_Particles[i].currentTrailIndex = ++m_Particles[i].currentTrailIndex % m_TrailLength;
+            }
+
             CurlNoise::float3 curlNoise = CurlNoise::ComputeCurlNoBoundaries(Vectormath::Aos::Vector3(m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z));
             float noise = scaled_raw_noise_3d(-20, 20, m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z);
             m_Particles[i].Position.y += m_Particles[i].Velocity.y * 3.0f * (m_EnableNoise ? (curlNoise.val[1] / 10) + 1 : 1) * particleTimer * 3.5f;
             m_Particles[i].Position.x += m_Particles[i].Velocity.x * (m_EnableNoise ? curlNoise.val[0] : 1) * particleTimer * 3.5f;
             m_Particles[i].Position.z += m_Particles[i].Velocity.z * (m_EnableNoise ? curlNoise.val[2] : 1) * particleTimer * 3.5f;
+
+
             m_Particles[i].Velocity = m_Particles[i].Velocity;
             m_Particles[i].LifeTime -= 1.0f * deltaTime;
             m_Particles[i].Alpha = m_ImmortalParticle ? 1.0f : m_Particles[i].LifeTime / m_Particles[i].StartingLifeTime;
@@ -205,22 +220,10 @@ namespace OVK
             m_Particles[i].RowCellSize = RowCellSize;
             m_Particles[i].ColumnCellSize = ColumnCellSize;
 
-            // Decrease the life time of the trail particles every frame here.
+            // Trailes are immortal.
             for (uint64_t j = 0; j < m_TrailLength; j++)
             {
-                m_Trails[(i * m_TrailLength) + j].LifeTime -= 1.0f * deltaTime;
                 m_Trails[(i * m_TrailLength) + j].Alpha = m_Particles[i].Alpha;
-            }
-
-
-            // Check if any of the trails has died. If yes we re-init a new particle.
-            for (uint64_t k = 0; k < m_TrailLength; k++)
-            {
-                if (m_Trails[(i * m_TrailLength) + k].LifeTime <= 0.0f)
-                {
-                    InitTrail(&m_Trails[(i * m_TrailLength) + k], m_Particles[i].Position, m_Particles[i].Alpha, m_Particles[i].SizeRadius);
-                    break;
-                }
             }
 
             // If particle dies, re-init.
@@ -230,6 +233,11 @@ namespace OVK
                 for (uint64_t k = 0; k < m_TrailLength; k++)
                     InitTrail(&m_Trails[(i * m_TrailLength) + k], m_Particles[i].Position, m_Particles[i].Alpha, m_Particles[i].SizeRadius);
             }
+        }
+        // Reset
+        if (deltaTimeSum >= trailUpdateRate)
+        {
+            deltaTimeSum = 0.0f;
         }
         size_t size = m_Particles.size() * sizeof(Particle);
         memcpy(m_MappedParticleBuffer, m_Particles.data(), size);

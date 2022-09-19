@@ -618,7 +618,7 @@ public:
         ParticleSpecs specs{};
         specs.ParticleCount = 10;
         specs.EnableNoise = true;
-        specs.TrailLength = 3;
+        specs.TrailLength = 2;
         specs.SphereRadius = 0.05f;
         specs.ImmortalParticle = false;
         specs.ParticleSize = 0.5f;
@@ -653,7 +653,7 @@ public:
 
         specs.ParticleCount = 10;
         specs.EnableNoise = true;
-        specs.TrailLength = 3;
+        specs.TrailLength = 2;
         specs.SphereRadius = 0.05f;
         specs.ImmortalParticle = false;
         specs.ParticleSize = 0.5f;
@@ -687,7 +687,7 @@ public:
 
         specs.ParticleCount = 10;
         specs.EnableNoise = true;
-        specs.TrailLength = 3;
+        specs.TrailLength = 2;
         specs.SphereRadius = 0.05f;
         specs.ImmortalParticle = false;
         specs.ParticleSize = 0.5f;
@@ -721,7 +721,7 @@ public:
 
         specs.ParticleCount = 10;
         specs.EnableNoise = true;
-        specs.TrailLength = 3;
+        specs.TrailLength = 2;
         specs.SphereRadius = 0.05f;
         specs.ImmortalParticle = false;
         specs.ParticleSize = 0.5f;
@@ -1092,26 +1092,26 @@ private:
         // TO DO: The animation sprite sheet offsets are hardcoded here. We could use a better system to automatically calculate these variables.
         int ct = 0;
         bool done = false;
-        for (int i = 1; i < 6; i++)
+        for (int i = 1; i <= 6; i++)
         {
             if (done)
                 break;
         
-            for (int j = 1; j < 12; j++)
+            for (int j = 1; j <= 12; j++)
             {
                 if (ct >= currentAnimationFrame)
                 {
-                    fireBase->RowOffset = 0.0833333333333333333333f * (j + 1);
-                    fireBase->ColumnOffset = 0.166666666666666f * (i + 1);
+                    fireBase->RowOffset = 0.0833333333333333333333f * j;
+                    fireBase->ColumnOffset = 0.166666666666666f * i;
 
-                    fireBase2->RowOffset = 0.0833333333333333333333f * (j + 1);
-                    fireBase2->ColumnOffset = 0.166666666666666f * (i + 1);
+                    fireBase2->RowOffset = 0.0833333333333333333333f * j;
+                    fireBase2->ColumnOffset = 0.166666666666666f * i;
 
-                    fireBase3->RowOffset = 0.0833333333333333333333f * (j + 1);
-                    fireBase3->ColumnOffset = 0.166666666666666f * (i + 1);
+                    fireBase3->RowOffset = 0.0833333333333333333333f * j;
+                    fireBase3->ColumnOffset = 0.166666666666666f * i;
 
-                    fireBase4->RowOffset = 0.0833333333333333333333f * (j + 1);
-                    fireBase4->ColumnOffset = 0.166666666666666f * (i + 1);
+                    fireBase4->RowOffset = 0.0833333333333333333333f * j;
+                    fireBase4->ColumnOffset = 0.166666666666666f * i;
                     done = true;
                     break;
                 }

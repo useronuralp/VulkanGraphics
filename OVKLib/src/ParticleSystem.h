@@ -28,6 +28,7 @@ namespace OVK
         float RotationSpeed;
         float LifeTime;
         float StartingLifeTime;
+        int currentTrailIndex = 0;
     };
 
     struct ParticleSpecs
@@ -74,6 +75,10 @@ namespace OVK
         glm::vec3 m_EmitterPos;
         glm::vec3 m_MinVel;
         glm::vec3 m_MaxVel;
+
+        float trailUpdateRate = 0.013f; // Used to get rid of the frame rate dependency for trails.
+        float deltaTimeSum = 0;
+
 
         std::vector<Particle> m_Particles;
         std::vector<Particle> m_Trails;
