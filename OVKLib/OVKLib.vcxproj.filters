@@ -81,6 +81,9 @@
     <ClCompile Include="vendor\Curl\include\Noise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\ParticleSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\shader.frag" />
@@ -154,6 +157,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="vendor\Curl\include\vmath.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ParticleSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

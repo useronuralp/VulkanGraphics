@@ -169,6 +169,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Model.cpp" />
+    <ClCompile Include="src\ParticleSystem.cpp" />
     <ClCompile Include="src\PhysicalDevice.cpp" />
     <ClCompile Include="src\Pipeline.cpp" />
     <ClCompile Include="src\Surface.cpp" />
@@ -197,6 +198,7 @@
     <ClInclude Include="src\LogicalDevice.h" />
     <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\Model.h" />
+    <ClInclude Include="src\ParticleSystem.h" />
     <ClInclude Include="src\PhysicalDevice.h" />
     <ClInclude Include="src\Pipeline.h" />
     <ClInclude Include="src\Surface.h" />
