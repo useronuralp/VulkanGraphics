@@ -44,8 +44,6 @@ class MyApplication : public OVK::VulkanApplication
         glm::vec4 lightIntensities[POINT_LIGHT_COUNT];;
     };
 
-    
-
 public:
     std::random_device rd; // obtain a random number from hardware
     std::mt19937 gen; // seed the generator
@@ -68,8 +66,8 @@ public:
 #pragma region Pipelines
     // Pipelines
     Ref<Pipeline> pipeline;
-    Ref<Pipeline> pipeline2;
-    Ref<Pipeline> pipeline3;
+    Ref<Pipeline> shadowPassPipeline;
+    Ref<Pipeline> skyboxPipeline;
     Ref<Pipeline> particleSystemPipeline;
 #pragma endregion
 
@@ -349,7 +347,7 @@ public:
         specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
-        pipeline2 = std::make_shared<Pipeline>(specs);
+        shadowPassPipeline = std::make_shared<Pipeline>(specs);
     }
     void SetupSkyboxPipeline()
     {
@@ -403,7 +401,7 @@ public:
         specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
 
-        pipeline3 = std::make_shared<Pipeline>(specs);
+        skyboxPipeline = std::make_shared<Pipeline>(specs);
     }
     void SetupParticleSystemPipeline()
     {
@@ -769,12 +767,12 @@ private:
 
         std::vector<DescriptorBindingSpecs> dscLayout
         {
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(ModelUBO),               1, ShaderStage::VERTEX,    0, 5},
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(LightPropertiesUBO),     1, ShaderStage::FRAGMENT,  1, 2},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                     1, ShaderStage::FRAGMENT , 2, 1},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_NORMAL,             UINT64_MAX,                     1, ShaderStage::FRAGMENT , 3, 1},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC,  UINT64_MAX,                     1, ShaderStage::FRAGMENT , 4, 1},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_SHADOWMAP,          UINT64_MAX,                     1, ShaderStage::FRAGMENT , 5, 1},
+            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(ModelUBO),               1, ShaderStage::VERTEX,    0},
+            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(LightPropertiesUBO),     1, ShaderStage::FRAGMENT,  1},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                     1, ShaderStage::FRAGMENT , 2},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_NORMAL,             UINT64_MAX,                     1, ShaderStage::FRAGMENT , 3},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC,  UINT64_MAX,                     1, ShaderStage::FRAGMENT , 4},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_SHADOWMAP,          UINT64_MAX,                     1, ShaderStage::FRAGMENT , 5},
         };
 
         std::vector<DescriptorBindingSpecs> dscLayout2
@@ -1040,23 +1038,23 @@ private:
 
         // Start shadow pass.
         CommandBuffer::BeginRenderPass(cmdBuffers[CURRENT_FRAME], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline2->GetVKPipeline());
+        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline->GetVKPipeline());
         // Render the objects you want to cast shadows.
         for (int i = 0; i < model->GetMeshes().size(); i++)
         {
-            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline2->GetPipelineLayout(), 0, 1, &model->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline->GetPipelineLayout(), 0, 1, &model->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
             vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &model->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
             vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], model->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline2->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
             vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], model->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
         }
         
         for (int i = 0; i < model2->GetMeshes().size(); i++)
         {
-            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline2->GetPipelineLayout(), 0, 1, &model2->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline->GetPipelineLayout(), 0, 1, &model2->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
             vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &model2->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
             vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], model2->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline2->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+            vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
             vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], model2->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
         }
         
@@ -1125,8 +1123,8 @@ private:
 
         glm::mat4 skyBoxView = glm::mat4(glm::mat3(view));
         //// Drawing the skybox.
-        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline3->GetVKPipeline());
-        vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline3->GetPipelineLayout(), 0, 1, &skybox->GetMeshes()[0]->GetDescriptorSet(), 0, nullptr);
+        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline->GetVKPipeline());
+        vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline->GetPipelineLayout(), 0, 1, &skybox->GetMeshes()[0]->GetDescriptorSet(), 0, nullptr);
         vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &skybox->GetMeshes()[0]->GetVBO()->GetVKBuffer(), &offset);
         vkCmdPushConstants(cmdBuffers[CURRENT_FRAME], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &skyBoxView);
         vkCmdDraw(cmdBuffers[CURRENT_FRAME], 36, 1, 0, 0);
@@ -1277,8 +1275,8 @@ private:
     void OnWindowResize()
     {
         pipeline->OnResize();
-        pipeline2->OnResize();
-        pipeline3->OnResize();
+        shadowPassPipeline->OnResize();
+        skyboxPipeline->OnResize();
         particleSystemPipeline->OnResize();
     }
     float DeltaTime()

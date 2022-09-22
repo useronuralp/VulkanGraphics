@@ -30,7 +30,6 @@ namespace OVK
 		int			Count;
 		ShaderStage ShaderStage;
 		uint32_t	Binding;
-		uint32_t	BufferDescriptorCount = 1;
 	};
 	class Pipeline;
 	class DescriptorLayout

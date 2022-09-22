@@ -5,11 +5,15 @@
 #include "Surface.h"
 #include "Swapchain.h"
 #include "LogicalDevice.h"
-#include "RenderPass.h"
 #include "Utils.h"
 #include "Window.h"
 #include "CommandBuffer.h"
 #include "Camera.h"
+#include "DescriptorSet.h"
+#include "Pipeline.h"
+#include "Model.h"
+#include "Mesh.h"
+#include "Buffer.h"
 // External libs
 #include <random>
 // -----------------------------------------------------
@@ -19,12 +23,9 @@
 *   Test #2: define "INSTANCED_DRAWING_TEST"
 */
 #define INSTANCED_DRAWING_TEST
-#define OBJECT_COUNT 2500
+#define OBJECT_COUNT 50000
 // -----------------------------------------------------
 // -----------------------------------------------------
-
-#define MAX_FRAMES_IN_FLIGHT 1 
-int CURRENT_FRAME = 0;
 using namespace OVK;
 struct SausageUniformBuffer
 {
@@ -39,16 +40,18 @@ public:
     // Vulkan Objects
     VkClearValue            depthPassClearValue;
     VkRenderPassBeginInfo   finalScenePassBeginInfo;
-    VkCommandBuffer         cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool           cmdPools[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore             imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore             renderingCompleteSemaphores[MAX_FRAMES_IN_FLIGHT];
-    VkFence                 inRenderingFences[MAX_FRAMES_IN_FLIGHT];
+    VkCommandBuffer         cmdBuffer;
+    VkCommandPool           cmdPool;
+    VkSemaphore             imageAvailableSemaphore;
+    VkSemaphore             renderingCompleteSemaphore;
+    VkFence                 inRenderingFence;
     VkCommandBuffer         commandBuffer;
     VkCommandPool           commandPool;
     VkDeviceSize            offsets;
     VkSampler               diffuseSampler;
 
+    Ref<DescriptorPool>   pool;
+    Ref<DescriptorLayout> layout;
 
     SausageUniformBuffer    sausageUBO;
     // Buffers
@@ -64,8 +67,7 @@ public:
     std::vector<DescriptorBindingSpecs> dscLayout;
     std::default_random_engine rndEngine;
 
-    std::vector<Mesh> meshes;
-    Model*  modelLoad;
+    Model*  sausageModel;
 
     std::vector<glm::vec3>   positions;
     std::vector<glm::vec3>   rotations;
@@ -85,8 +87,6 @@ public:
     Ref<Texture>            normal;
     Ref<Texture>            RM;
     Ref<Texture>            shadowMap = nullptr;
-    Ref<VertexBuffer>       VBO;
-    Ref<IndexBuffer>        IBO;
     std::vector<glm::mat4>  modelMatrices;
     Ref<DescriptorSet>      dscSet;
 
@@ -109,9 +109,9 @@ private:
     void OnStart()
     {
         modelMatrices.resize(OBJECT_COUNT);
+        std::fill(modelMatrices.begin(), modelMatrices.end(), glm::mat4(1.0));
         rotations.resize(OBJECT_COUNT);
         positions.resize(OBJECT_COUNT);
-        meshes.resize(OBJECT_COUNT);
 
         offsets = 0;
         // Specify the layout of the descriptor set that you'll use in your shaders. (SAME FOR ALL THE OBJECTS) 
@@ -121,21 +121,27 @@ private:
             DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX /* Max means no size*/, 1, ShaderStage::FRAGMENT , 1},
         };
 
+        layout = std::make_shared<DescriptorLayout>(dscLayout);
+
+        std::vector<VkDescriptorType> types;
+        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        pool = std::make_shared<DescriptorPool>(200, types);
+
+
         // Single descriptor set used for every object.
         dscSet = std::make_shared<DescriptorSet>(dscLayout);
 
-        modelLoad   = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sausage\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-        diffuse     = modelLoad->GetMeshes()[0]->GetAlbedo();
-        normal      = modelLoad->GetMeshes()[0]->GetNormals();
-        RM          = modelLoad->GetMeshes()[0]->GetRoughnessMetallic();
-        VBO         = modelLoad->GetMeshes()[0]->GetVBO();
-        IBO         = modelLoad->GetMeshes()[0]->GetIBO();
+        sausageModel   = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sausage\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, layout);
+        diffuse     = sausageModel->GetMeshes()[0]->GetAlbedo();
+        normal      = sausageModel->GetMeshes()[0]->GetNormals();
+        RM          = sausageModel->GetMeshes()[0]->GetRoughnessMetallic();
         shadowMap   = nullptr;
 
         // Pipeline--------------------------------------------
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = dscSet->GetVKDescriptorSetLayout();
-        specs.RenderPass = VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
+        specs.DescriptorLayout = layout;
+        specs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
@@ -243,14 +249,15 @@ private:
         for (int i = 0; i < OBJECT_COUNT; i++)
         {
             // Create a sossig.
-            meshes[i] = Mesh(diffuse, normal, RM, shadowMap);
-            meshes[i].GetModelMatrix() = glm::scale(meshes[i].GetModelMatrix(), glm::vec3(0.03f, 0.03f, 0.03f));
+            //meshes[i] = Mesh(diffuse, normal, RM, shadowMap);
+            modelMatrices[i] = glm::scale(modelMatrices[i], glm::vec3(0.03f, 0.03f, 0.03f));
+            //meshes[i].GetModelMatrix() = glm::scale(meshes[i].GetModelMatrix(), glm::vec3(0.03f, 0.03f, 0.03f));
 
             rotations[i] = glm::vec3(rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f));
             positions[i] = glm::vec3(300 * rnd(-1.0f, 1.0f), 300 * rnd(-1.0f, 1.0f), 300 * rnd(-1.0f, 1.0f));
 
-            meshes[i].GetModelMatrix() = glm::translate(meshes[i].GetModelMatrix(), positions[i]);
-            meshes[i].GetModelMatrix() = glm::rotate(meshes[i].GetModelMatrix(), glm::radians(70.0f), glm::vec3(rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f)));
+            modelMatrices[i] = glm::translate(modelMatrices[i], positions[i]);
+            modelMatrices[i] = glm::rotate(modelMatrices[i], glm::radians(70.0f), glm::vec3(rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f), rnd(-1.0f, 1.0f)));
         }
       
         // Write the descriptor set.
@@ -295,13 +302,11 @@ private:
         VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            CommandBuffer::Create(s_GraphicsQueueFamily, cmdPools[i], cmdBuffers[i]);
-            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &renderingCompleteSemaphores[i]) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
-            ASSERT(vkCreateFence(s_Device->GetVKDevice(), &fenceCreateInfo, nullptr, &inRenderingFences[i]) == VK_SUCCESS, "Failed to create is rendering fence.");
-            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) == VK_SUCCESS, "Failed to create image available semaphore.");
-        }
+        CommandBuffer::Create(s_GraphicsQueueFamily, cmdPool, cmdBuffer);
+        ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &renderingCompleteSemaphore) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
+        ASSERT(vkCreateFence(s_Device->GetVKDevice(), &fenceCreateInfo, nullptr, &inRenderingFence) == VK_SUCCESS, "Failed to create is rendering fence.");
+        ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphore) == VK_SUCCESS, "Failed to create image available semaphore.");
+
         CommandBuffer::Create(s_GraphicsQueueFamily, commandPool, commandBuffer);
 
         // Map the buffers e want to update each frame. (All in this case)
@@ -312,11 +317,11 @@ private:
     }
     void OnUpdate()
     {
-        vkWaitForFences(s_Device->GetVKDevice(), 1, &inRenderingFences[CURRENT_FRAME], VK_TRUE, UINT64_MAX);
+        vkWaitForFences(s_Device->GetVKDevice(), 1, &inRenderingFence, VK_TRUE, UINT64_MAX);
         float currentTime, deltaTime;
         deltaTime = DeltaTime();
         uint32_t imageIndex = -1;
-        VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, imageAvailableSemaphores[CURRENT_FRAME], VK_NULL_HANDLE, &imageIndex);
+        VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         // Return and start a new frame if the screen is resized.
         if (rslt == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
@@ -331,10 +336,10 @@ private:
         ASSERT(rslt == VK_SUCCESS, "Failed to acquire next image.");
 
 
-        vkResetFences(s_Device->GetVKDevice(), 1, &inRenderingFences[CURRENT_FRAME]);
+        vkResetFences(s_Device->GetVKDevice(), 1, &inRenderingFence);
 
         // Begin command buffer recording.
-        CommandBuffer::Begin(cmdBuffers[CURRENT_FRAME]);
+        CommandBuffer::Begin(cmdBuffer);
 
         sausageUBO.viewMat = s_Camera->GetViewMatrix();
         sausageUBO.projMat = s_Camera->GetProjectionMatrix();
@@ -346,7 +351,7 @@ private:
         scenePassClearValues[1].depthStencil = { 1.0f, 0 };
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass()->GetRenderPass();
+        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[imageIndex]->GetVKFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
         finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
@@ -355,54 +360,54 @@ private:
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[imageIndex]->GetVKFramebuffer();
 
         // Start final scene render pass.
-        CommandBuffer::BeginRenderPass(cmdBuffers[CURRENT_FRAME], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        CommandBuffer::BeginRenderPass(cmdBuffer, finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         for (int i = 0; i < OBJECT_COUNT; i++)
         {
-            meshes[i].GetModelMatrix() = glm::rotate(meshes[i].GetModelMatrix(), glm::radians(150 * deltaTime), rotations[i]);
-            modelMatrices[i] = meshes[i].GetModelMatrix();
+            modelMatrices[i] = glm::rotate(modelMatrices[i], glm::radians(150 * deltaTime), rotations[i]);
+            //modelMatrices[i] = meshes[i].GetModelMatrix();
         }
         memcpy(mappedInstancedModelMatrxiBuffer, modelMatrices.data(), sizeof(glm::mat4) * OBJECT_COUNT);
 
 
-        vkCmdBindPipeline(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
-        vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 0, 1, &VBO->GetVKBuffer(), &offsets);
-        vkCmdBindVertexBuffers(cmdBuffers[CURRENT_FRAME], 1, 1, &instancedModelMatrixBuffer, &offsets);
-        vkCmdBindIndexBuffer(cmdBuffers[CURRENT_FRAME], IBO->GetVKBuffer(), 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindDescriptorSets(cmdBuffers[CURRENT_FRAME], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &dscSet->GetVKDescriptorSet(), 0, nullptr);
+        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
+        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &sausageModel->GetMeshes()[0]->GetVBO()->GetVKBuffer(), &offsets);
+        vkCmdBindVertexBuffers(cmdBuffer, 1, 1, &instancedModelMatrixBuffer, &offsets);
+        vkCmdBindIndexBuffer(cmdBuffer, sausageModel->GetMeshes()[0]->GetIBO()->GetVKBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &dscSet->GetVKDescriptorSet(), 0, nullptr);
 
 #if defined(INSTANCED_DRAWING_TEST)
 
-        vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], IBO->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
+        vkCmdDrawIndexed(cmdBuffer, sausageModel->GetMeshes()[0]->GetIBO()->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
 #elif defined(SEPARATE_DRAW_CALL_TEST) 
 
         for (int i = 0; i < OBJECT_COUNT; i++)
         {
-            vkCmdDrawIndexed(cmdBuffers[CURRENT_FRAME], IBO->GetIndices().size(), 1, 0, 0, i);
+            vkCmdDrawIndexed(cmdBuffer, sausageModel->GetMeshes()[0]->GetIBO()->GetIndices().size(), 1, 0, 0, i);
         }
 #endif 
 
         // End the command buffer recording phase.
-        CommandBuffer::EndRenderPass(cmdBuffers[CURRENT_FRAME]);
-        CommandBuffer::End(cmdBuffers[CURRENT_FRAME]);
+        CommandBuffer::EndRenderPass(cmdBuffer);
+        CommandBuffer::End(cmdBuffer);
 
         // Submit the command buffer to a queue.
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[CURRENT_FRAME] };
+        VkSemaphore waitSemaphores[] = { imageAvailableSemaphore };
         VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &cmdBuffers[CURRENT_FRAME];
-        VkSemaphore signalSemaphores[] = { renderingCompleteSemaphores[CURRENT_FRAME] };
+        submitInfo.pCommandBuffers = &cmdBuffer;
+        VkSemaphore signalSemaphores[] = { renderingCompleteSemaphore};
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
 
         VkQueue graphicsQueue = s_Device->GetGraphicsQueue();
-        ASSERT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inRenderingFences[CURRENT_FRAME]) == VK_SUCCESS, "Failed to submit draw command buffer!");
+        ASSERT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inRenderingFence) == VK_SUCCESS, "Failed to submit draw command buffer!");
 
         // Present the drawn image to the swapchain when the drawing is completed. This check is done via a semaphore.
         VkPresentInfoKHR presentInfo{};
@@ -432,8 +437,7 @@ private:
         ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
 
         // Reset the command buffer so that we can record new command next frame.
-        CommandBuffer::Reset(cmdBuffers[CURRENT_FRAME]);
-        CURRENT_FRAME = ++CURRENT_FRAME % MAX_FRAMES_IN_FLIGHT;
+        CommandBuffer::Reset(cmdBuffer);
     }
     void OnCleanup()
     {
@@ -443,15 +447,13 @@ private:
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), instancedModelMatrixBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), instancedModelMatrixBufferMemory, nullptr);
 
-        delete modelLoad;
+        delete sausageModel;
        
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            vkDestroySemaphore(s_Device->GetVKDevice(), imageAvailableSemaphores[i], nullptr);
-            vkDestroySemaphore(s_Device->GetVKDevice(), renderingCompleteSemaphores[i], nullptr);
-            vkDestroyFence(s_Device->GetVKDevice(), inRenderingFences[i], nullptr);
-            CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPools[i]);
-        }
+        vkDestroySemaphore(s_Device->GetVKDevice(), imageAvailableSemaphore, nullptr);
+        vkDestroySemaphore(s_Device->GetVKDevice(), renderingCompleteSemaphore, nullptr);
+        vkDestroyFence(s_Device->GetVKDevice(), inRenderingFence, nullptr);
+        CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool);
+
         CommandBuffer::FreeCommandBuffer(commandBuffer, commandPool);
     }
     void OnWindowResize()
