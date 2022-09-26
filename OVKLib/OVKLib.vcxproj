@@ -166,7 +166,7 @@
     <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\Instance.cpp" />
     <ClCompile Include="src\LogicalDevice.cpp" />
-    <ClCompile Include="src\mainTest.cpp" />
+    <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\ParticleSystem.cpp" />

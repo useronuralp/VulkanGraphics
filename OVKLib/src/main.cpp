@@ -1269,6 +1269,11 @@ private:
             vkDestroyFence(s_Device->GetVKDevice(), inRenderingFences[i], nullptr);
             CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPools[i]);
         }
+        vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), shadowMapRenderPass, nullptr);
+        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), modelUBOBufferMemory, nullptr);
+        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), lightUBOBufferMemory, nullptr);
+        vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), modelUBOBuffer, nullptr);
+        vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), lightUBOBuffer, nullptr);
 
         CommandBuffer::FreeCommandBuffer(commandBuffer, commandPool);
     }
