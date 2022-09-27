@@ -920,17 +920,18 @@ private:
         };
         
         // Loading the necessary images for the skybox one by one.
-        std::string front   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\front.png");
-        std::string back    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\back.png");
-        std::string top     = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\top.png");
-        std::string bottom  = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\bottom.png");
-        std::string right   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\right.png");
-        std::string left    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Starry\\left.png");
+        std::string front   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Night\\front.png");
+        std::string back    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Night\\back.png");
+        std::string top     = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Night\\top.png");
+        std::string bottom  = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Night\\bottom.png");
+        std::string right   = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Night\\right.png");
+        std::string left    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Night\\left.png");
         
         // Set up the 6 sided texture for the skybox by using the above images.
         std::array<std::string, 6> skyboxTex { right, left, top, bottom, front, back};
         Ref<OVK::CubemapTexture> cubemap = std::make_shared<CubemapTexture>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
         
+
         // Create the mesh for the skybox.
         skybox = new Model(cubeVertices, (size_t)(sizeof(float) * 3 * 6 * 6), 6 * 6, cubemap, pool2, setLayout2);
         WriteDescriptorSetSkybox(skybox);

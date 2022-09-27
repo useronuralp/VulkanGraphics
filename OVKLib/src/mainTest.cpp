@@ -23,7 +23,7 @@
 *   Test #2: define "INSTANCED_DRAWING_TEST"
 */
 #define INSTANCED_DRAWING_TEST
-#define OBJECT_COUNT 50000
+#define OBJECT_COUNT 500000
 // -----------------------------------------------------
 // -----------------------------------------------------
 using namespace OVK;

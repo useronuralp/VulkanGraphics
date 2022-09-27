@@ -48,7 +48,8 @@ namespace OVK
             {
                 s_PhysicalDevice = std::make_shared<PhysicalDevice>(device);
                 found = true;
-                std::cout << "Found a suitable DISCREETE graphics card. \n\t Card Name ---> " << s_PhysicalDevice->GetVKProperties().deviceName << std::endl;
+                std::cout << "Found a suitable DISCREETE graphics card. \n\t Card Name ---> " 
+                    << s_PhysicalDevice->GetVKProperties().deviceName << std::endl;
                 break;
             }
         }
