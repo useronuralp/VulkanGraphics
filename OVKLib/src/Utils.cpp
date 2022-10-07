@@ -87,7 +87,7 @@ namespace OVK
         VkCommandPool singleCmdPool;
         VkCommandBuffer singleCmdBuffer;
         CommandBuffer::Create(graphicsQueueIndex, singleCmdPool, singleCmdBuffer);
-        CommandBuffer::Begin(singleCmdBuffer);
+        CommandBuffer::BeginRecording(singleCmdBuffer);
 
         VkBufferCopy copyRegion{};
         copyRegion.srcOffset = 0; // Optional
@@ -95,7 +95,7 @@ namespace OVK
         copyRegion.size = size;
         vkCmdCopyBuffer(singleCmdBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-        CommandBuffer::End(singleCmdBuffer);
+        CommandBuffer::EndRecording(singleCmdBuffer);
         CommandBuffer::Submit(singleCmdBuffer);
         CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
     }

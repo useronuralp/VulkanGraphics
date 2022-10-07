@@ -29,7 +29,7 @@ namespace OVK
 
         ASSERT(vkAllocateCommandBuffers(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &outCmdBuffer) == VK_SUCCESS, "Failed to allocate command buffer memory");
     }
-    void CommandBuffer::Begin(const VkCommandBuffer& cmdBuffer)
+    void CommandBuffer::BeginRecording(const VkCommandBuffer& cmdBuffer)
     {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -38,7 +38,7 @@ namespace OVK
 
         ASSERT(vkBeginCommandBuffer(cmdBuffer, &beginInfo) == VK_SUCCESS, "Failed to begin recording command buffer");
     }
-    void CommandBuffer::End(const VkCommandBuffer& cmdBuffer)
+    void CommandBuffer::EndRecording(const VkCommandBuffer& cmdBuffer)
     {
         ASSERT(vkEndCommandBuffer(cmdBuffer) == VK_SUCCESS, "Failed to record command buffer");
     }

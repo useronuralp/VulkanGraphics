@@ -23,7 +23,7 @@
 *   Test #2: define "INSTANCED_DRAWING_TEST"
 */
 #define INSTANCED_DRAWING_TEST
-#define OBJECT_COUNT 500000
+#define OBJECT_COUNT 50000
 // -----------------------------------------------------
 // -----------------------------------------------------
 using namespace OVK;
@@ -37,15 +37,12 @@ struct SausageUniformBuffer
 class MyApplication : public OVK::VulkanApplication
 {
 public:
+    MyApplication(uint32_t framesInFlight) : VulkanApplication(framesInFlight) {}
     // Vulkan Objects
     VkClearValue            depthPassClearValue;
     VkRenderPassBeginInfo   finalScenePassBeginInfo;
     VkCommandBuffer         cmdBuffer;
     VkCommandPool           cmdPool;
-    VkSemaphore             imageAvailableSemaphore;
-    VkSemaphore             renderingCompleteSemaphore;
-    VkFence                 inRenderingFence;
-    VkCommandBuffer         commandBuffer;
     VkCommandPool           commandPool;
     VkDeviceSize            offsets;
     VkSampler               diffuseSampler;
@@ -303,11 +300,6 @@ private:
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
         CommandBuffer::Create(s_GraphicsQueueFamily, cmdPool, cmdBuffer);
-        ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &renderingCompleteSemaphore) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
-        ASSERT(vkCreateFence(s_Device->GetVKDevice(), &fenceCreateInfo, nullptr, &inRenderingFence) == VK_SUCCESS, "Failed to create is rendering fence.");
-        ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphore) == VK_SUCCESS, "Failed to create image available semaphore.");
-
-        CommandBuffer::Create(s_GraphicsQueueFamily, commandPool, commandBuffer);
 
         // Map the buffers e want to update each frame. (All in this case)
         vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), sausageUBOBufferMemory, 0, sizeof(SausageUniformBuffer), 0, &mappedSausageUBOBuffer);
@@ -317,26 +309,8 @@ private:
     }
     void OnUpdate()
     {
-        vkWaitForFences(s_Device->GetVKDevice(), 1, &inRenderingFence, VK_TRUE, UINT64_MAX);
         float currentTime, deltaTime;
         deltaTime = DeltaTime();
-        uint32_t imageIndex = -1;
-        VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-
-        // Return and start a new frame if the screen is resized.
-        if (rslt == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
-        {
-            vkDeviceWaitIdle(s_Device->GetVKDevice());
-            s_Swapchain->OnResize();
-            OnWindowResize();
-            s_Window->OnResize();
-            s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
-            return;
-        }
-        ASSERT(rslt == VK_SUCCESS, "Failed to acquire next image.");
-
-
-        vkResetFences(s_Device->GetVKDevice(), 1, &inRenderingFence);
 
         // Begin command buffer recording.
         CommandBuffer::Begin(cmdBuffer);
@@ -352,12 +326,12 @@ private:
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
-        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[imageIndex]->GetVKFramebuffer();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
         finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
         finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(scenePassClearValues.size());
         finalScenePassBeginInfo.pClearValues = scenePassClearValues.data();
-        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[imageIndex]->GetVKFramebuffer();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
 
         // Start final scene render pass.
         CommandBuffer::BeginRenderPass(cmdBuffer, finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -391,70 +365,21 @@ private:
         CommandBuffer::EndRenderPass(cmdBuffer);
         CommandBuffer::End(cmdBuffer);
 
-        // Submit the command buffer to a queue.
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        VkSemaphore waitSemaphores[] = { imageAvailableSemaphore };
-        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &cmdBuffer;
-        VkSemaphore signalSemaphores[] = { renderingCompleteSemaphore};
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
-
-
-        VkQueue graphicsQueue = s_Device->GetGraphicsQueue();
-        ASSERT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inRenderingFence) == VK_SUCCESS, "Failed to submit draw command buffer!");
-
-        // Present the drawn image to the swapchain when the drawing is completed. This check is done via a semaphore.
-        VkPresentInfoKHR presentInfo{};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
-        VkSwapchainKHR swapChains[] = { s_Swapchain->GetVKSwapchain() };
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains;
-        presentInfo.pImageIndices = &imageIndex;
-        presentInfo.pResults = nullptr; // Optional
-        
-
-        VkQueue presentQueue = s_Device->GetPresentQueue();
-        VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
-
-
-        // Check if window has been resized.
-        if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR)
-        {
-            vkDeviceWaitIdle(s_Device->GetVKDevice());
-            s_Swapchain->OnResize();
-            OnWindowResize();
-            s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
-            return;
-        }
-        ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
-
-        // Reset the command buffer so that we can record new command next frame.
-        CommandBuffer::Reset(cmdBuffer);
+        SubmitCommandBuffer(cmdBuffer);
     }
     void OnCleanup()
     {
 
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), diffuseSampler, nullptr);    
-
+        
+        vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), sausageUBOBuffer, nullptr);
+        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), sausageUBOBufferMemory, nullptr);
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), instancedModelMatrixBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), instancedModelMatrixBufferMemory, nullptr);
 
         delete sausageModel;
        
-        vkDestroySemaphore(s_Device->GetVKDevice(), imageAvailableSemaphore, nullptr);
-        vkDestroySemaphore(s_Device->GetVKDevice(), renderingCompleteSemaphore, nullptr);
-        vkDestroyFence(s_Device->GetVKDevice(), inRenderingFence, nullptr);
         CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool);
-
-        CommandBuffer::FreeCommandBuffer(commandBuffer, commandPool);
     }
     void OnWindowResize()
     {
@@ -471,7 +396,7 @@ private:
 };
 int main()
 {
-    MyApplication app;
+    MyApplication app(1);
     app.Run();
     return 0;
 }

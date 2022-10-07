@@ -29,7 +29,6 @@ namespace OVK
 		Ref<Texture>			GetShadowMap() { return m_ShadowMap; }
 		Ref<CubemapTexture>		GetCubeMap() { return m_CubemapTexture; }
 
-		void WriteDescriptorSet(const VkWriteDescriptorSet& descriptorWrite);
 		void SetShadowMap(const Ref<Texture>& shadowMap) { m_ShadowMap = shadowMap; }
 	private:
 		Mesh() = default;

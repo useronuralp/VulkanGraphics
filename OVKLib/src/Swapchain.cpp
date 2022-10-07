@@ -304,6 +304,7 @@ namespace OVK
     Swapchain::~Swapchain()
     {
         CleanupSwapchain();
+        vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), m_RenderPass, nullptr);
     }
 
 }

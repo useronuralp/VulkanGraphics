@@ -91,9 +91,4 @@ namespace OVK
 			vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), sampler, nullptr);
 		}
 	}
-
-	void Mesh::WriteDescriptorSet(const VkWriteDescriptorSet& descriptorWrite)
-	{
-		vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-	}
 }

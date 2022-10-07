@@ -18,7 +18,8 @@ namespace OVK
 		void			Run();
 		float			DeltaTime();
 	public:
-		VulkanApplication() {} // Doesn't do anything right now.
+		VulkanApplication(uint32_t framesInFlight);
+		~VulkanApplication();
 	public:
 		// Vulkan components
 		static inline Ref<Window>		  s_Window;
@@ -43,6 +44,9 @@ namespace OVK
 		inline void		SetDeviceExtensions(std::vector<const char*> extensions) { m_DeviceExtensions = extensions; }
 		inline void		SetInstanceExtensions(std::vector<const char*> extensions) { m_InstanceExtensions = extensions; }
 		inline void		SetCameraConfiguration(float FOV, float nearClip, float farClip) { m_CamFOV = FOV; m_CamNearClip = nearClip; m_CamFarClip = farClip; }
+		inline uint32_t CurrentFrameIndex() { return m_CurrentFrame; }
+		inline uint32_t GetActiveImageIndex() { return m_ActiveImageIndex; }
+		void			SubmitCommandBuffer(VkCommandBuffer& cmdBuffer);
 	private:
 		void Init();
 		void SetupQueueFamilies();
@@ -57,10 +61,18 @@ namespace OVK
 
 		VkSampleCountFlagBits    m_MSAA;
 
+		uint32_t m_FramesInFlight;
+		uint32_t m_CurrentFrame = 0;
+		std::vector<VkSemaphore> m_RenderingCompleteSemaphores;
+		std::vector<VkSemaphore> m_ImageAvailableSemaphores;
+		std::vector<VkFence>	 m_InFlightFences;
+		VkCommandBuffer*		 m_CommandBufferReference; // These cmd buffers come from the client / user side. Probably will change later.
 
-		float m_CamFOV;
-		float m_CamNearClip;
-		float m_CamFarClip;
+		uint32_t				 m_ActiveImageIndex = -1;
+
+		float m_CamFOV = -1;
+		float m_CamNearClip = -1;
+		float m_CamFarClip = -1;
 
 	};
 }

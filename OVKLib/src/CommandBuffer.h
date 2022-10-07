@@ -15,8 +15,8 @@ namespace OVK
 	{
 	public:
 		static void Create(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool, VkCommandBuffer& outCmdBuffer);
-		static void Begin(const VkCommandBuffer& cmdBuffer);
-		static void End(const VkCommandBuffer& cmdBuffer);
+		static void BeginRecording(const VkCommandBuffer& cmdBuffer);
+		static void EndRecording(const VkCommandBuffer& cmdBuffer);
 		static void BeginRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo, VkSubpassContents contents);
 		static void EndRenderPass(const VkCommandBuffer& cmdBuffer);
 		static void BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline);

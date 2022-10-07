@@ -25,6 +25,22 @@
 #include <glm/gtc/matrix_transform.hpp>
 namespace OVK
 {
+    VulkanApplication::VulkanApplication(uint32_t framesInFlight)
+        : m_FramesInFlight(framesInFlight)
+    {
+        
+    }
+
+    VulkanApplication::~VulkanApplication()
+    {
+        for (int i = 0; i < m_FramesInFlight; i++)
+        {
+            vkDestroySemaphore(s_Device->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
+            vkDestroySemaphore(s_Device->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
+            vkDestroyFence(s_Device->GetVKDevice(), m_InFlightFences[i], nullptr);
+        }
+    }
+
     void VulkanApplication::Init()
     {
         OnVulkanInit();
@@ -84,6 +100,27 @@ namespace OVK
         s_Swapchain = std::make_shared<Swapchain>();
 
         s_Camera = std::make_shared<Camera>(m_CamFOV, s_Surface->GetVKExtent().width / (float)s_Surface->GetVKExtent().height, m_CamNearClip, m_CamFarClip);
+
+        // Initialize 2 sempahores and a single fence needed to synchronize rendering and presentation.
+        m_RenderingCompleteSemaphores.resize(m_FramesInFlight);
+        m_ImageAvailableSemaphores.resize(m_FramesInFlight);
+        m_InFlightFences.resize(m_FramesInFlight);
+
+        // Setup the fences and semaphores needed to synchronize the rendering.
+        VkFenceCreateInfo fenceCreateInfo = {};
+        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        // Create the scynhronization objects as many times as the frames in flight number.
+        for (int i = 0; i < m_FramesInFlight; i++)
+        {
+            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
+            ASSERT(vkCreateFence(s_Device->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InFlightFences[i]) == VK_SUCCESS, "Failed to create is rendering fence.");
+            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) == VK_SUCCESS, "Failed to create image available semaphore.");
+        }
     }
 
     void VulkanApplication::Run()
@@ -113,13 +150,81 @@ namespace OVK
             // Update window events.
             s_Window->OnUpdate();
 
-            // Call client OnUpdate() code here. This usually contains draw calls and other per frame operations.
+            vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+
+            VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ActiveImageIndex);
+
+            if (s_Window->IsWindowResized())
+            {
+                vkDeviceWaitIdle(s_Device->GetVKDevice());
+                s_Swapchain->OnResize();
+                OnWindowResize();
+                s_Window->OnResize();
+                s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
+                continue;
+            }
+
+            ASSERT(rslt == VK_SUCCESS, "Failed to acquire next image.");
+
+            vkResetFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
+
+            // Call client OnUpdate() code here. This function usually contains command buffer calls and a SubmitCommandBuffer() call.
             OnUpdate();
+
+            // Submit the command buffer that we got frome the OnUpdate() function.
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            VkSemaphore waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
+            VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = waitSemaphores;
+            submitInfo.pWaitDstStageMask = waitStages;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = m_CommandBufferReference;
+            VkSemaphore signalSemaphores[] = { m_RenderingCompleteSemaphores[m_CurrentFrame] };
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = signalSemaphores;
+
+            VkQueue graphicsQueue = s_Device->GetGraphicsQueue();
+            ASSERT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) == VK_SUCCESS, "Failed to submit draw command buffer!");
+
+            // Present the drawn image to the swapchain when the drawing is completed. This check is done via a semaphore.
+            VkPresentInfoKHR presentInfo{};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            presentInfo.waitSemaphoreCount = 1;
+            presentInfo.pWaitSemaphores = signalSemaphores;
+            VkSwapchainKHR swapChains[] = { s_Swapchain->GetVKSwapchain() };
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = swapChains;
+            presentInfo.pImageIndices = &m_ActiveImageIndex;
+            presentInfo.pResults = nullptr; // Optional
+
+            VkQueue presentQueue = s_Device->GetPresentQueue();
+            VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+            // Check if window has been resized.
+            if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                vkDeviceWaitIdle(s_Device->GetVKDevice());
+                s_Swapchain->OnResize();
+                OnWindowResize();
+                s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
+                continue;
+            }
+            ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+            CommandBuffer::Reset(*m_CommandBufferReference);
+
+            m_CurrentFrame = ++m_CurrentFrame % m_FramesInFlight;
         }
         vkDeviceWaitIdle(s_Device->GetVKDevice());
 
         // Call client OnCleanup() code here. This usually contains pointer deletions.
         OnCleanup();
+    }
+
+    void VulkanApplication::SubmitCommandBuffer(VkCommandBuffer& cmdBuffer)
+    {
+        m_CommandBufferReference = &cmdBuffer;
     }
 
     void VulkanApplication::SetupQueueFamilies()
@@ -203,6 +308,7 @@ namespace OVK
         m_LastFrameRenderTime = currentFrameRenderTime;
         return deltaTime;
     }
+
     float VulkanApplication::GetRenderTime()
     {
         return glfwGetTime();

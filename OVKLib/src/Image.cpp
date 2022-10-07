@@ -140,7 +140,7 @@ namespace OVK
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
         CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
-        CommandBuffer::Begin(singleCmdBuffer);
+        CommandBuffer::BeginRecording(singleCmdBuffer);
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -179,7 +179,7 @@ namespace OVK
         ASSERT(supported, "Unsupported layout transition");
 
         vkCmdPipelineBarrier(singleCmdBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-        CommandBuffer::End(singleCmdBuffer);
+        CommandBuffer::EndRecording(singleCmdBuffer);
         CommandBuffer::Submit(singleCmdBuffer);
         CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
     }
@@ -189,7 +189,7 @@ namespace OVK
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
         CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
-        CommandBuffer::Begin(singleCmdBuffer);
+        CommandBuffer::BeginRecording(singleCmdBuffer);
 
         VkBufferImageCopy region{};
         std::vector<VkBufferImageCopy> bufferCopyRegions;
@@ -239,7 +239,7 @@ namespace OVK
             vkCmdCopyBufferToImage( singleCmdBuffer, buffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
         }
 
-        CommandBuffer::End(singleCmdBuffer);
+        CommandBuffer::EndRecording(singleCmdBuffer);
         CommandBuffer::Submit(singleCmdBuffer);
         CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
     }
@@ -316,7 +316,7 @@ namespace OVK
         VkCommandPool cmdPool;
 
         CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, cmdPool, cmdBuffer);
-        CommandBuffer::Begin(cmdBuffer);
+        CommandBuffer::BeginRecording(cmdBuffer);
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -394,7 +394,7 @@ namespace OVK
             0, nullptr,
             1, &barrier);
 
-        CommandBuffer::End(cmdBuffer);
+        CommandBuffer::EndRecording(cmdBuffer);
         CommandBuffer::Submit(cmdBuffer);
         CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool);
     }
