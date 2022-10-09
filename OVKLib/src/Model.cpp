@@ -170,8 +170,6 @@ namespace OVK
             for (unsigned int j = 0; j < face.mNumIndices; j++)
                 indices.push_back((uint32_t)face.mIndices[j]);
         }
-        //Mesh mesh2 = Mesh();
-        //mesh2.
         // Process materials (In our application only textures are loaded.)
         if (mesh->mMaterialIndex >= 0)
         {

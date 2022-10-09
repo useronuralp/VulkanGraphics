@@ -52,7 +52,7 @@ namespace OVK
 	Mesh::Mesh(const float* vertices, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
 		: m_CubemapTexture(cubemapTex)
 	{
-		// Fill up the vector.
+		// Fill up the vector. // TO DO: Data copying happens here. Might wanna switch to pointers.
 		for (int i = 0; i < vertexCount; i++)
 		{
 			m_Vertices.push_back(vertices[i]);
