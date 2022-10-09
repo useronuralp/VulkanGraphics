@@ -33,7 +33,7 @@ namespace OVK
         // The following buffer is not visible to CPU.
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_TransferQueueFamily);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -59,7 +59,7 @@ namespace OVK
         // The following buffer is not visible to CPU.
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_TransferQueueFamily);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
@@ -87,7 +87,7 @@ namespace OVK
 
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
-        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize, VulkanApplication::s_TransferQueueFamily);
+        Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
