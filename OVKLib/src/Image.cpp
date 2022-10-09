@@ -139,7 +139,8 @@ namespace OVK
         }
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
-        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::CreateCommandPool(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool);
+        CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
         CommandBuffer::BeginRecording(singleCmdBuffer);
 
         VkImageMemoryBarrier barrier{};
@@ -180,15 +181,17 @@ namespace OVK
 
         vkCmdPipelineBarrier(singleCmdBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
         CommandBuffer::EndRecording(singleCmdBuffer);
-        CommandBuffer::Submit(singleCmdBuffer);
-        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
+        CommandBuffer::Submit(singleCmdBuffer, VulkanApplication::s_Device->GetGraphicsQueue());
+        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, VulkanApplication::s_Device->GetGraphicsQueue());
+        CommandBuffer::DestroyCommandPool(singleCmdPool);
     }
 
     void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height)
     {
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
-        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::CreateCommandPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
+        CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
         CommandBuffer::BeginRecording(singleCmdBuffer);
 
         VkBufferImageCopy region{};
@@ -240,8 +243,9 @@ namespace OVK
         }
 
         CommandBuffer::EndRecording(singleCmdBuffer);
-        CommandBuffer::Submit(singleCmdBuffer);
-        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
+        CommandBuffer::Submit(singleCmdBuffer, VulkanApplication::s_Device->GetTransferQueue());
+        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, VulkanApplication::s_Device->GetTransferQueue());
+        CommandBuffer::DestroyCommandPool(singleCmdPool);
     }
 
     void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType)
@@ -314,8 +318,8 @@ namespace OVK
 
         VkCommandBuffer cmdBuffer;
         VkCommandPool cmdPool;
-
-        CommandBuffer::Create(VulkanApplication::s_GraphicsQueueFamily, cmdPool, cmdBuffer);
+        CommandBuffer::CreateCommandPool(VulkanApplication::s_TransferQueueFamily, cmdPool);
+        CommandBuffer::CreateCommandBuffer(cmdBuffer, cmdPool);
         CommandBuffer::BeginRecording(cmdBuffer);
 
         VkImageMemoryBarrier barrier{};
@@ -395,8 +399,9 @@ namespace OVK
             1, &barrier);
 
         CommandBuffer::EndRecording(cmdBuffer);
-        CommandBuffer::Submit(cmdBuffer);
-        CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool);
+        CommandBuffer::Submit(cmdBuffer, VulkanApplication::s_Device->GetTransferQueue());
+        CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool, VulkanApplication::s_Device->GetTransferQueue());
+        CommandBuffer::DestroyCommandPool(cmdPool);
     }
 
 }

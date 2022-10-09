@@ -290,16 +290,9 @@ private:
         descriptorWrite.pImageInfo = &imageInfo;
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 
-       
-        // Setup the fences and semaphores needed to synchronize the rendering.
-        VkFenceCreateInfo fenceCreateInfo = {};
-        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-        CommandBuffer::Create(s_GraphicsQueueFamily, cmdPool, cmdBuffer);
+        CommandBuffer::CreateCommandPool(s_GraphicsQueueFamily, cmdPool);
+        CommandBuffer::CreateCommandBuffer(cmdBuffer, cmdPool);
 
         // Map the buffers e want to update each frame. (All in this case)
         vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), sausageUBOBufferMemory, 0, sizeof(SausageUniformBuffer), 0, &mappedSausageUBOBuffer);
@@ -313,7 +306,7 @@ private:
         deltaTime = DeltaTime();
 
         // Begin command buffer recording.
-        CommandBuffer::Begin(cmdBuffer);
+        CommandBuffer::BeginRecording(cmdBuffer);
 
         sausageUBO.viewMat = s_Camera->GetViewMatrix();
         sausageUBO.projMat = s_Camera->GetProjectionMatrix();
@@ -326,7 +319,7 @@ private:
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
-        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
         finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
         finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(scenePassClearValues.size());
@@ -363,7 +356,7 @@ private:
 
         // End the command buffer recording phase.
         CommandBuffer::EndRenderPass(cmdBuffer);
-        CommandBuffer::End(cmdBuffer);
+        CommandBuffer::EndRecording(cmdBuffer);
 
         SubmitCommandBuffer(cmdBuffer);
     }
@@ -379,7 +372,8 @@ private:
 
         delete sausageModel;
        
-        CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool);
+        CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool, s_Device->GetGraphicsQueue());
+        CommandBuffer::DestroyCommandPool(cmdPool);
     }
     void OnWindowResize()
     {

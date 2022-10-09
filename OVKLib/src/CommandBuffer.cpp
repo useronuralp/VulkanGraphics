@@ -11,7 +11,18 @@
 #include <chrono>
 namespace OVK
 {
-    void CommandBuffer::Create(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool, VkCommandBuffer& outCmdBuffer)
+    void CommandBuffer::CreateCommandBuffer(VkCommandBuffer& outCmdBuffer, const VkCommandPool& poolToAllocateFrom)
+    {
+        // Allocate the memory for the command buffer.
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = poolToAllocateFrom;
+        allocInfo.commandBufferCount = 1;
+
+        ASSERT(vkAllocateCommandBuffers(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &outCmdBuffer) == VK_SUCCESS, "Failed to allocate command buffer memory");
+    }
+    void CommandBuffer::CreateCommandPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool)
     {
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -19,15 +30,6 @@ namespace OVK
         poolInfo.queueFamilyIndex = queueFamilyIndex;
         
         ASSERT(vkCreateCommandPool(VulkanApplication::s_Device->GetVKDevice(), &poolInfo, nullptr, &outCmdPool) == VK_SUCCESS, "Failed to create command pool!");
-
-        // Allocate the memory for the command buffer.
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = outCmdPool;
-        allocInfo.commandBufferCount = 1;
-
-        ASSERT(vkAllocateCommandBuffers(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &outCmdBuffer) == VK_SUCCESS, "Failed to allocate command buffer memory");
     }
     void CommandBuffer::BeginRecording(const VkCommandBuffer& cmdBuffer)
     {
@@ -74,24 +76,27 @@ namespace OVK
     {
         vkCmdDraw(cmdBuffer, vertexCount, 1, 0, 0);
     }
-    void CommandBuffer::FreeCommandBuffer(const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool)
+    void CommandBuffer::FreeCommandBuffer(const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool, const VkQueue& queueToWaitFor)
     {
-        vkQueueWaitIdle(VulkanApplication::s_Device->GetGraphicsQueue());
+        vkQueueWaitIdle(queueToWaitFor);
         vkFreeCommandBuffers(VulkanApplication::s_Device->GetVKDevice(), cmdPool, 1, &cmdBuffer);
-        vkDestroyCommandPool(VulkanApplication::s_Device->GetVKDevice(), cmdPool, nullptr); // WARNING: This part could be problematic. Test.
     }
-    void CommandBuffer::Submit(const VkCommandBuffer& cmdBuffer)
+    void CommandBuffer::Submit(const VkCommandBuffer& cmdBuffer, const VkQueue& queue)
     {
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &cmdBuffer;
 
-        vkQueueSubmit(VulkanApplication::s_Device->GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
     }
     void CommandBuffer::Reset(const VkCommandBuffer& cmdBuffer)
     {
         vkDeviceWaitIdle(VulkanApplication::s_Device->GetVKDevice());
         vkResetCommandBuffer(cmdBuffer, 0);
+    }
+    void CommandBuffer::DestroyCommandPool(const VkCommandPool& pool)
+    {
+        vkDestroyCommandPool(VulkanApplication::s_Device->GetVKDevice(), pool, nullptr);
     }
 }

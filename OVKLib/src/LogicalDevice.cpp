@@ -30,16 +30,16 @@ namespace OVK
 
         // WARNING: THE PART WHERE QUEUE FAMILY INDICES ARE NOT SAME HAS NOT BEEN TESTED PROPERLY. THIS MIGHT CAUSE CRASHES IN YOUR PROGRAM.
 
-        // If the indices of graphics & present queues are not the same, we need to create a separate queue for present operations.
-        if (VulkanApplication::s_GraphicsQueueFamily != VulkanApplication::s_PresentQueueFamily)
+        // If the indices of graphics & transfer queues are not the same, we need to create a separate queue for present operations.
+        if (VulkanApplication::s_GraphicsQueueFamily != VulkanApplication::s_TransferQueueFamily)
         {
             // Create a present queue.
             std::vector<float> priorities;
             VkDeviceQueueCreateInfo QCI{};
             QCI.sType                  = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            QCI.queueFamilyIndex       = VulkanApplication::s_PresentQueueFamily;
+            QCI.queueFamilyIndex       = VulkanApplication::s_TransferQueueFamily;
 
-            VkQueueFamilyProperties props = GetQueueFamilyProps(VulkanApplication::s_PresentQueueFamily);
+            VkQueueFamilyProperties props = GetQueueFamilyProps(VulkanApplication::s_TransferQueueFamily);
             priorities.assign(props.queueCount, 1.0f);
 
             QCI.queueCount             = props.queueCount;
@@ -105,14 +105,14 @@ namespace OVK
         vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueFamily, queueIndex, &m_GraphicsQueue);
         queueIndex++;
         // Index is Unique.
-        if (VulkanApplication::s_GraphicsQueueFamily != VulkanApplication::s_PresentQueueFamily)
+        if (VulkanApplication::s_GraphicsQueueFamily != VulkanApplication::s_TransferQueueFamily)
         {
-            vkGetDeviceQueue(m_Device, VulkanApplication::s_PresentQueueFamily, 0, &m_PresentQueue);
+            vkGetDeviceQueue(m_Device, VulkanApplication::s_TransferQueueFamily, 0, &m_TransferQueue);
         }
         // Index is the same with the graphics queue.
         else
         {
-            vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueFamily, queueIndex, &m_PresentQueue);
+            vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueFamily, queueIndex, &m_TransferQueue);
             queueIndex++;
         }
 

@@ -19,7 +19,7 @@
 #include <simplexnoise.h>
 #include <random>
 #include <Curl.h>
-#define MAX_FRAMES_IN_FLIGHT 1
+#define MAX_FRAMES_IN_FLIGHT 2
 using namespace OVK;
 class BloomExample : public OVK::VulkanApplication
 {
@@ -47,7 +47,7 @@ private:
     glm::vec4 directionalLightPosition = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
     VkRenderPassBeginInfo finalScenePassBeginInfo;
     VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool cmdPools[MAX_FRAMES_IN_FLIGHT];
+    VkCommandPool cmdPool;
 
     void* mappedModelUBOBuffer;
 	void OnVulkanInit()
@@ -72,11 +72,11 @@ private:
 		pool = std::make_shared<DescriptorPool>(200, types);
 
 		Utils::CreateVKBuffer(sizeof(ModelUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, modelUBOBuffer, modelUBOBufferMemory);
-		vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), modelUBOBufferMemory, 0, sizeof(ModelUBO), 0, &mappedModelUBOBuffer);
+		vkMapMemory(s_Device->GetVKDevice(), modelUBOBufferMemory, 0, sizeof(ModelUBO), 0, &mappedModelUBOBuffer);
 
         Pipeline::Specs specs{};
         specs.DescriptorLayout = setLayout;
-        specs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
+        specs.pRenderPass = &s_Swapchain->GetSwapchainRenderPass();
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
@@ -145,7 +145,6 @@ private:
 
         model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout);
         model->Scale(0.7f, 0.7f, 0.7f);
-        model->Translate(2.0f, 2.0f, -0.2f);
         model->Rotate(90, 0, 1, 0);
 
         for (int i = 0; i < model->GetMeshes().size(); i++)
@@ -168,20 +167,13 @@ private:
             descriptorWrite.pImageInfo = nullptr; // Optional
             descriptorWrite.pTexelBufferView = nullptr; // Optional
 
-            vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+            vkUpdateDescriptorSets(s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
         }
 
-        // Setup the fences and semaphores needed to synchronize the rendering.
-        VkFenceCreateInfo fenceCreateInfo = {};
-        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
+        CommandBuffer::CreateCommandPool(s_GraphicsQueueFamily, cmdPool);
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            CommandBuffer::Create(s_GraphicsQueueFamily, cmdPools[i], cmdBuffers[i]);
+            CommandBuffer::CreateCommandBuffer(cmdBuffers[i], cmdPool);
         }
 	}
 	void OnUpdate()
@@ -201,6 +193,7 @@ private:
         memcpy(mappedModelUBOBuffer, &modelUBO, sizeof(modelUBO));
 
         glm::mat4 mat = model->GetModelMatrix();
+        model->Rotate(10.0f * DeltaTime(), 0, 1, 0);
         VkDeviceSize offset = 0;
 
         // Setup the actual scene render pass here.
@@ -209,9 +202,9 @@ private:
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
-        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
-        finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
+        finalScenePassBeginInfo.renderArea.extent = s_Surface->GetVKExtent();
         finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(scenePassClearValues.size());
         finalScenePassBeginInfo.pClearValues = scenePassClearValues.data();
 
@@ -246,11 +239,11 @@ private:
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPools[i]);
+            CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, s_Device->GetGraphicsQueue());
         }
-
-        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), modelUBOBufferMemory, nullptr);
-        vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), modelUBOBuffer, nullptr);
+        CommandBuffer::DestroyCommandPool(cmdPool);
+        vkFreeMemory(s_Device->GetVKDevice(), modelUBOBufferMemory, nullptr);
+        vkDestroyBuffer(s_Device->GetVKDevice(), modelUBOBuffer, nullptr);
 
 	}
     float DeltaTime()

@@ -31,22 +31,22 @@ namespace OVK
 		static inline Ref<Swapchain>	  s_Swapchain;
 										  
 		static inline uint64_t			  s_GraphicsQueueFamily = -1;
-		static inline uint64_t			  s_PresentQueueFamily = -1;
 		static inline uint64_t			  s_ComputeQueueFamily = -1;
+		static inline uint64_t			  s_TransferQueueFamily = -1;
 	public:
-		virtual void	OnUpdate() = 0;
-		virtual void	OnStart() = 0;
-		virtual void	OnWindowResize() = 0;
-		virtual void	OnCleanup() = 0;
-		virtual void	OnVulkanInit() = 0;
+		virtual void			OnUpdate() = 0;
+		virtual void			OnStart() = 0;
+		virtual void			OnWindowResize() = 0;
+		virtual void			OnCleanup() = 0;
+		virtual void			OnVulkanInit() = 0;
 	public:
-		float			GetRenderTime();
-		inline void		SetDeviceExtensions(std::vector<const char*> extensions) { m_DeviceExtensions = extensions; }
-		inline void		SetInstanceExtensions(std::vector<const char*> extensions) { m_InstanceExtensions = extensions; }
-		inline void		SetCameraConfiguration(float FOV, float nearClip, float farClip) { m_CamFOV = FOV; m_CamNearClip = nearClip; m_CamFarClip = farClip; }
-		inline uint32_t CurrentFrameIndex() { return m_CurrentFrame; }
-		inline uint32_t GetActiveImageIndex() { return m_ActiveImageIndex; }
-		void			SubmitCommandBuffer(VkCommandBuffer& cmdBuffer);
+		float					GetRenderTime();
+		inline void				SetDeviceExtensions(std::vector<const char*> extensions) { m_DeviceExtensions = extensions; }
+		inline void				SetInstanceExtensions(std::vector<const char*> extensions) { m_InstanceExtensions = extensions; }
+		inline void				SetCameraConfiguration(float FOV, float nearClip, float farClip) { m_CamFOV = FOV; m_CamNearClip = nearClip; m_CamFarClip = farClip; }
+		inline uint32_t			CurrentFrameIndex() { return m_CurrentFrame; }
+		static inline uint32_t  GetActiveImageIndex() { return m_ActiveImageIndex; }
+		void					SubmitCommandBuffer(VkCommandBuffer& cmdBuffer);
 	private:
 		void Init();
 		void SetupQueueFamilies();
@@ -68,7 +68,7 @@ namespace OVK
 		std::vector<VkFence>	 m_InFlightFences;
 		VkCommandBuffer*		 m_CommandBufferReference; // These cmd buffers come from the client / user side. Probably will change later.
 
-		uint32_t				 m_ActiveImageIndex = -1;
+		static uint32_t				 m_ActiveImageIndex;
 
 		float m_CamFOV = -1;
 		float m_CamNearClip = -1;

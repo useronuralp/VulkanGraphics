@@ -148,7 +148,7 @@ public:
     VkRenderPassBeginInfo finalScenePassBeginInfo;
 
     VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool cmdPools[MAX_FRAMES_IN_FLIGHT];
+    VkCommandPool cmdPool;
 
     // Helpers
     void WriteDescriptorSetWithUBOs(Model* model)
@@ -943,9 +943,10 @@ private:
         depthPassBeginInfo.clearValueCount = 1;
         depthPassBeginInfo.pClearValues = &depthPassClearValue;
 
+        CommandBuffer::CreateCommandPool(s_GraphicsQueueFamily, cmdPool); // TO DO: Learn what the graphcis queue index does here.
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            CommandBuffer::Create(s_GraphicsQueueFamily, cmdPools[i], cmdBuffers[i]);
+            CommandBuffer::CreateCommandBuffer(cmdBuffers[i], cmdPool);
         }
 	}
     void OnUpdate()
@@ -1031,7 +1032,7 @@ private:
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
-        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
         finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
         finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(scenePassClearValues.size());
@@ -1183,8 +1184,9 @@ private:
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPools[i]);
+            CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, s_Device->GetGraphicsQueue());
         }
+        CommandBuffer::DestroyCommandPool(cmdPool);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), shadowMapRenderPass, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), modelUBOBufferMemory, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), lightUBOBufferMemory, nullptr);

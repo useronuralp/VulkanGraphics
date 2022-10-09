@@ -82,11 +82,12 @@ namespace OVK
         return memoryTypeIndex;
     }
 
-    void Utils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, uint64_t graphicsQueueIndex)
+    void Utils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
     {
         VkCommandPool singleCmdPool;
         VkCommandBuffer singleCmdBuffer;
-        CommandBuffer::Create(graphicsQueueIndex, singleCmdPool, singleCmdBuffer);
+        CommandBuffer::CreateCommandPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
+        CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
         CommandBuffer::BeginRecording(singleCmdBuffer);
 
         VkBufferCopy copyRegion{};
@@ -96,8 +97,9 @@ namespace OVK
         vkCmdCopyBuffer(singleCmdBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
         CommandBuffer::EndRecording(singleCmdBuffer);
-        CommandBuffer::Submit(singleCmdBuffer);
-        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool);
+        CommandBuffer::Submit(singleCmdBuffer, VulkanApplication::s_Device->GetTransferQueue()); // Graphics queue usually supports transfer operations as well. At least in NVIDIA cards.
+        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, VulkanApplication::s_Device->GetTransferQueue()); // Wait for the queue to idle to free the cmd buffer.
+        CommandBuffer::DestroyCommandPool(singleCmdPool);
     }
 
     void Utils::CreateSampler(const Ref<Texture>& texture, VkSampler& samplerOut)

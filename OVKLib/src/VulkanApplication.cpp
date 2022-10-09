@@ -25,6 +25,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 namespace OVK
 {
+    uint32_t VulkanApplication::m_ActiveImageIndex = -1; // Definde the static variable here.
+
     VulkanApplication::VulkanApplication(uint32_t framesInFlight)
         : m_FramesInFlight(framesInFlight)
     {
@@ -152,9 +154,9 @@ namespace OVK
 
             vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
-            VkResult rslt = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ActiveImageIndex);
+            VkResult result = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ActiveImageIndex);
 
-            if (s_Window->IsWindowResized())
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
             {
                 vkDeviceWaitIdle(s_Device->GetVKDevice());
                 s_Swapchain->OnResize();
@@ -164,7 +166,7 @@ namespace OVK
                 continue;
             }
 
-            ASSERT(rslt == VK_SUCCESS, "Failed to acquire next image.");
+            ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
 
             vkResetFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
@@ -199,8 +201,7 @@ namespace OVK
             presentInfo.pImageIndices = &m_ActiveImageIndex;
             presentInfo.pResults = nullptr; // Optional
 
-            VkQueue presentQueue = s_Device->GetPresentQueue();
-            VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
+            result = vkQueuePresentKHR(graphicsQueue, &presentInfo);
 
             // Check if window has been resized.
             if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -229,9 +230,12 @@ namespace OVK
 
     void VulkanApplication::SetupQueueFamilies()
     {
-        // Here, fetch the first queue that supports graphics operations.
+        // Here, fetch the first queue family that supports graphics operations.
         uint64_t index = s_PhysicalDevice->FindQueueFamily(VK_QUEUE_GRAPHICS_BIT);
         s_GraphicsQueueFamily = index;
+
+        // Check whether the graphics queue we just got also supports present operations.
+        ASSERT(s_PhysicalDevice->CheckPresentSupport(s_GraphicsQueueFamily, s_Surface->GetVKSurface()), "Present operations are not supported by the graphics queue. Might want to search for it manually.");
 
         // Leaving this part here in case you want to debug the queue families.
         std::vector<VkQueueFamilyProperties> props;
@@ -242,29 +246,29 @@ namespace OVK
         vkGetPhysicalDeviceQueueFamilyProperties(s_PhysicalDevice->GetVKPhysicalDevice(), &propertyCount, props.data());
         // --------------------------------------------------------------------------------------------------------------
 
-        // Check whether the graphics queue we just got also supports present operations.
-        if (s_PhysicalDevice->CheckPresentSupport(index, s_Surface->GetVKSurface()))
-        {
-            s_PresentQueueFamily = s_GraphicsQueueFamily;
-        }
-        // If the graphics queue doesn't support present operations, we try to find another queue that supports it.
-        else
-        {
-            auto queueFamilies = s_PhysicalDevice->GetQueueFamilies();
-            for (const QueueFamily& family : queueFamilies)
-            {
-                if (s_PhysicalDevice->CheckPresentSupport(family.Index, s_Surface->GetVKSurface()))
-                {
-                    s_PresentQueueFamily = index;
-                    break;
-                }
-            }
-        }
-        ASSERT(s_PresentQueueFamily != -1, "Could not find a PRESENT queue.");
+
+        //// If the graphics queue doesn't support present operations, we try to find another queue that supports it.
+        //else
+        //{
+        //    auto queueFamilies = s_PhysicalDevice->GetQueueFamilies();
+        //    for (const QueueFamily& family : queueFamilies)
+        //    {
+        //        if (s_PhysicalDevice->CheckPresentSupport(family.Index, s_Surface->GetVKSurface()))
+        //        {
+        //            s_PresentQueueFamily = index;
+        //            break;
+        //        }
+        //    }
+        //}
+        //ASSERT(s_PresentQueueFamily != -1, "Could not find a PRESENT queue.");
 
         // Try to find a compute queue family.
         index = s_PhysicalDevice->FindQueueFamily(VK_QUEUE_COMPUTE_BIT);
         s_ComputeQueueFamily = index;
+
+        // Try to find a transfer queue family.
+        index = s_PhysicalDevice->FindQueueFamily(VK_QUEUE_TRANSFER_BIT);
+        s_TransferQueueFamily = index;
     }
 
     VkSampleCountFlagBits VulkanApplication::GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice)

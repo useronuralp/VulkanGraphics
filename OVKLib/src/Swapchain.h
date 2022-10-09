@@ -24,6 +24,7 @@ namespace OVK
 		const VkFormat&							GetDepthFormat()			const	{ return m_DepthBufferFormat;	 }
 		const VkImage&							GetDepthImage()				const	{ return m_DepthImage;			 }
 		void									OnResize();
+		const VkFramebuffer&					GetActiveFramebuffer();
 	private:
 		void	 Init();
 		void	 CleanupSwapchain();
