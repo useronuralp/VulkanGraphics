@@ -30,7 +30,7 @@ namespace OVK
     VulkanApplication::VulkanApplication(uint32_t framesInFlight)
         : m_FramesInFlight(framesInFlight)
     {
-        
+        // Empty for now.
     }
 
     VulkanApplication::~VulkanApplication()
@@ -92,7 +92,7 @@ namespace OVK
         // Create the surface.
         s_Surface = std::make_shared<Surface>();
 
-        // Sets up a graphics, present and compute queue family and stores their indices for later use.
+        // Sets up a graphics, transfer and compute queue families and stores their indices for later use.
         SetupQueueFamilies();
 
         // Logical Device creation.

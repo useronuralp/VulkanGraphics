@@ -35,19 +35,20 @@ private:
         glm::vec4 cameraPosition;
         glm::vec4 viewportDimension;
     };
-    Ref<DescriptorLayout> setLayout;
-    Ref<DescriptorPool> pool;
-    Ref<Pipeline> pipeline;
-    Model* model;
+
+    Ref<DescriptorLayout>   setLayout;
+    Ref<DescriptorPool>     pool;
+    Ref<Pipeline>           pipeline;
+    Model*                  model;
     ModelUBO                modelUBO;
     VkBuffer                modelUBOBuffer;
     VkDeviceMemory          modelUBOBufferMemory;
 
     std::array<VkClearValue, 2> scenePassClearValues{};
-    glm::vec4 directionalLightPosition = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
-    VkRenderPassBeginInfo finalScenePassBeginInfo;
-    VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool cmdPool;
+    glm::vec4                   directionalLightPosition = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
+    VkRenderPassBeginInfo       finalScenePassBeginInfo;
+    VkCommandBuffer             cmdBuffers[MAX_FRAMES_IN_FLIGHT];
+    VkCommandPool               cmdPool;
 
     void* mappedModelUBOBuffer;
 	void OnVulkanInit()
@@ -143,7 +144,7 @@ private:
         specs.pVertexAttributeDescriptons = attributeDescriptions;
         pipeline = std::make_shared<Pipeline>(specs);
 
-        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout);
+        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout);
         model->Scale(0.7f, 0.7f, 0.7f);
         model->Rotate(90, 0, 1, 0);
 
@@ -194,7 +195,6 @@ private:
 
         glm::mat4 mat = model->GetModelMatrix();
         model->Rotate(10.0f * DeltaTime(), 0, 1, 0);
-        VkDeviceSize offset = 0;
 
         // Setup the actual scene render pass here.
         scenePassClearValues[0].color = { {0.18f, 0.18f, 0.7f, 1.0f} };
@@ -212,16 +212,8 @@ private:
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         vkCmdBindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
-
-        // Drawing the helmet.
-        for (int i = 0; i < model->GetMeshes().size(); i++)
-        {
-            vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &model->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
-            vkCmdBindVertexBuffers(cmdBuffers[CurrentFrameIndex()], 0, 1, &model->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
-            vkCmdBindIndexBuffer(cmdBuffers[CurrentFrameIndex()], model->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-            vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], model->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
-        }
+        vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
 
         // End shadow pass.
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);

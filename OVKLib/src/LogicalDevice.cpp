@@ -107,11 +107,15 @@ namespace OVK
         // Index is Unique.
         if (VulkanApplication::s_GraphicsQueueFamily != VulkanApplication::s_TransferQueueFamily)
         {
+            VkQueueFamilyProperties props = GetQueueFamilyProps(VulkanApplication::s_TransferQueueFamily);
+            ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
             vkGetDeviceQueue(m_Device, VulkanApplication::s_TransferQueueFamily, 0, &m_TransferQueue);
         }
         // Index is the same with the graphics queue.
         else
         {
+            VkQueueFamilyProperties props = GetQueueFamilyProps(VulkanApplication::s_GraphicsQueueFamily);
+            ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
             vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueFamily, queueIndex, &m_TransferQueue);
             queueIndex++;
         }
@@ -120,11 +124,15 @@ namespace OVK
         // Index is unqiue.
         if (VulkanApplication::s_GraphicsQueueFamily != VulkanApplication::s_ComputeQueueFamily)
         {
+            VkQueueFamilyProperties props = GetQueueFamilyProps(VulkanApplication::s_ComputeQueueFamily);
+            ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
             vkGetDeviceQueue(m_Device, VulkanApplication::s_ComputeQueueFamily, 0, &m_ComputeQueue);
         }
         // Index is the same with the graphics queue.
         else
         {
+            VkQueueFamilyProperties props = GetQueueFamilyProps(VulkanApplication::s_GraphicsQueueFamily);
+            ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
             vkGetDeviceQueue(m_Device, VulkanApplication::s_GraphicsQueueFamily, queueIndex, &m_ComputeQueue);
             queueIndex++;
         }

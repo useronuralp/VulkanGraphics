@@ -115,11 +115,11 @@ public:
     Ref<Texture>    fireTexture;
 
 
-    float lightFlickerRate = 0.07f;
-    float aniamtionRate = 0.013888888f;
-    int currentAnimationFrame = 0;
+    float   lightFlickerRate = 0.07f;
+    float   aniamtionRate = 0.013888888f;
+    int     currentAnimationFrame = 0;
 
-    float  timer = 0.0f;
+    float   timer = 0.0f;
 
     glm::vec4 pointLightPositions[POINT_LIGHT_COUNT];
     glm::vec4 pointLightIntensities[POINT_LIGHT_COUNT];
@@ -148,7 +148,7 @@ public:
     VkRenderPassBeginInfo finalScenePassBeginInfo;
 
     VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool cmdPool;
+    VkCommandPool   cmdPool;
 
     // Helpers
     void WriteDescriptorSetWithUBOs(Model* model)
@@ -838,19 +838,19 @@ private:
         shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, shadowMapTexture);
         
         // Loading the model Sponza
-        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
+        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
         model->Scale(0.005f, 0.005f, 0.005f);
         WriteDescriptorSetWithUBOs(model);
 
         // Loading the model Malenia's Helmet.
-        model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
+        model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
         model2->Scale(0.7f, 0.7f, 0.7f);
         model2->Translate(2.0f, 2.0f, -0.2f);
         model2->Rotate(90, 0, 1, 0);
         WriteDescriptorSetWithUBOs(model2);
 
         // Loading 4 torches. TO DO: This part should be converted to instanced drawing. There are unnecessary data duplications happening here.
-        torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
+        torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
         torch1modelMatrix = glm::scale(torch1modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
         torch1modelMatrix = glm::rotate(torch1modelMatrix, glm::radians(90.0f), glm::vec3(0, 1, 0));
         torch1modelMatrix = glm::translate(torch1modelMatrix, glm::vec3(-2.7f, 4.3f, 8.2f));
@@ -870,7 +870,8 @@ private:
 
 
         // Vertex data for the skybox.
-        const float cubeVertices[3 * 6 * 6] = {
+        const uint32_t vertexCount = 3 * 6 * 6;
+        const float cubeVertices[vertexCount] = {
             -1.0f,  1.0f, -1.0f, 
             -1.0f, -1.0f, -1.0f, 
              1.0f, -1.0f, -1.0f, 
@@ -928,7 +929,7 @@ private:
         
 
         // Create the mesh for the skybox.
-        skybox = new Model(cubeVertices, (size_t)(sizeof(float) * 3 * 6 * 6), 6 * 6, cubemap, pool2, setLayout2);
+        skybox = new Model(cubeVertices, vertexCount, cubemap, pool2, setLayout2);
         WriteDescriptorSetSkybox(skybox);
 
         // Configure the render pass begin info for the depth pass here.
@@ -1005,23 +1006,11 @@ private:
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline->GetVKPipeline());
         // Render the objects you want to cast shadows.
-        for (int i = 0; i < model->GetMeshes().size(); i++)
-        {
-            vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline->GetPipelineLayout(), 0, 1, &model->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
-            vkCmdBindVertexBuffers(cmdBuffers[CurrentFrameIndex()], 0, 1, &model->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
-            vkCmdBindIndexBuffer(cmdBuffers[CurrentFrameIndex()], model->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-            vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], model->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
-        }
+        vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
         
-        for (int i = 0; i < model2->GetMeshes().size(); i++)
-        {
-            vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline->GetPipelineLayout(), 0, 1, &model2->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
-            vkCmdBindVertexBuffers(cmdBuffers[CurrentFrameIndex()], 0, 1, &model2->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
-            vkCmdBindIndexBuffer(cmdBuffers[CurrentFrameIndex()], model2->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-            vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], model2->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
-        }
+        vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+        model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
         
         // End shadow pass.
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
@@ -1086,54 +1075,35 @@ private:
         // Start final scene render pass.
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+        // Drawing the skybox.
         glm::mat4 skyBoxView = glm::mat4(glm::mat3(view));
-        //// Drawing the skybox.
         vkCmdBindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline->GetVKPipeline());
-        vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline->GetPipelineLayout(), 0, 1, &skybox->GetMeshes()[0]->GetDescriptorSet(), 0, nullptr);
-        vkCmdBindVertexBuffers(cmdBuffers[CurrentFrameIndex()], 0, 1, &skybox->GetMeshes()[0]->GetVBO()->GetVKBuffer(), &offset);
-        vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &skyBoxView);
-        vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 36, 1, 0, 0);
+        vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], skyboxPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &skyBoxView);
+        skybox->Draw(cmdBuffers[CurrentFrameIndex()], skyboxPipeline->GetPipelineLayout());
 
-
+        // Drawing the Sponza.
         vkCmdBindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
-        // Drawing the Sponza.        
-        for (int i = 0; i < model->GetMeshes().size(); i++)
-        {
-            vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &model->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
-            vkCmdBindVertexBuffers(cmdBuffers[CurrentFrameIndex()], 0, 1, &model->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
-            vkCmdBindIndexBuffer(cmdBuffers[CurrentFrameIndex()], model->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-            vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], model->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
-        }
+        vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
 
         // Drawing the helmet.
-        for (int i = 0; i < model2->GetMeshes().size(); i++)
-        {
-            vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &model2->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
-            vkCmdBindVertexBuffers(cmdBuffers[CurrentFrameIndex()], 0, 1, &model2->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
-            vkCmdBindIndexBuffer(cmdBuffers[CurrentFrameIndex()], model2->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-            vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], model2->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
-        }
+        vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+        model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
 
         // Drawing 4 torches.
         for (int i = 0; i < torch->GetMeshes().size(); i++)
         {
-            vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &torch->GetMeshes()[i]->GetDescriptorSet(), 0, nullptr);
-            vkCmdBindVertexBuffers(cmdBuffers[CurrentFrameIndex()], 0, 1, &torch->GetMeshes()[i]->GetVBO()->GetVKBuffer(), &offset);
-            vkCmdBindIndexBuffer(cmdBuffers[CurrentFrameIndex()], torch->GetMeshes()[i]->GetIBO()->GetVKBuffer(), offset, VK_INDEX_TYPE_UINT32);
-
             vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch1modelMatrix);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+            torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
 
             vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch2modelMatrix);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+            torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
 
             vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch3modelMatrix);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+            torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
 
             vkCmdPushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch4modelMatrix);
-            vkCmdDrawIndexed(cmdBuffers[CurrentFrameIndex()], torch->GetMeshes()[i]->GetIBO()->GetIndices().size(), 1, 0, 0, 0);
+            torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
         }
 
         // Update the particle systems.

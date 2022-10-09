@@ -16,7 +16,7 @@ namespace OVK
 	enum LoadingFlags
 	{
 		NONE		   = -1,
-		LOAD_VERTICES  = (uint32_t(1) << 0),
+		LOAD_VERTEX_POSITIONS  = (uint32_t(1) << 0),
 		LOAD_NORMALS   = (uint32_t(1) << 1),
 		LOAD_UV		   = (uint32_t(1) << 2),
 		LOAD_TANGENT   = (uint32_t(1) << 3),
@@ -56,10 +56,14 @@ namespace OVK
 		~Model();
 		// This constructor is used to construct a model that contains at least one mesh.
 		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout>layout, Ref<Texture> shadowMap = nullptr);
-		// This constructor is used to construct a single meshed model.
-		Model(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
+		// This constructor is used to construct a single meshed model (skybox).
+		Model(const float* vertices, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
 		const std::vector<Mesh*>&		GetMeshes() { return m_Meshes; }
 		const glm::mat4&				GetModelMatrix() { return m_ModelMatrix; }
+		const Unique<VertexBuffer>&		GetVBO() { return m_VBO; }
+		const Unique<IndexBuffer>&		GetIBO() { return m_IBO; }
+		void							DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
+		void							Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
 
 		void Rotate(const float& degree, const float& x, const float& y, const float& z);
 		void Translate(const float& x, const float& y, const float& z);
@@ -76,6 +80,12 @@ namespace OVK
 		std::vector<Ref<Texture>> m_AlbedoCache;
 		std::vector<Ref<Texture>> m_NormalsCache;
 		std::vector<Ref<Texture>> m_RoughnessMetallicCache;
+
+		// Vertex & Index Buffers
+		Unique<VertexBuffer>			m_VBO = nullptr;
+		Unique<IndexBuffer>			    m_IBO = nullptr;
+
+		size_t							m_VertexSize = 0;
 
 		std::string  m_FullPath;
 		std::string  m_Directory;

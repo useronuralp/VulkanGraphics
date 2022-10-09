@@ -11,7 +11,7 @@ namespace OVK
 
 	Mesh::Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Texture>& diffuseTexture, const Ref<Texture>& normalTexture,
 		const Ref<Texture>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, const Ref<Texture>& shadowMap)
-		: m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture), m_ShadowMap(shadowMap)
+		: m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture), m_ShadowMap(shadowMap), m_Vertices(vertices), m_Indices(indices)
 	{
 		VkDescriptorSetAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -46,22 +46,18 @@ namespace OVK
 				m_Samplers.push_back(m_ShadowMap->CreateSamplerFromThisTexture(m_DescriptorSet, bindingSpecs.Binding, ImageType::DEPTH));
 			}
 		}
-
-		// Vertex Buffer creation.
-		m_VBO = std::make_unique<VertexBuffer>(vertices);
-		m_VertexCount = static_cast<uint32_t>(vertices.size());
-		m_IndexCount = indices.size();
-		// Index Buffer creation. (If there is one passed.)
-		if (indices.size() != 0)
-		{
-			m_IBO = std::make_unique<IndexBuffer>(indices);
-		}
 		m_ShadowMap = shadowMap;
 	}
 
-	Mesh::Mesh(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
-		: m_VertexCount(vertexCount), m_CubemapTexture(cubemapTex)
+	Mesh::Mesh(const float* vertices, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
+		: m_CubemapTexture(cubemapTex)
 	{
+		// Fill up the vector.
+		for (int i = 0; i < vertexCount; i++)
+		{
+			m_Vertices.push_back(vertices[i]);
+		}
+
 		VkDescriptorSetAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocInfo.descriptorPool = pool->GetDescriptorPool();
@@ -78,10 +74,6 @@ namespace OVK
 				m_Samplers.push_back(m_CubemapTexture->CreateSamplerFromThisTexture(m_DescriptorSet, bindingSpecs.Binding));
 			}
 		}
-
-		// Vertex Buffer creation.
-		m_VBO = std::make_unique<VertexBuffer>(vertices, vertexBufferSize);
-		m_VertexCount = vertexCount;
 	}
 
 	Mesh::~Mesh()

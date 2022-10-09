@@ -49,29 +49,36 @@ namespace OVK
 
     uint64_t PhysicalDevice::FindQueueFamily(VkQueueFlags queueFlags)
     {
-        uint64_t familyIndex = InvalidQueueFamilyIndex; // init to an invalid index. -1 is invaild.
+        uint64_t familyIndex = s_InvalidQueueFamilyIndex; // init to an invalid index. -1 is invaild.
 
-        VkQueueFlags queueFlagsOptional = queueFlags;
+        //VkQueueFlags queueFlagsOptional = queueFlags;
+        //if (queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT))
+        //{
+        //    queueFlags &= ~VK_QUEUE_TRANSFER_BIT;
+        //    queueFlagsOptional = queueFlags | VK_QUEUE_TRANSFER_BIT;
+        //}
+        //
+        //// First, check if the flags match exactly.
+        //for (const auto& family : m_QueueFamilies)
+        //{
+        //    if (family.Props.queueFlags == queueFlags || family.Props.queueFlags == queueFlagsOptional)
+        //    {
+        //        familyIndex = family.Index; // If a family queue include VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT then VK_QUEUE_TRANSFER_BIT is also supported.
+        //
+        //        std::cout << "Found a dedicated queue family that ONLY supports the requested flags!" << std::endl;
+        //        break;
+        //    }
+        //}
+        
+
+        // If the requested queues contain graphics or compute bits, automatically add the transfer bit as these two types MUST support transfer operations on almost every card.
         if (queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT))
         {
-            queueFlags &= ~VK_QUEUE_TRANSFER_BIT;
-            queueFlagsOptional = queueFlags | VK_QUEUE_TRANSFER_BIT;
+            queueFlags |= VK_QUEUE_TRANSFER_BIT;
         }
 
-        // First, check if the flags match exactly.
-        for (const auto& family : m_QueueFamilies)
-        {
-            if (family.Props.queueFlags == queueFlags || family.Props.queueFlags == queueFlagsOptional)
-            {
-                familyIndex = family.Index; // If a family queue include VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT then VK_QUEUE_TRANSFER_BIT is also supported.
-
-                std::cout << "Found a dedicated queue family that ONLY supports the requested flags!" << std::endl;
-                break;
-            }
-        }
-        
         // If the above check fails, check if a queue family INCLUDES the preferred flags, they don't need to match exactly.
-        if (familyIndex == InvalidQueueFamilyIndex)
+        if (familyIndex == s_InvalidQueueFamilyIndex)
         {
             for (const auto& family : m_QueueFamilies)
             {
@@ -83,7 +90,7 @@ namespace OVK
                 }
             }
         }
-        ASSERT(familyIndex != InvalidQueueFamilyIndex, "Could not find a queue family with the desired queue families.");
+        ASSERT(familyIndex != s_InvalidQueueFamilyIndex, "Could not find a queue family with the desired queue families.");
         return familyIndex;
     }
     const std::string& PhysicalDevice::GetPhysicalDeviceName()

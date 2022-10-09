@@ -27,7 +27,7 @@ namespace OVK
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = queueFamilyIndex;
+        poolInfo.queueFamilyIndex = queueFamilyIndex; // The command buffer created from this command pool must be submitted to a queue allocated from this queueFamilyIndex.
         
         ASSERT(vkCreateCommandPool(VulkanApplication::s_Device->GetVKDevice(), &poolInfo, nullptr, &outCmdPool) == VK_SUCCESS, "Failed to create command pool!");
     }

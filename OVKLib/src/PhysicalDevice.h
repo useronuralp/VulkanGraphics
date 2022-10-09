@@ -21,7 +21,7 @@ namespace OVK
 	class PhysicalDevice
 	{
     public:
-        const static uint32_t InvalidQueueFamilyIndex = -1;
+        const static uint32_t s_InvalidQueueFamilyIndex = -1;
     public:
         // Constructors / Destructors
         PhysicalDevice() = default;

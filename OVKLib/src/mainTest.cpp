@@ -129,7 +129,7 @@ private:
         // Single descriptor set used for every object.
         dscSet = std::make_shared<DescriptorSet>(dscLayout);
 
-        sausageModel   = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sausage\\scene.gltf", LOAD_VERTICES | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, layout);
+        sausageModel   = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sausage\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, layout);
         diffuse     = sausageModel->GetMeshes()[0]->GetAlbedo();
         normal      = sausageModel->GetMeshes()[0]->GetNormals();
         RM          = sausageModel->GetMeshes()[0]->GetRoughnessMetallic();
@@ -338,19 +338,20 @@ private:
 
 
         vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
-        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &sausageModel->GetMeshes()[0]->GetVBO()->GetVKBuffer(), &offsets);
+        //sausageModel->DrawIndexed(cmdBuffer, pipeline->GetPipelineLayout());
+        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &sausageModel->GetVBO()->GetVKBuffer(), &offsets);
         vkCmdBindVertexBuffers(cmdBuffer, 1, 1, &instancedModelMatrixBuffer, &offsets);
-        vkCmdBindIndexBuffer(cmdBuffer, sausageModel->GetMeshes()[0]->GetIBO()->GetVKBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(cmdBuffer, sausageModel->GetIBO()->GetVKBuffer(), 0, VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &dscSet->GetVKDescriptorSet(), 0, nullptr);
 
 #if defined(INSTANCED_DRAWING_TEST)
 
-        vkCmdDrawIndexed(cmdBuffer, sausageModel->GetMeshes()[0]->GetIBO()->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
+        vkCmdDrawIndexed(cmdBuffer, sausageModel->GetIBO()->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
 #elif defined(SEPARATE_DRAW_CALL_TEST) 
 
         for (int i = 0; i < OBJECT_COUNT; i++)
         {
-            vkCmdDrawIndexed(cmdBuffer, sausageModel->GetMeshes()[0]->GetIBO()->GetIndices().size(), 1, 0, 0, i);
+            vkCmdDrawIndexed(cmdBuffer, sausageModel->GetIBO()->GetIndices().size(), 1, 0, 0, i);
         }
 #endif 
 

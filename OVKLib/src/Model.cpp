@@ -34,12 +34,34 @@ namespace OVK
 
         // Process the model in a recursive way.
         ProcessNode(scene->mRootNode, scene, pool, layout);
+
+        std::vector<float> verticesAll;
+        std::vector<uint32_t> indicesAll;
+
+        // TO DO : There might be data copying in the vectors check it. Convert to pointers if that is the case.
+        for (const auto& mesh : m_Meshes)
+        {
+            for (const auto& data : mesh->m_Indices)
+            {
+                indicesAll.push_back(data);
+            }
+            for (const auto& data : mesh->m_Vertices)
+            {
+                verticesAll.push_back(data);
+            }
+        }
+
+        // Create the VB and IB.
+        m_VBO = std::make_unique<VertexBuffer>(verticesAll);
+        m_IBO = std::make_unique<IndexBuffer>(indicesAll);
 	}
 
-    Model::Model(const float* vertices, size_t vertexBufferSize, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
+    Model::Model(const float* vertices, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
         : m_FullPath("No path. Not loaded from a file"), m_DefaultCubeMap(cubemapTex), m_Flags(NONE)
     {
-        m_Meshes.emplace_back(new Mesh(vertices, vertexBufferSize, vertexCount, cubemapTex, pool, layout));
+        m_Meshes.emplace_back(new Mesh(vertices, vertexCount, cubemapTex, pool, layout));
+        m_VertexSize = sizeof(float);
+        m_VBO = std::make_unique<VertexBuffer>(m_Meshes[0]->m_Vertices);
     }
 
     void Model::ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout)
@@ -66,12 +88,13 @@ namespace OVK
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
-            if (m_Flags & LOAD_VERTICES)
+            if (m_Flags & LOAD_VERTEX_POSITIONS)
             {
                 //Vertex Positions
                 vertices.push_back(mesh->mVertices[i].x);
                 vertices.push_back(mesh->mVertices[i].y);
                 vertices.push_back(mesh->mVertices[i].z);
+                m_VertexSize += sizeof(float) * 3;
             }
 
             bool dontCalcTangent = false;
@@ -89,6 +112,7 @@ namespace OVK
                     vertices.push_back(0);
                     dontCalcTangent = true;
                 }
+                m_VertexSize += sizeof(float) * 2;
             }
 
             if (m_Flags & LOAD_NORMALS)
@@ -97,6 +121,7 @@ namespace OVK
                 vertices.push_back(mesh->mNormals[i].x);
                 vertices.push_back(mesh->mNormals[i].y);
                 vertices.push_back(mesh->mNormals[i].z);
+                m_VertexSize += sizeof(float) * 3;
             }
 
 
@@ -116,6 +141,7 @@ namespace OVK
                     vertices.push_back(mesh->mTangents[i].y);
                     vertices.push_back(mesh->mTangents[i].z);
                 }
+                m_VertexSize += sizeof(float) * 3;
             }
             if (m_Flags & LOAD_BITANGENT)
             {
@@ -133,6 +159,7 @@ namespace OVK
                     vertices.push_back(mesh->mBitangents[i].y);
                     vertices.push_back(mesh->mBitangents[i].z);
                 }
+                m_VertexSize += sizeof(float) * 3;
             }
         }
 
@@ -199,6 +226,32 @@ namespace OVK
                 textureOUT = m_DefaultRoughnessMetallic;
         }
         return textureOUT;
+    }
+
+    void Model::DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout)
+    {
+        VkDeviceSize vertexOffset = 0;
+        VkDeviceSize indexOffset = 0;
+
+        for (int i = 0; i < m_Meshes.size(); i++)
+        {
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[i]->GetDescriptorSet(), 0, nullptr);
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
+            vkCmdBindIndexBuffer(commandBuffer, m_IBO->GetVKBuffer(), indexOffset, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(commandBuffer, GetMeshes()[i]->GetIndexCount(), 1, 0, 0, 0);
+
+            vertexOffset += m_Meshes[i]->GetVertexCount() * sizeof(float);
+            indexOffset += m_Meshes[i]->GetIndexCount() * sizeof(uint32_t);
+        }
+    }
+
+    void Model::Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout)
+    {
+        // Currently used only to draw skyboxes. Extend if you need it.
+        VkDeviceSize vertexOffset = 0;
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[0]->GetDescriptorSet(), 0, nullptr);
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
+        vkCmdDraw(commandBuffer, 36, 1, 0, 0);
     }
 
     void Model::Rotate(const float& degree, const float& x, const float& y, const float& z)
