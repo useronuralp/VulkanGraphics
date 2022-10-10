@@ -52,25 +52,26 @@ namespace OVK
     {
         vkCmdEndRenderPass(cmdBuffer);
     }
-    void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, const Ref<Pipeline>& pipeline)
+    void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, VkPipelineBindPoint bindPoint, const Ref<Pipeline>& pipeline)
     {
-        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
+        vkCmdBindPipeline(cmdBuffer, bindPoint, pipeline->GetVKPipeline());
     }
-    void CommandBuffer::BindVertexBuffer(const VkCommandBuffer& cmdBuffer, const VkBuffer& VBO, const VkDeviceSize& offset)
+    void CommandBuffer::BindVertexBuffer(const VkCommandBuffer& cmdBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer& VBO, const VkDeviceSize& offset)
     {
-        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &VBO, &offset);
+        vkCmdBindVertexBuffers(cmdBuffer, firstBinding, bindingCount, &VBO, &offset);
     }
-    void CommandBuffer::BindIndexBuffer(const VkCommandBuffer& cmdBuffer, const VkBuffer& IBO)
+    void CommandBuffer::BindIndexBuffer(const VkCommandBuffer& cmdBuffer, uint32_t offset, const VkBuffer& IBO, VkIndexType indexType)
     {
-        vkCmdBindIndexBuffer(cmdBuffer, IBO, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(cmdBuffer, IBO, offset, indexType);
     }
-    void CommandBuffer::BindDescriptorSet(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet)
+    void CommandBuffer::BindDescriptorSets(const VkCommandBuffer& cmdBuffer, VkPipelineBindPoint bindPoint, uint32_t firstSet, uint32_t descCount, const VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet,
+        uint32_t dynamicOffsetCount, const uint32_t* dynamicOffsets)
     {
-        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet->GetVKDescriptorSet(), 0, nullptr);
+        vkCmdBindDescriptorSets(cmdBuffer, bindPoint, pipelineLayout, firstSet, descCount, &descriptorSet->GetVKDescriptorSet(), dynamicOffsetCount, dynamicOffsets);
     }
-    void CommandBuffer::DrawIndexed(const VkCommandBuffer& cmdBuffer, uint32_t indicesCount)
+    void CommandBuffer::DrawIndexed(const VkCommandBuffer& cmdBuffer, uint32_t indicesCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance)
     {
-        vkCmdDrawIndexed(cmdBuffer, indicesCount, 1, 0, 0, 0);
+        vkCmdDrawIndexed(cmdBuffer, indicesCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
     void CommandBuffer::Draw(const VkCommandBuffer& cmdBuffer, uint32_t vertexCount)
     {
@@ -98,5 +99,9 @@ namespace OVK
     void CommandBuffer::DestroyCommandPool(const VkCommandPool& pool)
     {
         vkDestroyCommandPool(VulkanApplication::s_Device->GetVKDevice(), pool, nullptr);
+    }
+    void CommandBuffer::PushConstants(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, VkShaderStageFlagBits shaderStage, uint32_t offset, uint32_t size, const void* pValues)
+    {
+        vkCmdPushConstants(cmdBuffer, pipelineLayout, shaderStage, offset, size, pValues);
     }
 }

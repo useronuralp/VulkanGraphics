@@ -336,22 +336,20 @@ private:
         }
         memcpy(mappedInstancedModelMatrxiBuffer, modelMatrices.data(), sizeof(glm::mat4) * OBJECT_COUNT);
 
-
-        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetVKPipeline());
-        //sausageModel->DrawIndexed(cmdBuffer, pipeline->GetPipelineLayout());
-        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &sausageModel->GetVBO()->GetVKBuffer(), &offsets);
-        vkCmdBindVertexBuffers(cmdBuffer, 1, 1, &instancedModelMatrixBuffer, &offsets);
-        vkCmdBindIndexBuffer(cmdBuffer, sausageModel->GetIBO()->GetVKBuffer(), 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1, &dscSet->GetVKDescriptorSet(), 0, nullptr);
+        CommandBuffer::BindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+        CommandBuffer::BindVertexBuffer(cmdBuffer, 0, 1, sausageModel->GetVBO()->GetVKBuffer(), offsets);
+        CommandBuffer::BindVertexBuffer(cmdBuffer, 1, 1, instancedModelMatrixBuffer, offsets);
+        CommandBuffer::BindIndexBuffer(cmdBuffer, 0, sausageModel->GetIBO()->GetVKBuffer(), VK_INDEX_TYPE_UINT32);
+        CommandBuffer::BindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, 1, pipeline->GetPipelineLayout(), dscSet, 0, nullptr);
 
 #if defined(INSTANCED_DRAWING_TEST)
 
-        vkCmdDrawIndexed(cmdBuffer, sausageModel->GetIBO()->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
+        CommandBuffer::DrawIndexed(cmdBuffer, sausageModel->GetIBO()->GetIndices().size(), OBJECT_COUNT, 0, 0, 0);
 #elif defined(SEPARATE_DRAW_CALL_TEST) 
 
         for (int i = 0; i < OBJECT_COUNT; i++)
         {
-            vkCmdDrawIndexed(cmdBuffer, sausageModel->GetIBO()->GetIndices().size(), 1, 0, 0, i);
+            CommandBuffer::DrawIndexed(cmdBuffer, sausageModel->GetIBO()->GetIndices().size(), 1, 0, 0, i);
         }
 #endif 
 

@@ -39,6 +39,7 @@ namespace OVK
         std::vector<uint32_t> indicesAll;
 
         // TO DO : There might be data copying in the vectors check it. Convert to pointers if that is the case.
+        
         for (const auto& mesh : m_Meshes)
         {
             for (const auto& data : mesh->m_Indices)
@@ -196,7 +197,7 @@ namespace OVK
         bool skip = false;
         for (unsigned int j = 0; j < cache.size(); j++)
         {
-            if (std::strcmp(cache[j]->GetPath().c_str(), (m_Directory + "\\" + textureName).c_str()) == 0) // TO DO: Check this part.
+            if (std::strcmp(cache[j]->GetPath().c_str(), (m_Directory + "\\" + textureName).c_str()) == 0)
             {
                 textureOUT = cache[j];
                 skip = true;
