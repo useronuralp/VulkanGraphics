@@ -108,7 +108,7 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, vec3 albe
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.01f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.0001f) * vec3(albedo) * ao;
    vec3 color = ambient + Lo;
 
    return color;
@@ -135,8 +135,8 @@ void main()
    color += CalcDirectionalLight(normal, viewDir, v_DirLightPos, albedo, roughnessMetallicTex, vec3(1.0, 1.0, 1.0));
 
    // Reinhard tone mapping
-   color = color / (color + vec3(1.0));
-   color = pow(color, vec3(1.0/2.2));  
+   //color = color / (color + vec3(1.0));
+   //color = pow(color, vec3(1.0/2.2));  
 
 
    FragColor = vec4(color, 1.0);

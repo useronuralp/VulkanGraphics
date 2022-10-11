@@ -65,7 +65,7 @@ namespace OVK
             m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
         }
 
-        SetupImage(m_Width, m_Height, m_ImageFormat);
+        SetupImage(m_Width, m_Height, m_ImageFormat, (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), ImageType::COLOR);
 
         // Prep the staging buffer.
         VkBuffer       stagingBuffer;
@@ -115,11 +115,11 @@ namespace OVK
         }
 	}
 
-    Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType) : m_ImageFormat(imageFormat)
+    Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType) : m_ImageFormat(imageFormat)
     {
         m_Width = width;
         m_Height = height;
-        SetupImage(width, height, m_ImageFormat, imageType);
+        SetupImage(width, height, m_ImageFormat, usageFlags, imageType);
         m_MipLevels = 1;
     }
 
@@ -248,7 +248,7 @@ namespace OVK
         CommandBuffer::DestroyCommandPool(singleCmdPool);
     }
 
-    void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType)
+    void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType)
     {
         VkImageCreateFlags flags = 0;
         VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -275,7 +275,7 @@ namespace OVK
         imageCreateInfo.format = imageFormat;
         imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageCreateInfo.usage = imageType == ImageType::COLOR ? (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) : (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        imageCreateInfo.usage = usageFlags;
         imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageCreateInfo.flags = flags;

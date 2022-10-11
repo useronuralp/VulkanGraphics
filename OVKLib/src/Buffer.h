@@ -7,7 +7,6 @@
 #include "DescriptorSet.h"
 namespace OVK
 {
-	class Texture;
 	class DescriptorSet;
 	class VertexBuffer
 	{

@@ -80,10 +80,10 @@ public:
     float m_DeltaTimeLastFrame = GetRenderTime();
 
     Ref<Pipeline>           pipeline;
-    Ref<Texture>            diffuse;
-    Ref<Texture>            normal;
-    Ref<Texture>            RM;
-    Ref<Texture>            shadowMap = nullptr;
+    Ref<Image>              diffuse;
+    Ref<Image>              normal;
+    Ref<Image>              RM;
+    Ref<Image>              shadowMap = nullptr;
     std::vector<glm::mat4>  modelMatrices;
     Ref<DescriptorSet>      dscSet;
 
@@ -240,7 +240,7 @@ private:
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, instancedModelMatrixBuffer, instancedModelMatrixBufferMemory);
 
         // Sampler creations
-        Utils::CreateSampler(diffuse, diffuseSampler);
+        diffuseSampler = Utils::CreateSampler(diffuse, ImageType::COLOR);
        
         // Write descriptor sets of every single object.
         for (int i = 0; i < OBJECT_COUNT; i++)
@@ -277,18 +277,7 @@ private:
         descriptorWrite.pTexelBufferView = nullptr; // Optional
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = diffuse->GetImage()->GetImageView();
-        imageInfo.sampler = diffuseSampler;
-
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = dscSet->GetVKDescriptorSet();
-        descriptorWrite.dstBinding = 1;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pImageInfo = &imageInfo;
-        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+        Utils::WriteDescriptorSetWithSampler(dscSet->GetVKDescriptorSet(), diffuseSampler, diffuse->GetImageView(), 1, ImageType::COLOR);
 
 
         CommandBuffer::CreateCommandPool(s_GraphicsQueueFamily, cmdPool);

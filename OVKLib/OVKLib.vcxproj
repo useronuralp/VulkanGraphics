@@ -174,7 +174,6 @@
     <ClCompile Include="src\Pipeline.cpp" />
     <ClCompile Include="src\Surface.cpp" />
     <ClCompile Include="src\Swapchain.cpp" />
-    <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\VulkanApplication.cpp" />
@@ -203,7 +202,6 @@
     <ClInclude Include="src\Pipeline.h" />
     <ClInclude Include="src\Surface.h" />
     <ClInclude Include="src\Swapchain.h" />
-    <ClInclude Include="src\Texture.h" />
     <ClInclude Include="src\Utils.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\VulkanApplication.h" />

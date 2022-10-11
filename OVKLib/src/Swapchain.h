@@ -31,7 +31,6 @@ namespace OVK
 		VkFormat FindDepthFormat();
 		VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 		bool	 HasStencilComponent(VkFormat format);
-		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	private:
 		VkSwapchainKHR				    m_Swapchain = VK_NULL_HANDLE;
 

@@ -12,6 +12,7 @@ const float M_PI = 3.14159265359;
 
 namespace OVK
 {
+    class Image;
     struct Particle
     {
         glm::vec4 Position;
@@ -46,7 +47,6 @@ namespace OVK
         glm::vec3 MaxVel;
     };
 
-    class Texture;
     class DescriptorLayout;
     class DescriptorPool;
     class ParticleSystem
@@ -58,7 +58,7 @@ namespace OVK
         float RowCellSize = 1.0f;
         float ColumnCellSize = 1.0f;
     public:
-        ParticleSystem(const ParticleSpecs& specs, Ref<Texture> texture, const Ref<DescriptorLayout>& layout, const Ref<DescriptorPool>& pool);
+        ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorLayout>& layout, const Ref<DescriptorPool>& pool);
         ~ParticleSystem();
     private:
         // Per particle system variables.
@@ -98,7 +98,7 @@ namespace OVK
         void* m_MappedTrailsBuffer;
 
         VkSampler       m_ParticleSampler;
-        Ref<Texture>    m_ParticleTexture;
+        Ref<Image>      m_ParticleTexture;
 
         VkDescriptorSet m_DescriptorSet;
     private:

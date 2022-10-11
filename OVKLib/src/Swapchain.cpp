@@ -7,6 +7,7 @@
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "Window.h" 
+#include "Utils.h"
 namespace OVK
 {
 	Swapchain::Swapchain()
@@ -195,7 +196,7 @@ namespace OVK
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        allocInfo.memoryTypeIndex = Utils::FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         ASSERT(vkAllocateMemory(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, nullptr, &m_DepthImageMemory) == VK_SUCCESS, "failed to allocate image memory!");
         vkBindImageMemory(VulkanApplication::s_Device->GetVKDevice(), m_DepthImage, m_DepthImageMemory, 0);
@@ -239,7 +240,7 @@ namespace OVK
                 m_ImageViews[i],
                 m_DepthImageView
             };
-            m_Framebuffers[i] = std::make_shared<Framebuffer>(m_RenderPass, attachments);
+            m_Framebuffers[i] = std::make_shared<Framebuffer>(m_RenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
         }
     }
     void Swapchain::CleanupSwapchain()
@@ -293,18 +294,6 @@ namespace OVK
         return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
     }
 
-    uint32_t Swapchain::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
-    {
-        VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), &memProperties);
-
-        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-        ASSERT(false, "Failed to find suitable memory type");
-    }
 
     Swapchain::~Swapchain()
     {

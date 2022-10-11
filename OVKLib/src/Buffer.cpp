@@ -6,7 +6,6 @@
 #include <stb_image.h>
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
-#include "Texture.h"
 #include "Utils.h"
 
 namespace OVK

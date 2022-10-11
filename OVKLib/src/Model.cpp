@@ -13,7 +13,7 @@
 #include "Pipeline.h"
 #include "Swapchain.h"
 #include "Mesh.h"
-#include "Texture.h"
+#include "Image.h"
 namespace OVK
 {
     Model::~Model()
@@ -23,7 +23,7 @@ namespace OVK
             delete m_Meshes[i];
         }
     }
-    Model::Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Texture> shadowMap)
+    Model::Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap)
         :m_FullPath(path), m_Flags(flags), m_DefaultShadowMap(shadowMap)
 	{
         m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
@@ -57,10 +57,10 @@ namespace OVK
         m_IBO = std::make_unique<IndexBuffer>(indicesAll);
 	}
 
-    Model::Model(const float* vertices, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
+    Model::Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
         : m_FullPath("No path. Not loaded from a file"), m_DefaultCubeMap(cubemapTex), m_Flags(NONE)
     {
-        m_Meshes.emplace_back(new Mesh(vertices, vertexCount, cubemapTex, pool, layout));
+        m_Meshes.emplace_back(new Mesh(vertices, vertexCount, m_DefaultCubeMap, pool, layout));
         m_VertexSize = sizeof(float);
         m_VBO = std::make_unique<VertexBuffer>(m_Meshes[0]->m_Vertices);
     }
@@ -83,9 +83,9 @@ namespace OVK
     {
         std::vector<float>     vertices;
         std::vector<uint32_t>  indices;
-        Ref<Texture>           diffuseTexture;
-        Ref<Texture>           normalTexture;
-        Ref<Texture>           roughnessMetallicTexture;
+        Ref<Image>           diffuseTexture;
+        Ref<Image>           normalTexture;
+        Ref<Image>           roughnessMetallicTexture;
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
@@ -182,10 +182,10 @@ namespace OVK
         return new Mesh(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, pool, layout, m_DefaultShadowMap);
     }
 
-    Ref<Texture> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Texture>>& cache)
+    Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache)
     {
         
-        Ref<Texture> textureOUT;
+        Ref<Image> textureOUT;
         std::string folderName = m_Directory.substr(m_Directory.find_last_of("\\/") + 1, m_Directory.length());
 
         aiString str;
@@ -208,7 +208,7 @@ namespace OVK
         {  
             if (!textureName.empty())
             {
-                Ref<Texture> texture = std::make_shared<Texture>((m_Directory + "\\" + textureName).c_str(), type == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
+                Ref<Image> texture = std::make_shared<Image>(std::vector{ (m_Directory + "\\" + textureName) }, type == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
                 textureOUT = texture;
                 cache.push_back(texture);
             }

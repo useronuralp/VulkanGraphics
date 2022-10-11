@@ -34,8 +34,8 @@ namespace OVK
 	}
 
 	class CubemapTexture;
-	class Texture;
 	class Mesh;
+	class Image;
 	class DescriptorSet;
 	class VertexBuffer;
 	class IndexBuffer;
@@ -55,9 +55,9 @@ namespace OVK
 		Model()  = default;
 		~Model();
 		// This constructor is used to construct a model that contains at least one mesh.
-		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout>layout, Ref<Texture> shadowMap = nullptr);
+		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap = nullptr);
 		// This constructor is used to construct a single meshed model (skybox).
-		Model(const float* vertices, uint32_t vertexCount, const Ref<CubemapTexture>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
+		Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
 		const std::vector<Mesh*>&		GetMeshes() { return m_Meshes; }
 		const glm::mat4&				GetModelMatrix() { return m_ModelMatrix; }
 		const Unique<VertexBuffer>&		GetVBO() { return m_VBO; }
@@ -71,15 +71,15 @@ namespace OVK
 	private:
 		void			ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
 		Mesh*		ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
-		Ref<Texture>	LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Texture>>& cache);
+		Ref<Image>	LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache);
 	private:
 		std::vector<Mesh*>		  m_Meshes;
 		glm::mat4				  m_ModelMatrix = glm::mat4(1.0f); 
 		LoadingFlags			  m_Flags;
 
-		std::vector<Ref<Texture>> m_AlbedoCache;
-		std::vector<Ref<Texture>> m_NormalsCache;
-		std::vector<Ref<Texture>> m_RoughnessMetallicCache;
+		std::vector<Ref<Image>> m_AlbedoCache;
+		std::vector<Ref<Image>> m_NormalsCache;
+		std::vector<Ref<Image>> m_RoughnessMetallicCache;
 
 		// Vertex & Index Buffers
 		Unique<VertexBuffer>			m_VBO = nullptr;
@@ -90,10 +90,10 @@ namespace OVK
 		std::string  m_FullPath;
 		std::string  m_Directory;
 
-		Ref<Texture>		m_DefaultShadowMap = nullptr;
-		Ref<CubemapTexture> m_DefaultCubeMap = nullptr;
-		Ref<Texture>		m_DefaultAlbedo = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\Magenta_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-		Ref<Texture>		m_DefaultNormal = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\NormalMAP_ERROR.png").c_str(), VK_FORMAT_R8G8B8A8_UNORM);
-		Ref<Texture>		m_DefaultRoughnessMetallic = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Image>		m_DefaultShadowMap = nullptr;
+		Ref<Image>		m_DefaultCubeMap = nullptr;
+		Ref<Image>		m_DefaultAlbedo =				std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib\\textures\\Magenta_ERROR.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+		Ref<Image>		m_DefaultNormal =				std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib\\textures\\NormalMAP_ERROR.png") }, VK_FORMAT_R8G8B8A8_UNORM);
+		Ref<Image>		m_DefaultRoughnessMetallic =	std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib\\textures\\White_Texture.png") }, VK_FORMAT_R8G8B8A8_SRGB);
 	};
 }

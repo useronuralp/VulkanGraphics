@@ -1,15 +1,14 @@
 #include "Framebuffer.h"
 #include "LogicalDevice.h"
 #include "Surface.h"
-#include "Texture.h"
 #include "VulkanApplication.h"
 #include <iostream>
 namespace OVK
 {
-	Framebuffer::Framebuffer(const VkRenderPass& renderPass, std::vector<VkImageView> attachments)
+	Framebuffer::Framebuffer(const VkRenderPass& renderPass, std::vector<VkImageView> attachments, uint32_t width, uint32_t height)
 	{
-        m_Width = VulkanApplication::s_Surface->GetVKExtent().width;
-        m_Height = VulkanApplication::s_Surface->GetVKExtent().height;
+        m_Width = width;
+        m_Height = height;
         
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -22,22 +21,7 @@ namespace OVK
         
         ASSERT(vkCreateFramebuffer(VulkanApplication::s_Device->GetVKDevice(), &framebufferInfo, nullptr, &m_Framebuffer) == VK_SUCCESS, "Failed to create framebuffer!");
 	}
-    Framebuffer::Framebuffer(const VkRenderPass& renderPass, const Ref<Texture>& texture)
-    {
-        m_Width = texture->GetWidth();
-        m_Height = texture->GetHeight();
 
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = &texture->GetImage()->GetImageView();
-        framebufferInfo.width = m_Width;
-        framebufferInfo.height = m_Height;
-        framebufferInfo.layers = 1;
-
-        ASSERT(vkCreateFramebuffer(VulkanApplication::s_Device->GetVKDevice(), &framebufferInfo, nullptr, &m_Framebuffer) == VK_SUCCESS, "Failed to create framebuffer!");
-    }
     Framebuffer::~Framebuffer()
     {
         vkDestroyFramebuffer(VulkanApplication::s_Device->GetVKDevice(), m_Framebuffer, nullptr);

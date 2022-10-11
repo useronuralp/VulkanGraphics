@@ -124,9 +124,8 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    vec3 L = normalize(v_TBN * dirLightPos - v_TBN * v_Pos);
    vec3 H = normalize(viewDir + L);
    
-   float distance    = length(dirLightPos - v_Pos);
-   float attenuation = 1.0 / (distance * distance);
-   vec3 radiance     = lightColor;        
+   float intensity = 10;
+   vec3 radiance = lightColor * intensity;        
    
    // cook-torrance brdf
    float NDF  = DistributionGGX(normal, H, roughness);        
@@ -144,12 +143,9 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.0001f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.01f) * vec3(albedo) * ao;
    vec3 color = ambient + (Lo * (1.0 - shadow));
-   
-   color = color / (color + vec3(1.0));
-   color = pow(color, vec3(1.0/2.2));  
-
+     
    return color;
 }
 
@@ -168,12 +164,12 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    vec3 L = normalize(v_TBN * pointLightPos - v_TBN * v_Pos);
    vec3 H = normalize(viewDir + L);
    
-   float linear = 200.0;
-   float quadratic = 200.0;
+   float linear = 20.0;
+   float quadratic = 20.0;
    float constant = 1.0;
 
    float distance    = length(pointLightPos - v_Pos);
-   float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance * distance * distance));  
+   float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));  
    vec3 radiance     = lightColor * attenuation * intensity;        
    
    // cook-torrance brdf
@@ -192,12 +188,9 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.001f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.1f) * vec3(albedo) * ao;
    vec3 color = Lo;
-   
-   color = color / (color + vec3(1.0));
-   color = pow(color, vec3(1.0/2.2));  
-
+    
    return color;
 }
 
@@ -227,5 +220,11 @@ void main()
    color += CalcPointLight(normal, viewDir, pointLightpositions[1].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[1].x);
    color += CalcPointLight(normal, viewDir, pointLightpositions[2].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[2].x);
    color += CalcPointLight(normal, viewDir, pointLightpositions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[3].x);
+
+   // Reinhard tonemapping.
+   float gamma = 2.2;
+   color = color / (color + vec3(1.0));
+   color = pow(color, vec3(1.0/gamma)); 
+
    FragColor = vec4(color, 1.0);
 }  

@@ -35,22 +35,111 @@ private:
         glm::vec4 cameraPosition;
         glm::vec4 viewportDimension;
     };
+    // HDR framebuffer variables.
+    Ref<Framebuffer> HDRFramebuffer;
+    VkRenderPass HDRRenderPass;
+    Ref<Image> HDRColorImage;
+    Ref<Image> HDRDepthImage;
+    VkRenderPassBeginInfo HDRRenderPassBeginInfo;
+    std::array<VkClearValue, 2> clearValues;
 
     Ref<DescriptorLayout>   setLayout;
     Ref<DescriptorPool>     pool;
     Ref<Pipeline>           pipeline;
+    Ref<Pipeline>           HDRPipeline;
     Model*                  model;
     ModelUBO                modelUBO;
     VkBuffer                modelUBOBuffer;
     VkDeviceMemory          modelUBOBufferMemory;
 
-    std::array<VkClearValue, 2> scenePassClearValues{};
     glm::vec4                   directionalLightPosition = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
     VkRenderPassBeginInfo       finalScenePassBeginInfo;
     VkCommandBuffer             cmdBuffers[MAX_FRAMES_IN_FLIGHT];
     VkCommandPool               cmdPool;
 
     void* mappedModelUBOBuffer;
+    void CreateHDRRenderPass()
+    {
+        VkAttachmentDescription colorAttachmentDescription;
+        VkAttachmentReference colorAttachmentRef;
+        VkAttachmentDescription depthAttachmentDescription;
+        VkAttachmentReference depthAttachmentRef;
+
+        colorAttachmentDescription.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        colorAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentDescription.flags = 0;
+        colorAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        // Color att. reference.
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        // A single depth attachment for depth testing / occlusion.
+        depthAttachmentDescription.format = VulkanApplication::s_Swapchain->GetDepthFormat();
+        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachmentDescription.flags = 0;
+        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        // Depth att. reference.
+        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        std::array<VkAttachmentDescription, 2> attachmentDescriptions;
+        attachmentDescriptions[0] = colorAttachmentDescription;
+        attachmentDescriptions[1] = depthAttachmentDescription;
+
+        VkRenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()); // Number of attachments.
+        renderPassInfo.pAttachments = attachmentDescriptions.data(); // An array with the size of "attachmentCount".
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
+
+        ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &HDRRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
+    }
+    void CreateHDRFramebuffer()
+    {
+        HDRColorImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
+            VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, ImageType::COLOR);
+
+        HDRDepthImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
+            VulkanApplication::s_Swapchain->GetDepthFormat(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, ImageType::DEPTH);
+
+        std::vector<VkImageView> attachments =
+        {
+            HDRColorImage->GetImageView(),
+            HDRDepthImage->GetImageView()
+        };
+
+        HDRFramebuffer = std::make_shared<Framebuffer>(HDRRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
+    }
 	void OnVulkanInit()
 	{
 		SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE1_EXTENSION_NAME });
@@ -58,6 +147,13 @@ private:
 	}
 	void OnStart()
 	{
+        clearValues[0].color = { {0.18f, 0.18f, 0.7f, 1.0f} };
+        clearValues[1].depthStencil = { 1.0f, 0 };
+
+        CreateHDRRenderPass();
+
+        CreateHDRFramebuffer();
+
 		std::vector<DescriptorBindingSpecs> dscLayout
 		{
 			DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(ModelUBO),               1, ShaderStage::VERTEX,    0},
@@ -142,9 +238,16 @@ private:
         bindingDescs.push_back(bindingDescription);
         specs.pVertexBindingDesc = bindingDescs;
         specs.pVertexAttributeDescriptons = attributeDescriptions;
+        
         pipeline = std::make_shared<Pipeline>(specs);
 
-        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout);
+        specs.pRenderPass = &HDRRenderPass;
+        // TO DO: I named these shaders randomly. Fix.
+        specs.VertexShaderPath = "shaders/bloomFilterShaderVERT.spv";
+        specs.FragmentShaderPath = "shaders/bloomFilterShaderFRAG.spv";
+        HDRPipeline = std::make_shared<Pipeline>(specs);
+
+        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Mask\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout);
         model->Scale(0.7f, 0.7f, 0.7f);
         model->Rotate(90, 0, 1, 0);
 
@@ -196,17 +299,33 @@ private:
         glm::mat4 mat = model->GetModelMatrix();
         model->Rotate(10.0f * DeltaTime(), 0, 1, 0);
 
-        // Setup the actual scene render pass here.
-        scenePassClearValues[0].color = { {0.18f, 0.18f, 0.7f, 1.0f} };
-        scenePassClearValues[1].depthStencil = { 1.0f, 0 };
+        HDRRenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        HDRRenderPassBeginInfo.framebuffer = HDRFramebuffer->GetVKFramebuffer();
+        HDRRenderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        HDRRenderPassBeginInfo.pClearValues = clearValues.data();
+        HDRRenderPassBeginInfo.pNext = nullptr;
+        HDRRenderPassBeginInfo.renderPass = HDRRenderPass;
+        HDRRenderPassBeginInfo.renderArea.offset = { 0, 0 };
+        HDRRenderPassBeginInfo.renderArea.extent.height = HDRFramebuffer->GetHeight();
+        HDRRenderPassBeginInfo.renderArea.extent.width = HDRFramebuffer->GetWidth();
+
+        CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, HDRPipeline);
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], HDRPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+
+        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], HDRPipeline->GetPipelineLayout());
+
+        // End shadow pass.
+        CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
         finalScenePassBeginInfo.renderArea.extent = s_Surface->GetVKExtent();
-        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(scenePassClearValues.size());
-        finalScenePassBeginInfo.pClearValues = scenePassClearValues.data();
+        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        finalScenePassBeginInfo.pClearValues = clearValues.data();
 
         // Start final scene render pass.
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -224,6 +343,7 @@ private:
 	}
 	void OnWindowResize()
 	{
+        CreateHDRFramebuffer();
         pipeline->OnResize();
 	}
 	void OnCleanup()

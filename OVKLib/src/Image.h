@@ -15,7 +15,7 @@ namespace OVK
 	{
 	public:
 		Image(std::vector<std::string> textures, VkFormat imageFormat);
-		Image(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType = ImageType::COLOR);
+		Image(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType);
 
 		const VkImage&			GetVKImage()		{ return m_Image; }
 		const VkDeviceMemory&	GetVKImageMemory()	{ return m_ImageMemory; }
@@ -30,7 +30,7 @@ namespace OVK
 	private:
 		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout);
 		void CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height);
-		void SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, ImageType imageType = ImageType::COLOR);
+		void SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usage, ImageType imageType = ImageType::COLOR);
 		void GenerateMipmaps();
 	private:
 		VkImage			m_Image			= VK_NULL_HANDLE;

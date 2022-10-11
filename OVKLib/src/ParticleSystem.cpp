@@ -2,15 +2,14 @@
 #include "Utils.h"
 #include "LogicalDevice.h"
 #include "VulkanApplication.h"
-#include "Texture.h"
 #include "DescriptorSet.h"
-
+#include "Image.h"
 //External
 #include <Curl.h>
 #include <simplexnoise.h>
 namespace OVK
 {
-    ParticleSystem::ParticleSystem(const ParticleSpecs& specs, Ref<Texture> texture, const Ref<DescriptorLayout>& layout, const Ref<DescriptorPool>& pool)
+    ParticleSystem::ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorLayout>& layout, const Ref<DescriptorPool>& pool)
         :m_ParticleTexture(texture)
     {
         // Create shared descriptor set for all particle systems.
@@ -150,7 +149,7 @@ namespace OVK
         // Write the desriptor set with the above sampler.
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = m_ParticleTexture->GetImage()->GetImageView();
+        imageInfo.imageView = m_ParticleTexture->GetImageView();
         imageInfo.sampler = m_ParticleSampler;
 
         VkWriteDescriptorSet descriptorWrite{};

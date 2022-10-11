@@ -111,8 +111,8 @@ public:
     glm::mat4 torch3modelMatrix {1.0};
     glm::mat4 torch4modelMatrix {1.0};
 
-    Ref<Texture>    particleTexture;
-    Ref<Texture>    fireTexture;
+    Ref<Image>    particleTexture;
+    Ref<Image>    fireTexture;
 
 
     float   lightFlickerRate = 0.07f;
@@ -140,7 +140,7 @@ public:
     float m_LastFrameRenderTime;
     float m_DeltaTimeLastFrame = GetRenderTime();
 
-    Ref<Texture>     shadowMapTexture;
+    Ref<Image>       shadowMapImage;
     VkRenderPass     shadowMapRenderPass;
     Ref<Framebuffer> shadowMapFramebuffer;
 
@@ -605,8 +605,8 @@ public:
     }
     void SetupParticleSystems()
     {
-        particleTexture = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib/textures/spark.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
-        fireTexture = std::make_shared<Texture>((std::string(SOLUTION_DIR) + "OVKLib/textures/fire_sprite_sheet.png").c_str(), VK_FORMAT_R8G8B8A8_SRGB);
+        particleTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+        fireTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/fire_sprite_sheet.png")}, VK_FORMAT_R8G8B8A8_SRGB);
 
         ParticleSpecs specs{};
         specs.ParticleCount = 10;
@@ -822,8 +822,8 @@ private:
 
         SetupParticleSystems();
 
-        // Create a texture for the shadowmap. We will render to this texture when we are doing a shadow pass.
-        shadowMapTexture = std::make_shared<Texture>(SHADOW_DIM, SHADOW_DIM, VK_FORMAT_D32_SFLOAT, ImageType::DEPTH);
+        // Create an image for the shadowmap. We will render to this image when we are doing a shadow pass.
+        shadowMapImage = std::make_shared<Image>(SHADOW_DIM, SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), ImageType::DEPTH);
 
         // Creating our shadow pass with this helper function.
         CreateShadowRenderPass();
@@ -834,22 +834,26 @@ private:
         SetupSkyboxPipeline();
         SetupParticleSystemPipeline();
 
+        std::vector<VkImageView> attachments =
+        {
+            shadowMapImage->GetImageView()
+        };
         // Final piece of the puzzle is the framebuffer. We need a framebuffer to link the image we are rendering to with the render pass.
-        shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, shadowMapTexture);
+        shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, attachments, SHADOW_DIM, SHADOW_DIM);
         
         // Loading the model Sponza
-        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
+        model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapImage);
         model->Scale(0.005f, 0.005f, 0.005f);
         WriteDescriptorSetWithUBOs(model);
 
         // Loading the model Malenia's Helmet.
-        model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
+        model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapImage);
         model2->Scale(0.7f, 0.7f, 0.7f);
         model2->Translate(2.0f, 2.0f, -0.2f);
         model2->Rotate(90, 0, 1, 0);
         WriteDescriptorSetWithUBOs(model2);
 
-        torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapTexture);
+        torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV, pool, setLayout, shadowMapImage);
         torch1modelMatrix = glm::scale(torch1modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
         torch1modelMatrix = glm::rotate(torch1modelMatrix, glm::radians(90.0f), glm::vec3(0, 1, 0));
         torch1modelMatrix = glm::translate(torch1modelMatrix, glm::vec3(-2.7f, 4.3f, 8.2f));
@@ -923,8 +927,8 @@ private:
         std::string left    = (std::string(SOLUTION_DIR) + "OVKLib\\textures\\skybox\\Night\\left.png");
         
         // Set up the 6 sided texture for the skybox by using the above images.
-        std::array<std::string, 6> skyboxTex { right, left, top, bottom, front, back};
-        Ref<OVK::CubemapTexture> cubemap = std::make_shared<CubemapTexture>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
+        std::vector<std::string> skyboxTex { right, left, top, bottom, front, back};
+        Ref<OVK::Image> cubemap = std::make_shared<Image>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
         
 
         // Create the mesh for the skybox.
@@ -971,10 +975,10 @@ private:
             lightFlickerRate = 0.1f;
             std::random_device rd;
             std::mt19937 gen(rd()); 
-            std::uniform_real_distribution<> distr(10.0f, 20.0f); 
-            std::uniform_real_distribution<> distr2(30.0f, 40.0f);
-            std::uniform_real_distribution<> distr3(5.0f, 10.0f); 
-            std::uniform_real_distribution<> distr4(1.0f, 5.0f); 
+            std::uniform_real_distribution<> distr(20.0f, 40.0f); 
+            std::uniform_real_distribution<> distr2(60.0f, 80.0f);
+            std::uniform_real_distribution<> distr3(10.0f, 20.0f); 
+            std::uniform_real_distribution<> distr4(2.0f, 30.0f); 
             lightUBO.lightIntensities[0] = glm::vec4(distr(gen));
             lightUBO.lightIntensities[1] = glm::vec4(distr2(gen));
             lightUBO.lightIntensities[2] = glm::vec4(distr3(gen));
