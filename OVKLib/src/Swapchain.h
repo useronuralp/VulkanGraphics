@@ -19,10 +19,7 @@ namespace OVK
 		const std::vector<VkImage>&				GetSwapchainImages()		const	{ return m_SwapchainImages;		 }
 		const std::vector<VkImageView>&			GetSwapchainImageViews()	const	{ return m_ImageViews;			 }
 		VkRenderPass&							GetSwapchainRenderPass()	 		{ return m_RenderPass;			 }
-		const VkImageView&						GetDepthImageView()			const	{ return m_DepthImageView;		 }
 		const std::vector<Ref<Framebuffer>>&	GetFramebuffers()			const	{ return m_Framebuffers;		 }
-		const VkFormat&							GetDepthFormat()			const	{ return m_DepthBufferFormat;	 }
-		const VkImage&							GetDepthImage()				const	{ return m_DepthImage;			 }
 		void									OnResize();
 		const VkFramebuffer&					GetActiveFramebuffer();
 	private:
@@ -41,12 +38,6 @@ namespace OVK
 		std::vector<VkImageView>		m_ImageViews;
 		VkFormat						m_ImageFormat;
 		uint32_t						m_ImageCount;
-
-		// Variables needed for the depth buffer.
-		VkImage							m_DepthImage;
-		VkDeviceMemory					m_DepthImageMemory;
-		VkImageView						m_DepthImageView;
-		VkFormat						m_DepthBufferFormat;
 
 		// Misc.
 		VkFormat					    m_SwapchainImageFormat;

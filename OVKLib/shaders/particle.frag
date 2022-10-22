@@ -12,6 +12,11 @@ layout (location = 6) in float inColumnCellSize;
 
 layout (location = 0) out vec4 outFragColor;
 
+layout( push_constant ) uniform bright
+{
+	vec4 brightness;
+};
+
 void main () 
 {
 	vec4 color;
@@ -30,9 +35,13 @@ void main ()
 	float mappedY = (gl_PointCoord.y * inColumnCellSize) + (inColumnOffset - inColumnCellSize);
 	vec2 UV = vec2(mappedX, mappedY);
 	
+
 	// Flame
 	color = texture(samplerFire, UV);
 	color.a *= inAlpha;
+	color.x = color.x * brightness.x;
+	color.y = color.y * brightness.x;
+	color.z = color.z * brightness.x;
 
 	
 	outFragColor = color;

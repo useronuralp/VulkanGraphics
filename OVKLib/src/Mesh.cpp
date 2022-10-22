@@ -28,26 +28,26 @@ namespace OVK
 			VkSampler sampler;
 			if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_NORMAL)
 			{
-				sampler = Utils::CreateSampler(m_Normals, ImageType::COLOR);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_Normals->GetImageView(), bindingSpecs.Binding, ImageType::COLOR);
+				sampler = Utils::CreateSampler(m_Normals, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_Normals->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE)
 			{
-				sampler = Utils::CreateSampler(m_Albedo, ImageType::COLOR);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_Albedo->GetImageView(), bindingSpecs.Binding, ImageType::COLOR);
+				sampler = Utils::CreateSampler(m_Albedo, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_Albedo->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC)
 			{
-				sampler = Utils::CreateSampler(m_RoughnessMetallic, ImageType::COLOR);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_RoughnessMetallic->GetImageView(), bindingSpecs.Binding, ImageType::COLOR);
+				sampler = Utils::CreateSampler(m_RoughnessMetallic, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_RoughnessMetallic->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_SHADOWMAP)
 			{
-				sampler = Utils::CreateSampler(m_ShadowMap, ImageType::COLOR);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_ShadowMap->GetImageView(), bindingSpecs.Binding, ImageType::DEPTH);
+				sampler = Utils::CreateSampler(m_ShadowMap, ImageType::DEPTH, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_ShadowMap->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 		}
@@ -78,7 +78,7 @@ namespace OVK
 			if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_CUBEMAP)
 			{
 				sampler = Utils::CreateCubemapSampler();
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, ImageType::COLOR);
+				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 		}

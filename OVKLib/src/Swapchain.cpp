@@ -15,10 +15,6 @@ namespace OVK
         // Create the render pass for the swapchain.
         VkAttachmentDescription colorAttachmentDescription;
         VkAttachmentReference colorAttachmentRef;
-        VkAttachmentDescription depthAttachmentDescription;
-        VkAttachmentReference depthAttachmentRef;
-
-        m_DepthBufferFormat = FindDepthFormat();
 
         // A single color attachment.
         colorAttachmentDescription.format = VulkanApplication::s_Surface->GetVKSurfaceFormat().format;
@@ -35,38 +31,24 @@ namespace OVK
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        // A single depth attachment for depth testing / occlusion.
-        depthAttachmentDescription.format = m_DepthBufferFormat;
-        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachmentDescription.flags = 0;
-        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        // Depth att. reference.
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &colorAttachmentRef;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        //subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass = 0;
+        // TO DO: The following layout transition may be incorrect check.
         dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.srcAccessMask = 0;
         dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        std::array<VkAttachmentDescription, 2> attachmentDescriptions;
+        std::array<VkAttachmentDescription, 1> attachmentDescriptions;
         attachmentDescriptions[0] = colorAttachmentDescription;
-        attachmentDescriptions[1] = depthAttachmentDescription;
+        //attachmentDescriptions[1] = depthAttachmentDescription;
 
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -171,52 +153,6 @@ namespace OVK
             ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
         }
 
-        // Create a single image for the depth buffer.
-        VkImageCreateInfo depthImageInfo{};
-        depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
-        depthImageInfo.extent.width = VulkanApplication::s_Surface->GetVKExtent().width;
-        depthImageInfo.extent.height = VulkanApplication::s_Surface->GetVKExtent().height;
-        depthImageInfo.extent.depth = 1;
-        depthImageInfo.mipLevels = 1;
-        depthImageInfo.arrayLayers = 1;
-        depthImageInfo.format = m_DepthBufferFormat;
-        depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        depthImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthImageInfo.flags = 0;
-
-        ASSERT(vkCreateImage(VulkanApplication::s_Device->GetVKDevice(), &depthImageInfo, nullptr, &m_DepthImage) == VK_SUCCESS, "Failed to create image!");
-
-        VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(VulkanApplication::s_Device->GetVKDevice(), m_DepthImage, &memRequirements);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = Utils::FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        ASSERT(vkAllocateMemory(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, nullptr, &m_DepthImageMemory) == VK_SUCCESS, "failed to allocate image memory!");
-        vkBindImageMemory(VulkanApplication::s_Device->GetVKDevice(), m_DepthImage, m_DepthImageMemory, 0);
-
-        // Depth buffer image view creation.
-        VkImageViewCreateInfo depthImageviewInfo{};
-        depthImageviewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        depthImageviewInfo.image = m_DepthImage;
-        depthImageviewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        depthImageviewInfo.format = m_DepthBufferFormat;
-        depthImageviewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        depthImageviewInfo.subresourceRange.baseMipLevel = 0;
-        depthImageviewInfo.subresourceRange.levelCount = 1;
-        depthImageviewInfo.subresourceRange.baseArrayLayer = 0;
-        depthImageviewInfo.subresourceRange.layerCount = 1;
-
-        ASSERT(vkCreateImageView(VulkanApplication::s_Device->GetVKDevice(), &depthImageviewInfo, nullptr, &m_DepthImageView) == VK_SUCCESS, "Failed to create textre image view");
-
-        // Creating the necessary framebuffers for each of the image view we have in this class.
-
         // If we already have the framebuffers created reset them.
         if (m_Framebuffers.size() > 0)
         {
@@ -238,7 +174,6 @@ namespace OVK
             std::vector<VkImageView> attachments =
             {
                 m_ImageViews[i],
-                m_DepthImageView
             };
             m_Framebuffers[i] = std::make_shared<Framebuffer>(m_RenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
         }
@@ -250,9 +185,6 @@ namespace OVK
         {
             vkDestroyImageView(VulkanApplication::s_Device->GetVKDevice(), imageView, nullptr);
         }
-        vkDestroyImageView(VulkanApplication::s_Device->GetVKDevice(), m_DepthImageView, nullptr);
-        vkDestroyImage(VulkanApplication::s_Device->GetVKDevice(), m_DepthImage, nullptr);
-        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), m_DepthImageMemory, nullptr);
         vkDestroySwapchainKHR(VulkanApplication::s_Device->GetVKDevice(), m_Swapchain, nullptr);
     }
     void Swapchain::OnResize()

@@ -16,6 +16,7 @@ layout(set = 0, binding = 1) uniform lightProperties
 {
     vec4 pointLightpositions[4];
     vec2 pointLightIntensities[4];
+    vec4 directionalLightIntensity;
 };
 
 layout(set = 0, binding = 2) uniform sampler2D u_DiffuseSampler;
@@ -124,8 +125,7 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    vec3 L = normalize(v_TBN * dirLightPos - v_TBN * v_Pos);
    vec3 H = normalize(viewDir + L);
    
-   float intensity = 10;
-   vec3 radiance = lightColor * intensity;        
+   vec3 radiance = lightColor * directionalLightIntensity.x;        
    
    // cook-torrance brdf
    float NDF  = DistributionGGX(normal, H, roughness);        
@@ -143,7 +143,7 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.01f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.03f) * vec3(albedo) * ao;
    vec3 color = ambient + (Lo * (1.0 - shadow));
      
    return color;
@@ -169,7 +169,7 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    float constant = 1.0;
 
    float distance    = length(pointLightPos - v_Pos);
-   float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));  
+   float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance * distance));  
    vec3 radiance     = lightColor * attenuation * intensity;        
    
    // cook-torrance brdf
@@ -188,13 +188,15 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.1f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.001f) * vec3(albedo) * ao;
    vec3 color = Lo;
     
    return color;
 }
 
 const vec4 v05 = vec4(0.5,0.5,0.5,0.5);
+
+
 
 void main()
 {		
@@ -215,7 +217,7 @@ void main()
    
    
    vec3 color = vec3(0.0);
-   color += CalcDirectionalLight(normal, viewDir, v_DirLightPos, directionalShadow, albedo, roughnessMetallicTex, vec3(0.74, 0.57, 0.70));
+   color += CalcDirectionalLight(normal, viewDir, v_DirLightPos, directionalShadow, albedo, roughnessMetallicTex, vec3(1.0, 1.0, 1.0));
    color += CalcPointLight(normal, viewDir, pointLightpositions[0].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[0].x);
    color += CalcPointLight(normal, viewDir, pointLightpositions[1].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[1].x);
    color += CalcPointLight(normal, viewDir, pointLightpositions[2].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[2].x);

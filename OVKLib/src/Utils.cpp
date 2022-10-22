@@ -102,7 +102,7 @@ namespace OVK
         CommandBuffer::DestroyCommandPool(singleCmdPool);
     }
 
-    VkSampler Utils::CreateSampler(Ref<Image> image, ImageType imageType)
+    VkSampler Utils::CreateSampler(Ref<Image> image, ImageType imageType, VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode, VkBool32 anisotrophy)
     {
         VkSampler sampler;
         VkSamplerCreateInfo samplerInfo{};
@@ -113,11 +113,11 @@ namespace OVK
         if (imageType == ImageType::COLOR)
         {
             // Repeats the texture when going out of the sampling range. You might wanna expose this variable during ImageBufferCreation.
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.anisotropyEnable = VK_TRUE;
-            samplerInfo.maxAnisotropy = VulkanApplication::s_PhysicalDevice->GetVKProperties().limits.maxSamplerAnisotropy;
+            samplerInfo.addressModeU = addressMode;
+            samplerInfo.addressModeV = addressMode;
+            samplerInfo.addressModeW = addressMode;
+            samplerInfo.anisotropyEnable = anisotrophy;
+            samplerInfo.maxAnisotropy = anisotrophy ? VulkanApplication::s_PhysicalDevice->GetVKProperties().limits.maxSamplerAnisotropy : 0;
             samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
             samplerInfo.unnormalizedCoordinates = VK_FALSE;
             samplerInfo.compareEnable = VK_FALSE;
@@ -126,17 +126,19 @@ namespace OVK
             samplerInfo.mipLodBias = 0.0f;
             samplerInfo.minLod = 0.0f;
             samplerInfo.maxLod = static_cast<float>(image->GetMipLevel());
+            samplerInfo.magFilter = magFilter;
+            samplerInfo.minFilter = minFilter;
 
             ASSERT(vkCreateSampler(VulkanApplication::s_Device->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS, "Failed to create texture sampler!");
         }
         else // Depth
         {
-            samplerInfo.magFilter = VK_FILTER_NEAREST; // TO DO: experiment with these filters. These might not perform optimally.
-            samplerInfo.minFilter = VK_FILTER_NEAREST;
+            samplerInfo.magFilter = magFilter; 
+            samplerInfo.minFilter = minFilter;
             samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            samplerInfo.addressModeU = addressMode;
+            samplerInfo.addressModeV = addressMode;
+            samplerInfo.addressModeW = addressMode;
             samplerInfo.mipLodBias = 0.0f;
             samplerInfo.maxAnisotropy = 1.0f;
             samplerInfo.minLod = 0.0f;
@@ -177,10 +179,10 @@ namespace OVK
         return sampler;
     }
 
-    void Utils::WriteDescriptorSetWithSampler(const VkDescriptorSet& dscSet, const VkSampler& sampler, const VkImageView& imageView, uint32_t bindingIndex, ImageType imageType)
+    void Utils::WriteDescriptorSetWithSampler(const VkDescriptorSet& dscSet, const VkSampler& sampler, const VkImageView& imageView, uint32_t bindingIndex, VkImageLayout layout)
     {
         VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = imageType == ImageType::DEPTH ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageLayout = layout;
         imageInfo.imageView = imageView;
         imageInfo.sampler = sampler;
 
@@ -195,4 +197,26 @@ namespace OVK
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
 
+    VkFormat Utils::FindDepthFormat()
+    {
+        return FindSupportedFormat({ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    }
+
+    VkFormat Utils::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+    {
+        for (VkFormat format : candidates) {
+            VkFormatProperties props;
+            vkGetPhysicalDeviceFormatProperties(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), format, &props);
+
+            if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            {
+                return format;
+            }
+            else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            {
+                return format;
+            }
+        }
+        ASSERT(false, "Failed to find depth format");
+    }
 }

@@ -5,7 +5,7 @@
 #include <iostream>
 namespace OVK
 {
-	Framebuffer::Framebuffer(const VkRenderPass& renderPass, std::vector<VkImageView> attachments, uint32_t width, uint32_t height)
+	Framebuffer::Framebuffer(const VkRenderPass& renderPass, const std::vector<VkImageView> attachments, uint32_t width, uint32_t height)
 	{
         m_Width = width;
         m_Height = height;
