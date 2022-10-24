@@ -41,16 +41,12 @@ namespace OVK
 
         // Blur downscaling resources.
         Unique<Framebuffer>     m_BlurFramebuffers[BLUR_PASS_COUNT];
-        Unique<Framebuffer>     m_BlurFramebuffersVertical[BLUR_PASS_COUNT];
         VkRenderPass            m_BlurRenderPass;
         Ref<Image>              m_BlurColorBuffers[BLUR_PASS_COUNT];
-        Ref<Image>              m_BlurColorBuffersVertical[BLUR_PASS_COUNT];
         VkRenderPassBeginInfo   m_BlurRenderPassBeginInfo;
         VkDescriptorSet         m_BlurDescriptorSets[BLUR_PASS_COUNT];
-        VkDescriptorSet         m_BlurDescriptorSetsVertical[BLUR_PASS_COUNT];
         Ref<Pipeline>           m_BlurPipelines[BLUR_PASS_COUNT];
         VkSampler               m_BlurSamplers[BLUR_PASS_COUNT];
-        VkSampler               m_BlurSamplersVertical[BLUR_PASS_COUNT];
 
         // Blur upscaling resources.
         Ref<Pipeline>           m_UpscalingPipelines[BLUR_PASS_COUNT];

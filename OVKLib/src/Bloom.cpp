@@ -56,7 +56,6 @@ namespace OVK
         {
             vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), m_UpscalingSamplersSecond[i], nullptr);
             vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), m_UpscalingSamplersFirst[i], nullptr);
-            vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), m_BlurSamplersVertical[i], nullptr);
             vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), m_BlurSamplers[i], nullptr);
 
         }
@@ -165,19 +164,12 @@ namespace OVK
 
 
         VkDeviceSize offset = { 0 };
-        struct blurPassPushConstant
-        {
-            glm::vec4 UVmultiplier;
-            glm::vec4 horizontalPass;
-        };
-        blurPassPushConstant bpc;
         // Blur pass.
         for (int i = 0; i < BLUR_PASS_COUNT; i++)
         {
             clearValues = { 0.8f, 0.1f, 0.1f, 1.0f };
 
-            bpc.horizontalPass.x = 1.0f;
-            // Horizontal pass
+            // Downscaling pass
             m_BlurRenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             m_BlurRenderPassBeginInfo.framebuffer = m_BlurFramebuffers[i]->GetVKFramebuffer();
             m_BlurRenderPassBeginInfo.clearValueCount = 1;
@@ -191,27 +183,6 @@ namespace OVK
             CommandBuffer::BeginRenderPass(cmdBuffer, m_BlurRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
             CommandBuffer::BindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlurPipelines[i]);
             vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlurPipelines[i]->GetPipelineLayout(), 0, 1, &m_BlurDescriptorSets[i], 0, nullptr);
-            CommandBuffer::PushConstants(cmdBuffer, m_BlurPipelines[i]->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4) * 2, &bpc);
-            vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
-            CommandBuffer::EndRenderPass(cmdBuffer);
-
-            bpc.horizontalPass.x = 0.0f;
-
-            // Vertical Pass.
-            m_BlurRenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            m_BlurRenderPassBeginInfo.framebuffer = m_BlurFramebuffersVertical[i]->GetVKFramebuffer();
-            m_BlurRenderPassBeginInfo.clearValueCount = 1;
-            m_BlurRenderPassBeginInfo.pClearValues = &clearValues;
-            m_BlurRenderPassBeginInfo.pNext = nullptr;
-            m_BlurRenderPassBeginInfo.renderPass = m_BlurRenderPass;
-            m_BlurRenderPassBeginInfo.renderArea.offset = { 0, 0 };
-            m_BlurRenderPassBeginInfo.renderArea.extent.height = m_BlurFramebuffersVertical[i]->GetHeight();
-            m_BlurRenderPassBeginInfo.renderArea.extent.width = m_BlurFramebuffersVertical[i]->GetWidth();
-
-            CommandBuffer::BeginRenderPass(cmdBuffer, m_BlurRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-            CommandBuffer::BindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlurPipelines[i]);
-            vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlurPipelines[i]->GetPipelineLayout(), 0, 1, &m_BlurDescriptorSetsVertical[i], 0, nullptr);
-            CommandBuffer::PushConstants(cmdBuffer, m_BlurPipelines[i]->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4) * 2, &bpc);
             vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
             CommandBuffer::EndRenderPass(cmdBuffer);
         }
@@ -420,7 +391,6 @@ namespace OVK
             width /= 2;
 
             m_BlurColorBuffers[i] = std::make_unique<Image>(width, height, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, ImageType::COLOR);
-            m_BlurColorBuffersVertical[i] = std::make_unique<Image>(width, height, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, ImageType::COLOR);
 
             attachments =
             {
@@ -428,13 +398,6 @@ namespace OVK
             };
 
             m_BlurFramebuffers[i] = std::make_unique<Framebuffer>(m_BlurRenderPass, attachments, width, height);
-
-            attachments =
-            {
-                m_BlurColorBuffersVertical[i]->GetImageView()
-            };
-
-            m_BlurFramebuffersVertical[i] = std::make_unique<Framebuffer>(m_BlurRenderPass, attachments, width, height);
         }
 
         for (int i = 0; i < BLUR_PASS_COUNT; i++)
@@ -477,23 +440,13 @@ namespace OVK
 
         for (int i = 0; i < BLUR_PASS_COUNT; i++)
         {
-            // Downscaling horizontal descs.
+            // Downscaling descs.
             allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             allocInfo.descriptorPool = m_DescriptorPool->GetDescriptorPool();
             allocInfo.descriptorSetCount = 1;
             allocInfo.pSetLayouts = &m_OneSamplerLayout->GetDescriptorLayout();
 
             VkResult rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &m_BlurDescriptorSets[i]);
-            ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
-
-
-            // Downscaling vertical descs.
-            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = m_DescriptorPool->GetDescriptorPool();
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = &m_OneSamplerLayout->GetDescriptorLayout();
-
-            rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &m_BlurDescriptorSetsVertical[i]);
             ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
             // Upscaling descs.
@@ -516,14 +469,10 @@ namespace OVK
             }
             else
             {
-                m_BlurSamplers[i] = Utils::CreateSampler(m_BlurColorBuffersVertical[i - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                Utils::WriteDescriptorSetWithSampler(m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BlurColorBuffersVertical[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                m_BlurSamplers[i] = Utils::CreateSampler(m_BlurColorBuffers[i - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+                Utils::WriteDescriptorSetWithSampler(m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BlurColorBuffers[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
             }
-            m_BlurSamplersVertical[i] = Utils::CreateSampler(m_BlurColorBuffers[i], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-            Utils::WriteDescriptorSetWithSampler(m_BlurDescriptorSetsVertical[i], m_BlurSamplersVertical[i], m_BlurColorBuffers[i]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-
         }
 
         int a = BLUR_PASS_COUNT - 1;
@@ -534,11 +483,11 @@ namespace OVK
             if (i == 0)
             {
                 // Grab the last two results.
-                m_UpscalingSamplersFirst[i] = Utils::CreateSampler(m_BlurColorBuffersVertical[a], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                m_UpscalingSamplersSecond[i] = Utils::CreateSampler(m_BlurColorBuffersVertical[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+                m_UpscalingSamplersFirst[i] = Utils::CreateSampler(m_BlurColorBuffers[a], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+                m_UpscalingSamplersSecond[i] = Utils::CreateSampler(m_BlurColorBuffers[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
 
-                Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_BlurColorBuffersVertical[a]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-                Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffersVertical[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_BlurColorBuffers[a]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             }
             else
             {
@@ -552,8 +501,8 @@ namespace OVK
                 }
                 else
                 {
-                    m_UpscalingSamplersSecond[i] = Utils::CreateSampler(m_BlurColorBuffersVertical[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                    Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffersVertical[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    m_UpscalingSamplersSecond[i] = Utils::CreateSampler(m_BlurColorBuffers[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+                    Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 }
             }
             a--;
@@ -625,10 +574,7 @@ namespace OVK
             specs.FragmentShaderPath = "shaders/blurShaderFRAG.spv";
             specs.ViewportHeight = m_BlurFramebuffers[i]->GetHeight();
             specs.ViewportWidth = m_BlurFramebuffers[i]->GetWidth();
-            specs.EnablePushConstant = true;
-            specs.PushConstantOffset = 0;
-            specs.PushConstantShaderStage = VK_SHADER_STAGE_FRAGMENT_BIT;
-            specs.PushConstantSize = sizeof(glm::vec4) * 2;
+            specs.EnablePushConstant = false;
 
             colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
             colorBlendAttachment.blendEnable = VK_TRUE;

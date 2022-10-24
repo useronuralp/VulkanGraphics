@@ -1412,9 +1412,9 @@ private:
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline);
 
         glm::vec4 sparkBrigtness;
-        sparkBrigtness.x = 15.0f;
+        sparkBrigtness.x = 20.0f;
         glm::vec4 flameBrigthness;
-        flameBrigthness.x = 8.0f;
+        flameBrigthness.x = 7.0f;
 
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &sparkBrigtness);
         fireSparks->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
