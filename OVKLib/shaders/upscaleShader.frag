@@ -34,14 +34,7 @@ vec4 UpsampleTent()
 
 void main()
 {		
-
     vec4 upscaled = UpsampleTent();
-
 	vec4 scnd = texture(second, v_UV);
-	vec4 final;
-	final.x = upscaled.x + scnd.x;
-	final.y = upscaled.y + scnd.y;
-	final.z = upscaled.z + scnd.z;
-	final.w = 1.0;
-   FragColor = vec4(final.rgb, 1.0); 
+    FragColor = vec4(upscaled.rgb + scnd.rgb, 1.0);
 }  

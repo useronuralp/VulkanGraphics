@@ -50,30 +50,39 @@ private:
     };
 
 public:
-    // HDR framebuffer variables.
-    Ref<Framebuffer>            HDRFramebuffer;
-    VkRenderPass                HDRRenderPass;
-    Ref<Image>                  HDRColorImage;
-    Ref<Image>                  HDRDepthImage;
-    VkRenderPassBeginInfo       HDRRenderPassBeginInfo;
+#pragma region ClearValues
+    VkClearValue                depthPassClearValue;
+    std::array<VkClearValue, 2> finalScenePassClearValues{};
     std::array<VkClearValue, 2> clearValues;
-    Ref<Pipeline>               EmissiveObjectPipeline;
-    Ref<Bloom>                  bloomAgent;
+#pragma endregion
 
-    Ref<DescriptorLayout> oneSamplerLayout;
-    Ref<DescriptorLayout> emissiveLayout;
+#pragma region Images&Framebuffers
+    Ref<Framebuffer> shadowMapFramebuffer;
+    Ref<Framebuffer> HDRFramebuffer;
+    Ref<Image>       shadowMapImage;
+    Ref<Image>       HDRColorImage;
+    Ref<Image>       HDRDepthImage;
+    Ref<Image>       particleTexture;
+    Ref<Image>       fireTexture;
+#pragma endregion
 
-    VkSampler               finalPassSampler;
-    VkDescriptorSet         finalPassDescriptorSet;
-    Ref<Pipeline>           finalPassPipeline;
+#pragma region RenderPassBeginInfos
+    // Render pass begin infos.
+    VkRenderPassBeginInfo depthPassBeginInfo;
+    VkRenderPassBeginInfo finalScenePassBeginInfo;
+    VkRenderPassBeginInfo HDRRenderPassBeginInfo;
+#pragma endregion
 
-
-    std::random_device rd; // obtain a random number from hardware
-    std::mt19937 gen; // seed the generator
-    std::uniform_real_distribution<> distr;
+#pragma region  RenderPasses
+    // Render passes
+    VkRenderPass shadowMapRenderPass;
+    VkRenderPass HDRRenderPass;
+#pragma endregion 
 
 #pragma region Layouts
     // Layouts
+    Ref<DescriptorLayout> oneSamplerLayout;
+    Ref<DescriptorLayout> emissiveLayout;
     Ref<DescriptorLayout> PBRLayout;
     Ref<DescriptorLayout> skyboxLayout;
     Ref<DescriptorLayout> particleSystemLayout;
@@ -88,6 +97,8 @@ public:
 
 #pragma region Pipelines
     // Pipelines
+    Ref<Pipeline> EmissiveObjectPipeline;
+    Ref<Pipeline> finalPassPipeline;
     Ref<Pipeline> pipeline;
     Ref<Pipeline> shadowPassPipeline;
     Ref<Pipeline> skyboxPipeline;
@@ -127,19 +138,25 @@ public:
     void*                       mappedGlobalLightParametersUBOBuffer;
 #pragma endregion
 
+    // Others
+    VkCommandBuffer                     cmdBuffers[MAX_FRAMES_IN_FLIGHT];
+    VkCommandPool                       cmdPool;
+    Ref<Bloom>                          bloomAgent;
+    VkSampler                           finalPassSampler;
+    VkDescriptorSet                     finalPassDescriptorSet;
+
+    std::random_device                  rd; // obtain a random number from hardware
+    std::mt19937                        gen; // seed the generator
+    std::uniform_real_distribution<>    distr;
+
     glm::mat4 torch1modelMatrix {1.0};
     glm::mat4 torch2modelMatrix {1.0};
     glm::mat4 torch3modelMatrix {1.0};
     glm::mat4 torch4modelMatrix {1.0};
 
-    Ref<Image>    particleTexture;
-    Ref<Image>    fireTexture;
-
-
     float   lightFlickerRate = 0.07f;
     float   aniamtionRate = 0.013888888f;
     int     currentAnimationFrame = 0;
-
     float   timer = 0.0f;
 
     glm::vec4 pointLightPositions[POINT_LIGHT_COUNT];
@@ -155,21 +172,8 @@ public:
     glm::mat4 lightModelMatrix      = glm::mat4(1.0f);
     glm::mat4 depthMVP              = lightProjectionMatrix * lightViewMatrix * lightModelMatrix;
 
-    VkClearValue                depthPassClearValue;
-    std::array<VkClearValue, 2> finalScenePassClearValues{};
-
     float m_LastFrameRenderTime;
     float m_DeltaTimeLastFrame = GetRenderTime();
-
-    Ref<Image>       shadowMapImage;
-    VkRenderPass     shadowMapRenderPass;
-    Ref<Framebuffer> shadowMapFramebuffer;
-
-    VkRenderPassBeginInfo depthPassBeginInfo;
-    VkRenderPassBeginInfo finalScenePassBeginInfo;
-
-    VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool   cmdPool;
 
     // Helpers
     void WriteDescriptorSetWithUBOs(Model* model)
@@ -260,7 +264,6 @@ public:
             vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
         }
     }
-
 
     void SetupPBRPipeline()
     {
@@ -1414,7 +1417,7 @@ private:
         glm::vec4 sparkBrigtness;
         sparkBrigtness.x = 20.0f;
         glm::vec4 flameBrigthness;
-        flameBrigthness.x = 7.0f;
+        flameBrigthness.x = 8.0f;
 
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &sparkBrigtness);
         fireSparks->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
