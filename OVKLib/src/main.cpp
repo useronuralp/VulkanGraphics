@@ -1485,12 +1485,12 @@ private:
             CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, s_Device->GetGraphicsQueue());
         }
         CommandBuffer::DestroyCommandPool(cmdPool);
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), shadowMapRenderPass, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), globalLightParametersUBOBufferMemory, nullptr);
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBuffer, nullptr);
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), globalLightParametersUBOBuffer, nullptr);
-        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), HDRRenderPass, nullptr);
 
     }
