@@ -330,10 +330,13 @@ public:
         attributeDescriptions[4].location = 4;
         attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[4].offset = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3);
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.push_back(bindingDescription);
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
+
+
+        specs.VertexInputBindingCount = 1;
+        specs.pVertexInputBindingDescriptions = &bindingDescription;
+        specs.VertexInputAttributeCount = attributeDescriptions.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
+
         pipeline = std::make_shared<Pipeline>(specs);
     }
     void SetupFinalPassPipeline()
@@ -366,14 +369,6 @@ public:
         colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
         
         specs.ColorBlendAttachmentState = colorBlendAttachment;
-        
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(0);
-        
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.clear();
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
         
         finalPassPipeline = std::make_shared<Pipeline>(specs);
     }
@@ -427,10 +422,10 @@ public:
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = 0;
 
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.push_back(bindingDescription);
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
+        specs.VertexInputBindingCount = 1;
+        specs.pVertexInputBindingDescriptions = &bindingDescription;
+        specs.VertexInputAttributeCount = attributeDescriptions.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
 
         shadowPassPipeline = std::make_shared<Pipeline>(specs);
     }
@@ -481,10 +476,10 @@ public:
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = 0;
 
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.push_back(bindingDescription);
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
+        specs.VertexInputBindingCount = 1;
+        specs.pVertexInputBindingDescriptions = &bindingDescription;
+        specs.VertexInputAttributeCount = attributeDescriptions.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
 
         skyboxPipeline = std::make_shared<Pipeline>(specs);
     }
@@ -577,10 +572,11 @@ public:
         attributeDescriptions[8].format = VK_FORMAT_R32_SFLOAT;
         attributeDescriptions[8].offset = offsetof(Particle, ColumnCellSize);
 
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.push_back(bindingDescription);
-        particleSpecs.pVertexBindingDesc = bindingDescs;
-        particleSpecs.pVertexAttributeDescriptons = attributeDescriptions;
+
+        particleSpecs.VertexInputBindingCount = 1;
+        particleSpecs.pVertexInputBindingDescriptions = &bindingDescription;
+        particleSpecs.VertexInputAttributeCount = attributeDescriptions.size();
+        particleSpecs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
 
         particleSystemPipeline = std::make_shared<Pipeline>(particleSpecs);
     }
@@ -624,9 +620,6 @@ public:
         bindingDescription.stride = sizeof(glm::vec3);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.push_back(bindingDescription);
-
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
         attributeDescriptions.resize(1);
         attributeDescriptions[0].binding = 0;
@@ -634,9 +627,10 @@ public:
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = 0;
 
-
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
+        specs.VertexInputBindingCount = 1;
+        specs.pVertexInputBindingDescriptions = &bindingDescription;
+        specs.VertexInputAttributeCount = attributeDescriptions.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
 
         EmissiveObjectPipeline = std::make_shared<Pipeline>(specs);
     }
@@ -726,65 +720,6 @@ public:
 
 
         ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &HDRRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
-    }
-    void SetupLightSphere(Model* model)
-    {
-        std::vector<DescriptorBindingSpecs> dscLayout
-        { 
-            DescriptorBindingSpecs {Type::UNIFORM_BUFFER,sizeof(glm::mat4), 1, ShaderStage::VERTEX , 0},
-            DescriptorBindingSpecs {Type::UNIFORM_BUFFER,sizeof(glm::mat4), 1, ShaderStage::VERTEX , 1},
-            DescriptorBindingSpecs {Type::UNIFORM_BUFFER,sizeof(glm::mat4), 1, ShaderStage::VERTEX , 2},
-        };
-
-        Pipeline::Specs specs{};
-        specs.DescriptorLayout = VK_NULL_HANDLE;
-        specs.pRenderPass = &VulkanApplication::s_Swapchain->GetSwapchainRenderPass();
-        specs.CullMode = VK_CULL_MODE_BACK_BIT;
-        specs.DepthBiasClamp = 0.0f;
-        specs.DepthBiasConstantFactor = 0.0f;
-        specs.DepthBiasSlopeFactor = 0.0f;
-        specs.DepthCompareOp = VK_COMPARE_OP_LESS;
-        specs.EnableDepthBias = false;
-        specs.EnableDepthTesting = VK_TRUE;
-        specs.EnableDepthWriting = VK_TRUE;
-        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        specs.PolygonMode = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath = "shaders/lightsourceVERT.spv";
-        specs.FragmentShaderPath = "shaders/lightsourceFRAG.spv";
-
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = VK_TRUE;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-        specs.ColorBlendAttachmentState = colorBlendAttachment;
-
-
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(glm::vec3);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(1);
-        // For position
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = 0;
-
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        bindingDescs.push_back(bindingDescription);
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
-
-        //model->AddConfiguration("NormalRenderPass", specs, dscLayout);
-        //model->SetActiveConfiguration("NormalRenderPass");
     }
     void CreateShadowRenderPass()
     {
@@ -1100,12 +1035,12 @@ private:
         SetupEmissiveObjectPipeline();
         SetupParticleSystemPipeline();
 
-
         std::vector<VkImageView> attachments =
         {
             shadowMapImage->GetImageView()
         };
-        // Final piece of the puzzle is the framebuffer. We need a framebuffer to link the image we are rendering to with the render pass.
+        
+
         shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, attachments, SHADOW_DIM, SHADOW_DIM);
         
         // Loading the model Sponza
@@ -1233,8 +1168,6 @@ private:
 
         finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-
 	}
     void OnUpdate()
     {
@@ -1287,7 +1220,7 @@ private:
 
         VkDeviceSize offset = 0;
 
-        // Start shadow pass.
+        // Start shadow pass.---------------------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
 
@@ -1298,13 +1231,9 @@ private:
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
         model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
         
-        // End shadow pass.
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+        // End shadow pass.---------------------------------------------
 
-
-
-
-        
         aniamtionRate -= deltaTime * 1.0f;
         if (aniamtionRate <= 0)
         {
@@ -1360,6 +1289,7 @@ private:
         HDRRenderPassBeginInfo.renderArea.extent.height = HDRFramebuffer->GetHeight();
         HDRRenderPassBeginInfo.renderArea.extent.width = HDRFramebuffer->GetWidth();
 
+        // Begin HDR rendering------------------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         // Drawing the skybox.
@@ -1434,9 +1364,11 @@ private:
 
 
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+        // End HDR Rendering ------------------------------------------
 
-        // Apply bloom to the previously rendered image HDRColorImage.
+        // Post processing begin ---------------------------
         bloomAgent->ApplyBloom(cmdBuffers[CurrentFrameIndex()]);
+        // Post processing end ---------------------------
 
         finalScenePassClearValues[0].color = { {0.18f, 0.18f, 0.7f, 1.0f} };
 
@@ -1449,19 +1381,17 @@ private:
         finalScenePassBeginInfo.pClearValues = finalScenePassClearValues.data();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
 
-        // Start final scene render pass.
+        // Start final scene render pass (swapchain).-------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
         vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline->GetPipelineLayout(), 0, 1, &finalPassDescriptorSet, 0, nullptr);
         vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
 
-        // End the command buffer recording phase.
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+        // End the command buffer recording phase(swapchain).-------------------------------.
+
         CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
-
-
         SubmitCommandBuffer(cmdBuffers[CurrentFrameIndex()]);
     }
     void OnCleanup()

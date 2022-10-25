@@ -14,30 +14,32 @@ namespace OVK
 		struct Specs
 		{
 			// TO DO: Check these references here. Can you make them Unique<> ?
-			VkRenderPass*						pRenderPass;
-			Ref<DescriptorLayout>		        DescriptorLayout; 
-			std::string						    VertexShaderPath; 
-			std::string						    FragmentShaderPath; 
-			VkPolygonMode					    PolygonMode;
-			VkCullModeFlags					    CullMode; 
-			VkFrontFace						    FrontFace; 
-			VkBool32						    EnableDepthBias;
-			float							    DepthBiasConstantFactor;
-			float							    DepthBiasClamp;
-			float							    DepthBiasSlopeFactor;
-			VkBool32						    EnableDepthTesting;
-			VkBool32						    EnableDepthWriting;
-			VkCompareOp						    DepthCompareOp;
-			uint32_t						    ViewportWidth  = UINT32_MAX;
-			uint32_t						    ViewportHeight = UINT32_MAX;
-			bool EnablePushConstant = false;
-			uint32_t PushConstantOffset  = 0;
-			uint32_t PushConstantSize = 0;
-			VkShaderStageFlags PushConstantShaderStage;
-			std::vector<VkVertexInputBindingDescription> pVertexBindingDesc;
-			VkPrimitiveTopology				    PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-			VkPipelineColorBlendAttachmentState ColorBlendAttachmentState;
-			std::vector<VkVertexInputAttributeDescription>  pVertexAttributeDescriptons;
+			VkRenderPass*						 pRenderPass;
+			Ref<DescriptorLayout>				 DescriptorLayout; 
+			std::string							 VertexShaderPath; 
+			std::string							 FragmentShaderPath; 
+			VkPolygonMode						 PolygonMode;
+			VkCullModeFlags						 CullMode; 
+			VkFrontFace							 FrontFace; 
+			VkBool32							 EnableDepthBias;
+			float								 DepthBiasConstantFactor;
+			float								 DepthBiasClamp;
+			float								 DepthBiasSlopeFactor;
+			VkBool32							 EnableDepthTesting;
+			VkBool32							 EnableDepthWriting;
+			VkCompareOp							 DepthCompareOp;
+			uint32_t							 ViewportWidth  = UINT32_MAX;
+			uint32_t							 ViewportHeight = UINT32_MAX;
+			bool								 EnablePushConstant = false;
+			uint32_t							 PushConstantOffset  = 0;
+			uint32_t							 PushConstantSize = 0;
+			VkShaderStageFlags					 PushConstantShaderStage;
+			VkPrimitiveTopology					 PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+			VkPipelineColorBlendAttachmentState	 ColorBlendAttachmentState;
+			VkVertexInputBindingDescription*	 pVertexInputBindingDescriptions = nullptr;
+			uint32_t							 VertexInputBindingCount = 0;
+			uint32_t							 VertexInputAttributeCount = 0;
+			VkVertexInputAttributeDescription*	 pVertexInputAttributeDescriptons = nullptr;
 		};
 	public:
 		Pipeline(const Specs& CI);

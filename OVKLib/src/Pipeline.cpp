@@ -68,10 +68,10 @@ namespace OVK
         // Attribute: Type of the attributes passed to the vertex shader, which binding to load them from and at which offset.
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = m_CI.pVertexBindingDesc.size();
-        vertexInputInfo.pVertexBindingDescriptions = m_CI.pVertexBindingDesc.data();
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(m_CI.pVertexAttributeDescriptons.size());
-        vertexInputInfo.pVertexAttributeDescriptions = m_CI.pVertexAttributeDescriptons.data();
+        vertexInputInfo.vertexBindingDescriptionCount = m_CI.VertexInputBindingCount;
+        vertexInputInfo.pVertexBindingDescriptions = m_CI.pVertexInputBindingDescriptions;
+        vertexInputInfo.vertexAttributeDescriptionCount = m_CI.VertexInputAttributeCount;
+        vertexInputInfo.pVertexAttributeDescriptions = m_CI.pVertexInputAttributeDescriptons;
 
         // This struct assembels the points and forms whatever primitive you want to form. These primitives are usually: triangles, lines and points.
         // We are interested in drawing trianlgles in our case.

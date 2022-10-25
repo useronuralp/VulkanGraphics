@@ -92,12 +92,8 @@ namespace OVK
 
         m_MergeFramebuffer = std::make_unique<Framebuffer>(m_MergeRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
 
-        Pipeline::Specs specs{};
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-
         // Merge pipeline.
+        Pipeline::Specs specs{};
         specs.DescriptorLayout = m_TwoSamplerLayout;
         specs.pRenderPass = &m_MergeRenderPass;
         specs.CullMode = VK_CULL_MODE_NONE;
@@ -116,6 +112,7 @@ namespace OVK
         specs.ViewportWidth = m_MergeFramebuffer->GetWidth();
         specs.EnablePushConstant = false;
 
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         colorBlendAttachment.blendEnable = VK_TRUE;
         colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -126,11 +123,6 @@ namespace OVK
         colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
         specs.ColorBlendAttachmentState = colorBlendAttachment;
-
-        attributeDescriptions.resize(0);
-        bindingDescs.clear();
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
 
         m_MergePipeline = std::make_unique<Pipeline>(specs);
 
@@ -511,12 +503,8 @@ namespace OVK
 
     void Bloom::SetupPipelines()
     {
-        Pipeline::Specs specs{};
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        std::vector<VkVertexInputBindingDescription> bindingDescs;
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-
         // Brightness filter pipeline.
+        Pipeline::Specs specs{};
         specs.DescriptorLayout = m_OneSamplerLayout;
         specs.pRenderPass = &m_BrightnessIsolationPass;
         specs.CullMode = VK_CULL_MODE_NONE;
@@ -535,7 +523,7 @@ namespace OVK
         specs.ViewportWidth = m_BrightnessIsolatedFramebuffer->GetWidth();
         specs.EnablePushConstant = false;
 
-
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         colorBlendAttachment.blendEnable = VK_TRUE;
         colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -547,13 +535,7 @@ namespace OVK
 
         specs.ColorBlendAttachmentState = colorBlendAttachment;
 
-        attributeDescriptions.resize(0);
-        bindingDescs.clear();
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
-
         m_BrightnessFilterPipeline = std::make_shared<Pipeline>(specs);
-
 
         for (int i = 0; i < BLUR_PASS_COUNT; i++)
         {
@@ -587,13 +569,7 @@ namespace OVK
 
             specs.ColorBlendAttachmentState = colorBlendAttachment;
 
-            attributeDescriptions.resize(0);
-            bindingDescs.clear();
-            specs.pVertexBindingDesc = bindingDescs;
-            specs.pVertexAttributeDescriptons = attributeDescriptions;
-
             m_BlurPipelines[i] = std::make_shared<Pipeline>(specs);
-
 
             // Blur upscaling passes.
             specs.DescriptorLayout = m_TwoSamplerLayout;
