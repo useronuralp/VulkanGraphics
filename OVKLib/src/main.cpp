@@ -149,6 +149,21 @@ public:
     std::mt19937                        gen; // seed the generator
     std::uniform_real_distribution<>    distr;
 
+    VkVertexInputBindingDescription bindingDescription{};
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+
+    VkVertexInputBindingDescription bindingDescription2{};
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions2{};
+
+    VkVertexInputBindingDescription bindingDescription3{};
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions3{};
+
+    VkVertexInputBindingDescription bindingDescription4{};
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions4{};
+
+    VkVertexInputBindingDescription bindingDescription5{};
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions5{};
+
     glm::mat4 torch1modelMatrix {1.0};
     glm::mat4 torch2modelMatrix {1.0};
     glm::mat4 torch3modelMatrix {1.0};
@@ -299,12 +314,10 @@ public:
 
         specs.ColorBlendAttachmentState = colorBlendAttachment;
 
-        VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
         bindingDescription.stride = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
         attributeDescriptions.resize(5);
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
@@ -409,23 +422,21 @@ public:
         specs.ColorBlendAttachmentState = colorBlendAttachment;
 
 
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        bindingDescription2.binding = 0;
+        bindingDescription2.stride = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
+        bindingDescription2.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(1);
+        attributeDescriptions2.resize(1);
 
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = 0;
+        attributeDescriptions2[0].binding = 0;
+        attributeDescriptions2[0].location = 0;
+        attributeDescriptions2[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions2[0].offset = 0;
 
         specs.VertexInputBindingCount = 1;
-        specs.pVertexInputBindingDescriptions = &bindingDescription;
-        specs.VertexInputAttributeCount = attributeDescriptions.size();
-        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
+        specs.pVertexInputBindingDescriptions = &bindingDescription2;
+        specs.VertexInputAttributeCount = attributeDescriptions2.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions2.data();
 
         shadowPassPipeline = std::make_shared<Pipeline>(specs);
     }
@@ -463,23 +474,21 @@ public:
 
         specs.ColorBlendAttachmentState = colorBlendAttachment;
 
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(glm::vec3);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        bindingDescription3.binding = 0;
+        bindingDescription3.stride = sizeof(glm::vec3);
+        bindingDescription3.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(1);
+        attributeDescriptions3.resize(1);
         // For position
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = 0;
+        attributeDescriptions3[0].binding = 0;
+        attributeDescriptions3[0].location = 0;
+        attributeDescriptions3[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions3[0].offset = 0;
 
         specs.VertexInputBindingCount = 1;
-        specs.pVertexInputBindingDescriptions = &bindingDescription;
-        specs.VertexInputAttributeCount = attributeDescriptions.size();
-        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
+        specs.pVertexInputBindingDescriptions = &bindingDescription3;
+        specs.VertexInputAttributeCount = attributeDescriptions3.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions3.data();
 
         skyboxPipeline = std::make_shared<Pipeline>(specs);
     }
@@ -520,63 +529,61 @@ public:
 
         particleSpecs.ColorBlendAttachmentState = colorBlendAttachment;
 
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Particle);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        bindingDescription4.binding = 0;
+        bindingDescription4.stride = sizeof(Particle);
+        bindingDescription4.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(9);
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Particle, Position);
+        attributeDescriptions4.resize(9);
+        attributeDescriptions4[0].binding = 0;
+        attributeDescriptions4[0].location = 0;
+        attributeDescriptions4[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attributeDescriptions4[0].offset = offsetof(Particle, Position);
 
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Particle, Color);
+        attributeDescriptions4[1].binding = 0;
+        attributeDescriptions4[1].location = 1;
+        attributeDescriptions4[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attributeDescriptions4[1].offset = offsetof(Particle, Color);
 
-        attributeDescriptions[2].binding = 0;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
-        attributeDescriptions[2].offset = offsetof(Particle, Alpha);
+        attributeDescriptions4[2].binding = 0;
+        attributeDescriptions4[2].location = 2;
+        attributeDescriptions4[2].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions4[2].offset = offsetof(Particle, Alpha);
 
-        attributeDescriptions[3].binding = 0;
-        attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = VK_FORMAT_R32_SFLOAT;
-        attributeDescriptions[3].offset = offsetof(Particle, SizeRadius);
+        attributeDescriptions4[3].binding = 0;
+        attributeDescriptions4[3].location = 3;
+        attributeDescriptions4[3].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions4[3].offset = offsetof(Particle, SizeRadius);
 
-        attributeDescriptions[4].binding = 0;
-        attributeDescriptions[4].location = 4;
-        attributeDescriptions[4].format = VK_FORMAT_R32_SFLOAT;
-        attributeDescriptions[4].offset = offsetof(Particle, Rotation);
+        attributeDescriptions4[4].binding = 0;
+        attributeDescriptions4[4].location = 4;
+        attributeDescriptions4[4].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions4[4].offset = offsetof(Particle, Rotation);
 
-        attributeDescriptions[5].binding = 0;
-        attributeDescriptions[5].location = 5;
-        attributeDescriptions[5].format = VK_FORMAT_R32_SFLOAT;
-        attributeDescriptions[5].offset = offsetof(Particle, RowOffset);
+        attributeDescriptions4[5].binding = 0;
+        attributeDescriptions4[5].location = 5;
+        attributeDescriptions4[5].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions4[5].offset = offsetof(Particle, RowOffset);
 
-        attributeDescriptions[6].binding = 0;
-        attributeDescriptions[6].location = 6;
-        attributeDescriptions[6].format = VK_FORMAT_R32_SFLOAT;
-        attributeDescriptions[6].offset = offsetof(Particle, ColumnOffset);
+        attributeDescriptions4[6].binding = 0;
+        attributeDescriptions4[6].location = 6;
+        attributeDescriptions4[6].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions4[6].offset = offsetof(Particle, ColumnOffset);
 
-        attributeDescriptions[7].binding = 0;
-        attributeDescriptions[7].location = 7;
-        attributeDescriptions[7].format = VK_FORMAT_R32_SFLOAT;
-        attributeDescriptions[7].offset = offsetof(Particle, RowCellSize);
+        attributeDescriptions4[7].binding = 0;
+        attributeDescriptions4[7].location = 7;
+        attributeDescriptions4[7].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions4[7].offset = offsetof(Particle, RowCellSize);
 
-        attributeDescriptions[8].binding = 0;
-        attributeDescriptions[8].location = 8;
-        attributeDescriptions[8].format = VK_FORMAT_R32_SFLOAT;
-        attributeDescriptions[8].offset = offsetof(Particle, ColumnCellSize);
+        attributeDescriptions4[8].binding = 0;
+        attributeDescriptions4[8].location = 8;
+        attributeDescriptions4[8].format = VK_FORMAT_R32_SFLOAT;
+        attributeDescriptions4[8].offset = offsetof(Particle, ColumnCellSize);
 
 
         particleSpecs.VertexInputBindingCount = 1;
-        particleSpecs.pVertexInputBindingDescriptions = &bindingDescription;
-        particleSpecs.VertexInputAttributeCount = attributeDescriptions.size();
-        particleSpecs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
+        particleSpecs.pVertexInputBindingDescriptions = &bindingDescription4;
+        particleSpecs.VertexInputAttributeCount = attributeDescriptions4.size();
+        particleSpecs.pVertexInputAttributeDescriptons = attributeDescriptions4.data();
 
         particleSystemPipeline = std::make_shared<Pipeline>(particleSpecs);
     }
@@ -615,22 +622,20 @@ public:
 
         specs.ColorBlendAttachmentState = colorBlendAttachment;
 
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(glm::vec3);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        bindingDescription5.binding = 0;
+        bindingDescription5.stride = sizeof(glm::vec3);
+        bindingDescription5.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        attributeDescriptions.resize(1);
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = 0;
+        attributeDescriptions5.resize(1);
+        attributeDescriptions5[0].binding = 0;
+        attributeDescriptions5[0].location = 0;
+        attributeDescriptions5[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions5[0].offset = 0;
 
         specs.VertexInputBindingCount = 1;
-        specs.pVertexInputBindingDescriptions = &bindingDescription;
-        specs.VertexInputAttributeCount = attributeDescriptions.size();
-        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
+        specs.pVertexInputBindingDescriptions = &bindingDescription5;
+        specs.VertexInputAttributeCount = attributeDescriptions5.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions5.data();
 
         EmissiveObjectPipeline = std::make_shared<Pipeline>(specs);
     }

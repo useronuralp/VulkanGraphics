@@ -228,8 +228,10 @@ private:
         bindingDescs.resize(2);
         bindingDescs[0] = bindingDescription;
         bindingDescs[1] = bindingDescription2;
-        specs.pVertexBindingDesc = bindingDescs;
-        specs.pVertexAttributeDescriptons = attributeDescriptions;
+        specs.VertexInputBindingCount = bindingDescs.size();
+        specs.VertexInputAttributeCount = attributeDescriptions.size();
+        specs.pVertexInputBindingDescriptions = bindingDescs.data();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
 
         pipeline = std::make_shared<Pipeline>(specs);
 
@@ -240,7 +242,7 @@ private:
         Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, instancedModelMatrixBuffer, instancedModelMatrixBufferMemory);
 
         // Sampler creations
-        diffuseSampler = Utils::CreateSampler(diffuse, ImageType::COLOR);
+        diffuseSampler = Utils::CreateSampler(diffuse, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_FALSE);
        
         // Write descriptor sets of every single object.
         for (int i = 0; i < OBJECT_COUNT; i++)
@@ -277,7 +279,7 @@ private:
         descriptorWrite.pTexelBufferView = nullptr; // Optional
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 
-        Utils::WriteDescriptorSetWithSampler(dscSet->GetVKDescriptorSet(), diffuseSampler, diffuse->GetImageView(), 1, ImageType::COLOR);
+        Utils::WriteDescriptorSetWithSampler(dscSet->GetVKDescriptorSet(), diffuseSampler, diffuse->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 
         CommandBuffer::CreateCommandPool(s_GraphicsQueueFamily, cmdPool);
