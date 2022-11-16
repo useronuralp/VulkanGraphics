@@ -91,8 +91,6 @@ public:
 #pragma region Pools
     // Pools
     Ref<DescriptorPool> pool;
-    Ref<DescriptorPool> pool2;
-    Ref<DescriptorPool> particleSystemPool;
 #pragma endregion
 
 #pragma region Pipelines
@@ -800,7 +798,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
         fireSparks->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
 
         specs.ParticleMinLifetime = 0.1f;
@@ -815,7 +813,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase = new ParticleSystem(specs , fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase = new ParticleSystem(specs , fireTexture, particleSystemLayout, pool);
         fireBase->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
         fireBase->RowOffset = 0.0f;
         fireBase->RowCellSize = 0.0833333333333333333333f;
@@ -835,7 +833,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks2 = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks2 = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
         fireSparks2->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
 
         specs.ParticleMinLifetime = 0.1f;
@@ -850,7 +848,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase2 = new ParticleSystem(specs, fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase2 = new ParticleSystem(specs, fireTexture, particleSystemLayout, pool);
         fireBase2->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
         fireBase2->RowOffset = 0.0f;
         fireBase2->RowCellSize = 0.0833333333333333333333f;
@@ -869,7 +867,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks3 = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks3 = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
         fireSparks3->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
 
         specs.ParticleMinLifetime = 0.1f;
@@ -884,7 +882,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase3 = new ParticleSystem(specs, fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase3 = new ParticleSystem(specs, fireTexture, particleSystemLayout, pool);
         fireBase3->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
         fireBase3->RowOffset = 0.0f;
         fireBase3->RowCellSize = 0.0833333333333333333333f;
@@ -903,7 +901,7 @@ public:
         specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
         specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-        fireSparks4 = new ParticleSystem(specs, particleTexture, particleSystemLayout, particleSystemPool);
+        fireSparks4 = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
         fireSparks4->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
 
         specs.ParticleMinLifetime = 0.1f;
@@ -918,7 +916,7 @@ public:
         specs.MinVel = glm::vec4(0.0f);
         specs.MaxVel = glm::vec4(0.0f);
 
-        fireBase4 = new ParticleSystem(specs, fireTexture, particleSystemLayout, particleSystemPool);
+        fireBase4 = new ParticleSystem(specs, fireTexture, particleSystemLayout, pool);
         fireBase4->SetUBO(globalParametersUBOBuffer, sizeof(GlobalParametersUBO));
         fireBase4->RowOffset = 0.0f;
         fireBase4->RowCellSize = 0.0833333333333333333333f;
@@ -972,30 +970,19 @@ private:
         };
 
 
+        // We are using only a single pool for all our descriptor sets. Set it up here.
         std::vector<VkDescriptorType> types;
-        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        PBRLayout = std::make_shared<DescriptorLayout>(pbrLayout);
-        pool = std::make_shared<DescriptorPool>(200, types);
-
         types.clear();
         types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        skyboxLayout = std::make_shared<DescriptorLayout>(SkyboxLayout);
-        pool2 = std::make_shared<DescriptorPool>(100, types);
+        pool = std::make_shared<DescriptorPool>(500, types);
+        
 
-        types.clear();
-        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        // Descriptor Set Layouts
         particleSystemLayout = std::make_shared<DescriptorLayout>(ParticleSystemLayout);
-        particleSystemPool = std::make_shared<DescriptorPool>(100, types);
-
-        types.clear();
-        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        skyboxLayout = std::make_shared<DescriptorLayout>(SkyboxLayout);
+        PBRLayout = std::make_shared<DescriptorLayout>(pbrLayout);
         oneSamplerLayout = std::make_shared<DescriptorLayout>(OneSamplerLayout);
-
-        types.clear();
-        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         emissiveLayout = std::make_shared<DescriptorLayout>(EmissiveLayout);
 
 
@@ -1147,7 +1134,7 @@ private:
         
 
         // Create the mesh for the skybox.
-        skybox = new Model(cubeVertices, vertexCount, cubemap, pool2, skyboxLayout);
+        skybox = new Model(cubeVertices, vertexCount, cubemap, pool, skyboxLayout);
         WriteDescriptorSetSkybox(skybox);
 
         // Configure the render pass begin info for the depth pass here.
