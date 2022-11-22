@@ -17,6 +17,7 @@ namespace OVK
 		bool		IsMouseScrolled() { return m_MouseScrolled; }
 		void		OnUpdate();
 		void		OnResize()		  { m_WindowResized = false; };
+		void		ResetVariables();
 		std::pair<float, float> GetMouseScrollOffset();
 	private:
 		// GLFW callbacks.

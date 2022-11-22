@@ -1,7 +1,13 @@
 #pragma once
-#include "vulkan/vulkan.hpp"
 #include "core.h"
+// External
+#include "vulkan/vulkan.h"
 #include "glm/glm.hpp"
+#include <vector>
+#include <array>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
 namespace OVK
 {
 	class Window;
@@ -49,6 +55,7 @@ namespace OVK
 		void					SubmitCommandBuffer(VkCommandBuffer& cmdBuffer);
 	private:
 		void Init();
+		void InitImGui();
 		void SetupQueueFamilies();
 		VkSampleCountFlagBits GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice);
 	private:
@@ -69,6 +76,9 @@ namespace OVK
 		VkCommandBuffer*		 m_CommandBufferReference; // These cmd buffers come from the client / user side. Probably will change later.
 
 		static uint32_t				 m_ActiveImageIndex;
+
+		VkDescriptorPool imguiPool;
+		ImGui_ImplVulkan_InitInfo           init_info;
 
 		float m_CamFOV = -1;
 		float m_CamNearClip = -1;

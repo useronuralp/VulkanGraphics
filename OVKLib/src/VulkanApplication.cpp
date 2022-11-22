@@ -14,6 +14,7 @@
 #include "Model.h"
 #include "Camera.h"
 #include "Framebuffer.h"
+#include "core.h"
 
 // External includes.
 #define STB_IMAGE_IMPLEMENTATION
@@ -23,6 +24,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
 namespace OVK
 {
     uint32_t VulkanApplication::m_ActiveImageIndex = -1; // Definde the static variable here.
@@ -125,6 +127,65 @@ namespace OVK
         }
     }
 
+    void VulkanApplication::InitImGui()
+    {
+        VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
+
+
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000;
+        pool_info.poolSizeCount = std::size(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+
+        ASSERT(vkCreateDescriptorPool(s_Device->GetVKDevice(), &pool_info, nullptr, &imguiPool) == VK_SUCCESS, "Failed to initialize imgui pool");
+
+
+        ImGui::CreateContext();
+
+        ImGui_ImplGlfw_InitForVulkan(s_Window->GetNativeWindow(), true);
+
+        init_info.Instance = s_Instance->GetVkInstance();
+        init_info.PhysicalDevice = s_PhysicalDevice->GetVKPhysicalDevice();
+        init_info.Device = s_Device->GetVKDevice();
+        init_info.Queue = s_Device->GetGraphicsQueue();
+        init_info.DescriptorPool = imguiPool;
+        init_info.MinImageCount = 3;
+        init_info.ImageCount = 3;
+        init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+        ImGui_ImplVulkan_Init(&init_info, s_Swapchain->GetSwapchainRenderPass());
+
+        VkCommandBuffer singleCmdBuffer;
+        VkCommandPool singleCmdPool;
+        CommandBuffer::CreateCommandPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
+        CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
+        CommandBuffer::BeginRecording(singleCmdBuffer);
+
+        ImGui_ImplVulkan_CreateFontsTexture(singleCmdBuffer);
+
+        CommandBuffer::EndRecording(singleCmdBuffer);
+        CommandBuffer::Submit(singleCmdBuffer, VulkanApplication::s_Device->GetTransferQueue());
+        CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, VulkanApplication::s_Device->GetTransferQueue());
+        CommandBuffer::DestroyCommandPool(singleCmdPool);
+
+
+    }
+
     void VulkanApplication::Run()
     {
         // Initializes Vulkan here.
@@ -132,6 +193,9 @@ namespace OVK
 
         // Client OnStart() code is called here. This usually contains pipeline, render pass creations and model loadings.
         OnStart();
+
+
+        InitImGui();
 
         while (!glfwWindowShouldClose(s_Window->GetNativeWindow()))
         {
@@ -146,11 +210,10 @@ namespace OVK
             // Find delta time.
             float deltaTime = DeltaTime();
 
-            // Update camera movement using delta time.
-            s_Camera->OnUpdate(deltaTime);
-
-            // Update window events.
-            s_Window->OnUpdate();
+            // ImGui
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
             vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
@@ -172,6 +235,10 @@ namespace OVK
 
             // Call client OnUpdate() code here. This function usually contains command buffer calls and a SubmitCommandBuffer() call.
             OnUpdate();
+
+            // Update camera movement using delta time.
+            if(!ImGui::GetIO().WantCaptureMouse)
+                s_Camera->OnUpdate(deltaTime);
 
             // Submit the command buffer that we got frome the OnUpdate() function.
             VkSubmitInfo submitInfo{};
@@ -221,6 +288,11 @@ namespace OVK
 
         // Call client OnCleanup() code here. This usually contains pointer deletions.
         OnCleanup();
+
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
+        
+        vkDestroyDescriptorPool(s_Device->GetVKDevice(), imguiPool, nullptr);
+        ImGui_ImplVulkan_Shutdown();
     }
 
     void VulkanApplication::SubmitCommandBuffer(VkCommandBuffer& cmdBuffer)

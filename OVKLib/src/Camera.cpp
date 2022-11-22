@@ -28,6 +28,7 @@ namespace OVK
 		{
 			auto [x, y] = VulkanApplication::s_Window->GetMouseScrollOffset();
 			OnMouseScroll(x, y);
+			VulkanApplication::s_Window->ResetVariables(); // Resets mouse scroll variables for now.
 		}
 		UpdateView();
 	}

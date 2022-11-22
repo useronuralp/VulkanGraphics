@@ -19,6 +19,9 @@ namespace OVK
     }
     void Window::OnUpdate()
     {
+    }
+    void Window::ResetVariables()
+    {
         m_MouseScrolled = false;
         m_MouseXScrollOffset = 0.0f,
         m_MouseYScrollOffset = 0.0f;

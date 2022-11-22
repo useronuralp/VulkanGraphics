@@ -16,7 +16,12 @@
 #include "Mesh.h"
 #include "ParticleSystem.h"
 #include "Bloom.h"
+#include "Instance.h"
 
+// External
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
 #include <simplexnoise.h>
 #include <random>
 #include <Curl.h>
@@ -52,13 +57,13 @@ private:
 public:
 #pragma region ClearValues
     VkClearValue                depthPassClearValue;
-    std::array<VkClearValue, 2> finalScenePassClearValues{};
     std::array<VkClearValue, 2> clearValues;
 #pragma endregion
 
 #pragma region Images&Framebuffers
     Ref<Framebuffer> shadowMapFramebuffer;
     Ref<Framebuffer> HDRFramebuffer;
+    // Attachments. Each framebuffer can have multiple attachments.
     Ref<Image>       shadowMapImage;
     Ref<Image>       HDRColorImage;
     Ref<Image>       HDRDepthImage;
@@ -80,7 +85,7 @@ public:
 #pragma endregion 
 
 #pragma region Layouts
-    // Layouts
+    // Descriptor Layouts
     Ref<DescriptorLayout> oneSamplerLayout;
     Ref<DescriptorLayout> emissiveLayout;
     Ref<DescriptorLayout> PBRLayout;
@@ -89,7 +94,7 @@ public:
 #pragma endregion
 
 #pragma region Pools
-    // Pools
+    // Descriptor Pools
     Ref<DescriptorPool> pool;
 #pragma endregion
 
@@ -142,6 +147,7 @@ public:
     Ref<Bloom>                          bloomAgent;
     VkSampler                           finalPassSampler;
     VkDescriptorSet                     finalPassDescriptorSet;
+
 
     std::random_device                  rd; // obtain a random number from hardware
     std::mt19937                        gen; // seed the generator
@@ -721,7 +727,6 @@ public:
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-
         ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &HDRRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
     }
     void CreateShadowRenderPass()
@@ -748,23 +753,15 @@ public:
         subpass.pColorAttachments = 0;
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-        std::array<VkSubpassDependency, 2> dependencies;
+        VkSubpassDependency dependency;
 
-        dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[0].dstSubpass = 0;
-        dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-        dependencies[1].srcSubpass = 0;
-        dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependencies[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+        dependency.srcSubpass = 0;
+        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -772,13 +769,10 @@ public:
         renderPassInfo.pAttachments = &depthAttachmentDescription;
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-        renderPassInfo.pDependencies = dependencies.data();
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
 
         ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &shadowMapRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
-
-
-        
     }
     void SetupParticleSystems()
     {
@@ -937,7 +931,7 @@ private:
     {
         CurlNoise::SetCurlSettings(false, 4.0f, 6, 1.0, 0.0);
 
-        std::vector<DescriptorBindingSpecs> pbrLayout
+        std::vector<DescriptorBindingSpecs> hdrLayout
         {
             DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(GlobalParametersUBO),         1, ShaderStage::VERTEX,    0},
             DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(GlobalLightPropertiesUBO),    1, ShaderStage::FRAGMENT,  1},
@@ -981,7 +975,7 @@ private:
         // Descriptor Set Layouts
         particleSystemLayout = std::make_shared<DescriptorLayout>(ParticleSystemLayout);
         skyboxLayout = std::make_shared<DescriptorLayout>(SkyboxLayout);
-        PBRLayout = std::make_shared<DescriptorLayout>(pbrLayout);
+        PBRLayout = std::make_shared<DescriptorLayout>(hdrLayout);
         oneSamplerLayout = std::make_shared<DescriptorLayout>(OneSamplerLayout);
         emissiveLayout = std::make_shared<DescriptorLayout>(EmissiveLayout);
 
@@ -1150,6 +1144,7 @@ private:
         depthPassBeginInfo.pClearValues = &depthPassClearValue;
 
         CommandBuffer::CreateCommandPool(s_GraphicsQueueFamily, cmdPool); 
+
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             CommandBuffer::CreateCommandBuffer(cmdBuffers[i], cmdPool);
@@ -1362,15 +1357,14 @@ private:
         bloomAgent->ApplyBloom(cmdBuffers[CurrentFrameIndex()]);
         // Post processing end ---------------------------
 
-        finalScenePassClearValues[0].color = { {0.18f, 0.18f, 0.7f, 1.0f} };
 
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
         finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
         finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
-        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(finalScenePassClearValues.size());
-        finalScenePassBeginInfo.pClearValues = finalScenePassClearValues.data();
+        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        finalScenePassBeginInfo.pClearValues = clearValues.data();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
 
         // Start final scene render pass (swapchain).-------------------------------
@@ -1379,6 +1373,12 @@ private:
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
         vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline->GetPipelineLayout(), 0, 1, &finalPassDescriptorSet, 0, nullptr);
         vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
+
+        ImGui::ShowDemoWindow();
+        ImGui::Render();
+
+        ImDrawData* draw_data = ImGui::GetDrawData();
+        ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[CurrentFrameIndex()]);
 
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
         // End the command buffer recording phase(swapchain).-------------------------------.
@@ -1429,6 +1429,8 @@ private:
 
         bloomAgent = std::make_shared<Bloom>();
         bloomAgent->ConnectImageResourceToAddBloom(HDRColorImage);
+
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
 
         finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
