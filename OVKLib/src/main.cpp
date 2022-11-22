@@ -1375,6 +1375,20 @@ private:
         vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
 
         ImGui::ShowDemoWindow();
+
+        float v[3];
+        v[0] = directionalLightPosition.x;
+
+        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+
+        ImGui::SliderFloat3("Directional Light", &directionalLightPosition.x, -50, 50);
+
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::End();
+
+
         ImGui::Render();
 
         ImDrawData* draw_data = ImGui::GetDrawData();
