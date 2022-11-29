@@ -73,7 +73,7 @@ namespace OVK
 		std::vector<DescriptorBindingSpecs>    m_SetLayout;
 	};
 
-	static VkShaderStageFlags FromShaderStageToDescriptorType(ShaderStage stage)
+	static VkShaderStageFlags FromShaderStageToVulkanStageFlags(ShaderStage stage)
 	{
 		switch (stage)
 		{

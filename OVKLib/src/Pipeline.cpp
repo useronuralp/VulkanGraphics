@@ -19,7 +19,7 @@ namespace OVK
     {
         Cleanup();
     }
-    void Pipeline::OnResize()
+    void Pipeline::ReConstruct()
     {
         Cleanup();
         Init(); //Re initializes the pipeline with correct framebuffer dimensions.

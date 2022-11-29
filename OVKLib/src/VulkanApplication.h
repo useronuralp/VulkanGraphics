@@ -80,6 +80,7 @@ namespace OVK
 		VkDescriptorPool imguiPool;
 		ImGui_ImplVulkan_InitInfo           init_info;
 
+
 		float m_CamFOV = -1;
 		float m_CamNearClip = -1;
 		float m_CamFarClip = -1;

@@ -1,4 +1,5 @@
 // Native code.
+#define READY_TO_ACQUIRE -1
 #include "VulkanApplication.h"
 #include "Window.h"
 #include "Instance.h"
@@ -24,6 +25,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <filesystem>
 
 namespace OVK
 {
@@ -210,31 +212,92 @@ namespace OVK
             // Find delta time.
             float deltaTime = DeltaTime();
 
+
+            vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+
+            VkResult result;
+
+            if (m_ActiveImageIndex == READY_TO_ACQUIRE)
+            {
+                result = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ActiveImageIndex);
+                if (result == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
+                {
+                    vkDeviceWaitIdle(s_Device->GetVKDevice());
+                    s_Swapchain->OnResize();
+                    OnWindowResize();
+                    s_Window->OnResize();
+                    s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
+                    ImGui::EndFrame();
+                    continue;
+                }
+
+                ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
+
+            }
+
             // ImGui
             ImGui_ImplVulkan_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+            ImGui::Begin("Shaders:");
 
-            VkResult result = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ActiveImageIndex);
+            bool breakFrame = false;
+            for (const auto& entry : std::filesystem::directory_iterator((std::string(SOLUTION_DIR) + "\\OVKLib\\shaders").c_str()))
+            {
+                int fullstopIndex = entry.path().string().find_last_of('.');
+                int lastSlashIndex = entry.path().string().find_last_of('\\');
+                std::string path = entry.path().string();
+                std::string extension;
+                std::string shadersFolder = std::string(SOLUTION_DIR) + "OVKLib\\shaders\\";
+                if (fullstopIndex != std::string::npos)
+                {
+                    extension = path.substr(fullstopIndex, path.length() - fullstopIndex);
+                }
+                if (extension == ".frag" || extension == ".vert")
+                {
+                    std::string shaderPath = path.substr(lastSlashIndex + 1, path.length() - lastSlashIndex);
+                    std::string shaderName = path.substr(lastSlashIndex + 1, fullstopIndex - (lastSlashIndex + 1));
+                    ImGui::PushID(shaderPath.c_str());
+                    if (ImGui::Button("Compile"))
+                    {
+                        std::string extensionWithoutDot = extension.substr(1, extension.length() - 1);
+                        for (int i = 0; i < extensionWithoutDot.length(); i++)
+                        {
+                            extensionWithoutDot[i] = toupper(extensionWithoutDot[i]);
+                        }
 
-            if (result == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
+                        std::string outputName = shaderName + extensionWithoutDot + ".spv";
+                        std::string command = std::string(SOLUTION_DIR) + "OVKLib\\vendor\\VULKAN\\1.3.211.0\\bin\\glslc.exe " + shadersFolder + shaderPath + " -o " + "shaders\\" + outputName;
+                        int success = system(command.c_str());
+
+
+                        ImGui::PopID();
+                        ImGui::End();
+                        ImGui::EndFrame();
+                        OnWindowResize(); // Make a specialized function instead of this one.
+                        breakFrame = true;
+                        break;
+                    }
+                    ImGui::PopID();
+                    ImGui::SameLine();
+                    ImGui::Text(shaderPath.c_str());
+                }
+            }
+
+            if (breakFrame)
             {
                 vkDeviceWaitIdle(s_Device->GetVKDevice());
-                s_Swapchain->OnResize();
-                OnWindowResize();
-                s_Window->OnResize();
-                s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
                 continue;
             }
 
-            ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
+            ImGui::End();
 
-            vkResetFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
             // Call client OnUpdate() code here. This function usually contains command buffer calls and a SubmitCommandBuffer() call.
             OnUpdate();
+            
+            vkResetFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
             // Update camera movement using delta time.
             if(!ImGui::GetIO().WantCaptureMouse)
@@ -283,6 +346,7 @@ namespace OVK
             CommandBuffer::Reset(*m_CommandBufferReference);
 
             m_CurrentFrame = ++m_CurrentFrame % m_FramesInFlight;
+            m_ActiveImageIndex = READY_TO_ACQUIRE; // Reset the active image index back to an invalid number.
         }
         vkDeviceWaitIdle(s_Device->GetVKDevice());
 

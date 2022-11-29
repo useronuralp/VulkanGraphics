@@ -25,7 +25,7 @@ namespace OVK
 				bindings[bindingIndex].binding = bindingSpecs.Binding; // binding number used in the shader.
 				bindings[bindingIndex].descriptorCount = 1;
 				bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.ShaderStage);
+				bindings[bindingIndex].stageFlags = FromShaderStageToVulkanStageFlags(bindingSpecs.ShaderStage);
 				bindings[bindingIndex].pImmutableSamplers = nullptr;
 
 				poolSizes[bindingIndex].descriptorCount = 1;
@@ -38,7 +38,7 @@ namespace OVK
 				bindings[bindingIndex].descriptorCount = 1;
 				bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				bindings[bindingIndex].pImmutableSamplers = nullptr;
-				bindings[bindingIndex].stageFlags = FromShaderStageToDescriptorType(bindingSpecs.ShaderStage);
+				bindings[bindingIndex].stageFlags = FromShaderStageToVulkanStageFlags(bindingSpecs.ShaderStage);
 		
 				poolSizes[bindingIndex].descriptorCount = 1;
 				poolSizes[bindingIndex].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -125,9 +125,9 @@ namespace OVK
 			{
 				// For the Uniform Buffer object.
 				bindings[i].binding = layout[i].Binding; // binding number used in the shader.
-				bindings[i].descriptorCount = 1;
+				bindings[i].descriptorCount = layout[i].Count;
 				bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				bindings[i].stageFlags = FromShaderStageToDescriptorType(layout[i].ShaderStage);
+				bindings[i].stageFlags = FromShaderStageToVulkanStageFlags(layout[i].ShaderStage);
 				bindings[i].pImmutableSamplers = nullptr;
 
 			}
@@ -135,10 +135,10 @@ namespace OVK
 			{
 				// For the texture sampler in the fragment shader 
 				bindings[i].binding = layout[i].Binding;
-				bindings[i].descriptorCount = 1;
+				bindings[i].descriptorCount = layout[i].Count;
 				bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				bindings[i].pImmutableSamplers = nullptr;
-				bindings[i].stageFlags = FromShaderStageToDescriptorType(layout[i].ShaderStage);
+				bindings[i].stageFlags = FromShaderStageToVulkanStageFlags(layout[i].ShaderStage);
 
 			}
 		}

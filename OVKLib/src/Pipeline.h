@@ -44,7 +44,7 @@ namespace OVK
 	public:
 		Pipeline(const Specs& CI);
 		~Pipeline();
-		void OnResize();
+		void ReConstruct();
 		const VkPipeline&		GetVKPipeline()		{ return m_Pipeline;		}
 		const VkPipelineLayout& GetPipelineLayout()	{ return m_PipelineLayout;	}
 	private:

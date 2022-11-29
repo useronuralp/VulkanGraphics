@@ -18,7 +18,7 @@ void main()
    
    // Bright parts extraction.
    float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
-   if(brightness > 2.0)
+   if(brightness > 1.0)
    {
         FragColor = vec4(color.rgb, 1.0);
    }

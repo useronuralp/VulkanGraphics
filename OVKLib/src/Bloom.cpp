@@ -106,7 +106,7 @@ namespace OVK
         specs.EnableDepthWriting = VK_FALSE;
         specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         specs.PolygonMode = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath = "shaders/quadRenderVert.spv";
+        specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
         specs.FragmentShaderPath = "shaders/finalPassShaderFRAG.spv";
         specs.ViewportHeight = m_MergeFramebuffer->GetHeight();
         specs.ViewportWidth = m_MergeFramebuffer->GetWidth();
@@ -517,8 +517,8 @@ namespace OVK
         specs.EnableDepthWriting = VK_FALSE;
         specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         specs.PolygonMode = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath = "shaders/quadRenderVert.spv";
-        specs.FragmentShaderPath = "shaders/brightnessFilterShaderFRAG.spv";
+        specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
+        specs.FragmentShaderPath = "shaders/brightnessFilterFRAG.spv";
         specs.ViewportHeight = m_BrightnessIsolatedFramebuffer->GetHeight();
         specs.ViewportWidth = m_BrightnessIsolatedFramebuffer->GetWidth();
         specs.EnablePushConstant = false;
@@ -552,7 +552,7 @@ namespace OVK
             specs.EnableDepthWriting = VK_FALSE;
             specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
             specs.PolygonMode = VK_POLYGON_MODE_FILL;
-            specs.VertexShaderPath = "shaders/quadRenderVert.spv";
+            specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
             specs.FragmentShaderPath = "shaders/blurShaderFRAG.spv";
             specs.ViewportHeight = m_BlurFramebuffers[i]->GetHeight();
             specs.ViewportWidth = m_BlurFramebuffers[i]->GetWidth();
@@ -574,7 +574,7 @@ namespace OVK
             // Blur upscaling passes.
             specs.DescriptorLayout = m_TwoSamplerLayout;
             specs.pRenderPass = &m_BlurRenderPass;
-            specs.VertexShaderPath = "shaders/quadRenderVert.spv";
+            specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
             specs.FragmentShaderPath = "shaders/upscaleShaderFRAG.spv";
             specs.ViewportHeight = m_UpscalingFramebuffers[i]->GetHeight();
             specs.ViewportWidth = m_UpscalingFramebuffers[i]->GetWidth();

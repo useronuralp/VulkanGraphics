@@ -25,6 +25,7 @@
 #include <simplexnoise.h>
 #include <random>
 #include <Curl.h>
+#include <filesystem>
 
 #define POINT_LIGHT_COUNT 4
 #define SHADOW_DIM 10000 // Shadow map resolution.
@@ -918,7 +919,7 @@ public:
         fireBase4->ColumnOffset = 0.0f;
     }
 private:
-    void OnVulkanInit()
+    void OnVulkanInit() override
     {
         // Set the device extensions we want Vulkan to enable.
         SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE1_EXTENSION_NAME });
@@ -927,7 +928,7 @@ private:
         SetCameraConfiguration(45.0f, 0.1f, 1500.0f);
     }
 
-    void OnStart()
+    void OnStart() override
     {
         CurlNoise::SetCurlSettings(false, 4.0f, 6, 1.0, 0.0);
 
@@ -1010,9 +1011,9 @@ private:
         ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
         CreateHDRRenderPass();
-        CreateHDRFramebuffer();
-
         CreateShadowRenderPass();
+
+        CreateHDRFramebuffer();
 
         SetupFinalPassPipeline();
         SetupPBRPipeline();
@@ -1026,7 +1027,6 @@ private:
             shadowMapImage->GetImageView()
         };
         
-
         shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, attachments, SHADOW_DIM, SHADOW_DIM);
         
         // Loading the model Sponza
@@ -1156,7 +1156,7 @@ private:
         finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
-    void OnUpdate()
+    void OnUpdate() override
     {
         // Begin command buffer recording.
         CommandBuffer::BeginRecording(cmdBuffers[CurrentFrameIndex()]);
@@ -1374,10 +1374,8 @@ private:
         vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline->GetPipelineLayout(), 0, 1, &finalPassDescriptorSet, 0, nullptr);
         vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
 
-        ImGui::ShowDemoWindow();
-
-        float v[3];
-        v[0] = directionalLightPosition.x;
+        
+        //ImGui::ShowDemoWindow();
 
         ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
@@ -1387,7 +1385,6 @@ private:
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
-
 
         ImGui::Render();
 
@@ -1400,7 +1397,7 @@ private:
         CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
         SubmitCommandBuffer(cmdBuffers[CurrentFrameIndex()]);
     }
-    void OnCleanup()
+    void OnCleanup() override
     {
         delete model;
         delete model2;
@@ -1430,16 +1427,36 @@ private:
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), HDRRenderPass, nullptr);
 
     }
-    void OnWindowResize()
+    void OnWindowResize() override
     {
-        pipeline->OnResize();
-        shadowPassPipeline->OnResize();
-        skyboxPipeline->OnResize();
-        particleSystemPipeline->OnResize();
-        finalPassPipeline->OnResize();
-        EmissiveObjectPipeline->OnResize();
+        pipeline->ReConstruct();
+        shadowPassPipeline->ReConstruct();
+        skyboxPipeline->ReConstruct();
+        particleSystemPipeline->ReConstruct();
+        finalPassPipeline->ReConstruct();
+        EmissiveObjectPipeline->ReConstruct();
 
         CreateHDRFramebuffer();
+
+        bloomAgent = std::make_shared<Bloom>();
+        bloomAgent->ConnectImageResourceToAddBloom(HDRColorImage);
+
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
+
+        finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+    void ReConstructEveryPipeline()
+    {
+
+        vkDeviceWaitIdle(s_Device->GetVKDevice());
+
+        pipeline->ReConstruct();
+        shadowPassPipeline->ReConstruct();
+        skyboxPipeline->ReConstruct();
+        particleSystemPipeline->ReConstruct();
+        finalPassPipeline->ReConstruct();
+        EmissiveObjectPipeline->ReConstruct();
 
         bloomAgent = std::make_shared<Bloom>();
         bloomAgent->ConnectImageResourceToAddBloom(HDRColorImage);
