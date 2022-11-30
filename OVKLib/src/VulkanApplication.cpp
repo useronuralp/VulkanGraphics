@@ -196,7 +196,6 @@ namespace OVK
         // Client OnStart() code is called here. This usually contains pipeline, render pass creations and model loadings.
         OnStart();
 
-
         InitImGui();
 
         while (!glfwWindowShouldClose(s_Window->GetNativeWindow()))
@@ -212,7 +211,6 @@ namespace OVK
             // Find delta time.
             float deltaTime = DeltaTime();
 
-
             vkWaitForFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
             VkResult result;
@@ -220,14 +218,24 @@ namespace OVK
             if (m_ActiveImageIndex == READY_TO_ACQUIRE)
             {
                 result = vkAcquireNextImageKHR(s_Device->GetVKDevice(), s_Swapchain->GetVKSwapchain(), UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ActiveImageIndex);
-                if (result == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized())
+                if (result == VK_ERROR_OUT_OF_DATE_KHR || s_Window->IsWindowResized() || result == VK_SUBOPTIMAL_KHR)
                 {
                     vkDeviceWaitIdle(s_Device->GetVKDevice());
+
+                    // Wait if the window is minimized.
+                    int width = 0, height = 0;
+                    glfwGetFramebufferSize(s_Window->GetNativeWindow(), &width, &height);
+                    while (width == 0 || height == 0) {
+                        glfwGetFramebufferSize(s_Window->GetNativeWindow(), &width, &height);
+                        glfwWaitEvents();
+                    }
+
                     s_Swapchain->OnResize();
-                    OnWindowResize();
+                    OnWindowResize(); // Calls client code here, usually contains pipeline recreations and similar stuff that are related with screen size.
                     s_Window->OnResize();
                     s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
                     ImGui::EndFrame();
+                    m_ActiveImageIndex = READY_TO_ACQUIRE;
                     continue;
                 }
 
@@ -332,17 +340,8 @@ namespace OVK
             presentInfo.pResults = nullptr; // Optional
 
             result = vkQueuePresentKHR(graphicsQueue, &presentInfo);
-
-            // Check if window has been resized.
-            if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR)
-            {
-                vkDeviceWaitIdle(s_Device->GetVKDevice());
-                s_Swapchain->OnResize();
-                OnWindowResize();
-                s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
-                continue;
-            }
             ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+
             CommandBuffer::Reset(*m_CommandBufferReference);
 
             m_CurrentFrame = ++m_CurrentFrame % m_FramesInFlight;

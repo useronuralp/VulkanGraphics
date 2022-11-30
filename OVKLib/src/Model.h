@@ -59,7 +59,7 @@ namespace OVK
 		// This constructor is used to construct a single meshed model (skybox).
 		Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
 		const std::vector<Mesh*>&		GetMeshes() { return m_Meshes; }
-		const glm::mat4&				GetModelMatrix() { return m_ModelMatrix; }
+		glm::mat4&				GetModelMatrix() { return m_ModelMatrix; }
 		const Unique<VertexBuffer>&		GetVBO() { return m_VBO; }
 		const Unique<IndexBuffer>&		GetIBO() { return m_IBO; }
 		void							DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);

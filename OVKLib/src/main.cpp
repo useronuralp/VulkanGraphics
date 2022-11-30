@@ -27,6 +27,8 @@
 #include <Curl.h>
 #include <filesystem>
 
+#include <glm/gtx/matrix_decompose.hpp>
+
 #define POINT_LIGHT_COUNT 4
 #define SHADOW_DIM 10000 // Shadow map resolution.
 #define MAX_FRAMES_IN_FLIGHT 2 // TO DO: I can't seem to get an FPS boost by rendering multiple frames at once.
@@ -662,6 +664,7 @@ public:
 
         HDRFramebuffer = std::make_shared<Framebuffer>(HDRRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
     }
+
     void CreateHDRRenderPass()
     {
         // HDR render pass.
@@ -709,10 +712,11 @@ public:
         VkSubpassDependency dependency{};
         dependency.srcSubpass = 0;
         dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        // TO DO: I don't know if these synchronization values are correct. UNDERSTAND THEM BETTER.
+        dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
         std::array<VkAttachmentDescription, 2> attachmentDescriptions;
         attachmentDescriptions[0] = colorAttachmentDescription;
@@ -775,6 +779,7 @@ public:
 
         ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &shadowMapRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
     }
+
     void SetupParticleSystems()
     {
         particleTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
@@ -1382,6 +1387,15 @@ private:
         ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
 
         ImGui::SliderFloat3("Directional Light", &directionalLightPosition.x, -50, 50);
+
+
+        float* p[3] =
+        {
+            &model2->GetModelMatrix()[3].x,
+            &model2->GetModelMatrix()[3].y,
+            &model2->GetModelMatrix()[3].z,
+        };
+        ImGui::SliderFloat3("Model2", *p, -10, 10, "%.3f");
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();

@@ -143,7 +143,7 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.03f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.01f) * vec3(albedo) * ao;
    vec3 color = ambient + (Lo * (1.0 - shadow));
      
    return color;
@@ -188,7 +188,7 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    float NdotL = max(dot(normal, L), 0.0);                
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
-   vec3 ambient = vec3(0.001f) * vec3(albedo) * ao;
+   vec3 ambient = vec3(0.000f) * vec3(albedo) * ao;
    vec3 color = Lo;
     
    return color;
@@ -224,7 +224,7 @@ void main()
    color += CalcPointLight(normal, viewDir, pointLightpositions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[3].x);
 
    // Reinhard tonemapping.
-   float gamma = 2.2;
+   float gamma = 3.2;
    color = color / (color + vec3(1.0));
    color = pow(color, vec3(1.0/gamma)); 
 
