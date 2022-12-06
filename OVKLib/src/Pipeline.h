@@ -16,8 +16,9 @@ namespace OVK
 			// TO DO: Check these references here. Can you make them Unique<> ?
 			VkRenderPass*						 pRenderPass;
 			Ref<DescriptorLayout>				 DescriptorLayout; 
-			std::string							 VertexShaderPath; 
-			std::string							 FragmentShaderPath; 
+			std::string							 VertexShaderPath = "None";
+			std::string							 FragmentShaderPath = "None";
+			std::string							 GeometryShaderPath = "None";
 			VkPolygonMode						 PolygonMode;
 			VkCullModeFlags						 CullMode; 
 			VkFrontFace							 FrontFace; 
@@ -30,10 +31,11 @@ namespace OVK
 			VkCompareOp							 DepthCompareOp;
 			uint32_t							 ViewportWidth  = UINT32_MAX;
 			uint32_t							 ViewportHeight = UINT32_MAX;
-			bool								 EnablePushConstant = false;
-			uint32_t							 PushConstantOffset  = 0;
-			uint32_t							 PushConstantSize = 0;
-			VkShaderStageFlags					 PushConstantShaderStage;
+			std::vector<VkPushConstantRange>	 PushConstantRanges;
+			//bool								 EnablePushConstant = false;
+			//uint32_t							 PushConstantOffset  = 0;
+			//uint32_t							 PushConstantSize = 0;
+			//VkShaderStageFlags					 PushConstantShaderStage;
 			VkPrimitiveTopology					 PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 			VkPipelineColorBlendAttachmentState	 ColorBlendAttachmentState;
 			VkVertexInputBindingDescription*	 pVertexInputBindingDescriptions = nullptr;

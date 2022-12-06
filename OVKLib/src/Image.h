@@ -9,7 +9,8 @@ namespace OVK
 	enum class ImageType
 	{
 		COLOR,
-		DEPTH
+		DEPTH,
+		DEPTH_CUBEMAP //point light shadows
 	};
 	class Image
 	{

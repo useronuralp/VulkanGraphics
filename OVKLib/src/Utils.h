@@ -14,7 +14,7 @@ namespace OVK
 		static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 		static VkSampler CreateSampler(Ref<Image> image, ImageType imageType, VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode, VkBool32 anisotrophy);
 		static VkSampler CreateCubemapSampler();
-		static void WriteDescriptorSetWithSampler(const VkDescriptorSet& dscSet, const VkSampler& sampler, const VkImageView& imageView, uint32_t bindingIndex, VkImageLayout layout);
+		static void WriteDescriptorSetWithSampler(const VkDescriptorSet& dscSet, const VkSampler& sampler, const VkImageView& imageView, uint32_t bindingIndex, VkImageLayout layout, int arrayIndex = 0);
 		static VkFormat FindDepthFormat();
 		static VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 	};

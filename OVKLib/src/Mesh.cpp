@@ -11,8 +11,8 @@ namespace OVK
 {
 
 	Mesh::Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Image>& diffuseTexture, const Ref<Image>& normalTexture,
-		const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, const Ref<Image>& shadowMap)
-		: m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture), m_ShadowMap(shadowMap), m_Vertices(vertices), m_Indices(indices)
+		const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, const Ref<Image>& shadowMap, std::vector<Ref<Image>> pointShadows)
+		: m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture), m_ShadowMap(shadowMap), m_Vertices(vertices), m_Indices(indices), m_PointShadows(pointShadows)
 	{
 		VkDescriptorSetAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -50,8 +50,16 @@ namespace OVK
 				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_ShadowMap->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
+			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_POINTSHADOWMAP)
+			{
+				for (int i = 0; i < m_PointShadows.size(); i++)
+				{
+					sampler = Utils::CreateCubemapSampler();
+					Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_PointShadows[i]->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, i);
+					m_Samplers.push_back(sampler);
+				}
+			}
 		}
-		m_ShadowMap = shadowMap;
 	}
 
 	Mesh::Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)

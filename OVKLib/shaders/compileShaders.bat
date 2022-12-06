@@ -8,10 +8,14 @@
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe emissiveShader.vert -o	emissiveShaderVERT.spv
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe particle.frag -o particleFRAG.spv
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe particle.vert -o particleVERT.spv
-..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe shadowPass.frag -o	shadowPassFRAG.spv
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe shadowPass.vert -o	shadowPassVERT.spv
+..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe pointShadowPass.frag -o pointShadowPassFRAG.spv
+..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe pointShadowPass.vert -o pointShadowPassVERT.spv
+..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe pointShadowPass.geom -o pointShadowPassGEOM.spv
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe PBRShader.vert -o PBRShaderVERT.spv
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe PBRShader.frag -o PBRShaderFRAG.spv
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe cubemap.frag -o cubemapFRAG.spv
 ..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe cubemap.vert -o cubemapVERT.spv
+..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe cube.frag -o cubeFRAG.spv
+..\vendor\VULKAN\1.3.211.0\Bin\glslc.exe cube.vert -o cubeVERT.spv
 pause

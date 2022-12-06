@@ -23,13 +23,13 @@ namespace OVK
 
         std::vector<DescriptorBindingSpecs> layout
         {
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, ShaderStage::FRAGMENT , 0},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, ShaderStage::FRAGMENT , 1},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
         };
 
         std::vector<DescriptorBindingSpecs> layout2
         {
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, ShaderStage::FRAGMENT , 0},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
         };
 
         std::vector<VkDescriptorType> types;
@@ -110,7 +110,6 @@ namespace OVK
         specs.FragmentShaderPath = "shaders/finalPassShaderFRAG.spv";
         specs.ViewportHeight = m_MergeFramebuffer->GetHeight();
         specs.ViewportWidth = m_MergeFramebuffer->GetWidth();
-        specs.EnablePushConstant = false;
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -521,7 +520,6 @@ namespace OVK
         specs.FragmentShaderPath = "shaders/brightnessFilterFRAG.spv";
         specs.ViewportHeight = m_BrightnessIsolatedFramebuffer->GetHeight();
         specs.ViewportWidth = m_BrightnessIsolatedFramebuffer->GetWidth();
-        specs.EnablePushConstant = false;
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -556,7 +554,6 @@ namespace OVK
             specs.FragmentShaderPath = "shaders/blurShaderFRAG.spv";
             specs.ViewportHeight = m_BlurFramebuffers[i]->GetHeight();
             specs.ViewportWidth = m_BlurFramebuffers[i]->GetWidth();
-            specs.EnablePushConstant = false;
 
             colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
             colorBlendAttachment.blendEnable = VK_TRUE;
@@ -578,7 +575,8 @@ namespace OVK
             specs.FragmentShaderPath = "shaders/upscaleShaderFRAG.spv";
             specs.ViewportHeight = m_UpscalingFramebuffers[i]->GetHeight();
             specs.ViewportWidth = m_UpscalingFramebuffers[i]->GetWidth();
-            specs.EnablePushConstant = false;
+
+
             m_UpscalingPipelines[i] = std::make_shared<Pipeline>(specs);
         }
     }

@@ -12,19 +12,22 @@ layout(location = 0) out vec3 v_Pos;
 layout(location = 1) out vec2 v_UV;
 layout(location = 2) out vec3 v_Normal;
 layout(location = 3) out vec4 v_FragPosLightSpace;
-layout(location = 4) out vec3 v_DirLightPos;
-layout(location = 5) out vec3 v_CameraPos;
-layout(location = 6) out mat4 v_ViewMatrix;
-layout(location = 10) out smooth mat3 v_TBN;
+layout(location = 4) out mat4 v_ViewMatrix;
+layout(location = 8) out smooth mat3 v_TBN;
 
 
-layout(set = 0, binding = 0) uniform UBO
+layout(set = 0, binding = 0) uniform globalUBO
 {
-    mat4 viewMat;
-    mat4 projMat;
-    mat4 lightMVP;
-    vec4 dirLightPosition;
-    vec4 cameraPos;
+    mat4 viewMatrix;
+    mat4 projMatrix;
+    mat4 directionalLightMVP;
+    vec4 dirLightPos;
+    vec4 cameraPosition;
+    vec4 viewportDimension;
+    vec4 pointLightPositions[5];
+    vec4 pointlightIntensities[5];
+    vec4 directionalLightIntensity;
+    mat4 shadowMatrices[5][6];
 };
 
 layout( push_constant ) uniform modelMat
@@ -40,23 +43,21 @@ const mat4 bias = mat4(
 
 void main()
 {
-    v_UV                = a_UV;
-    v_Pos               = vec3(modelMatrix * vec4(a_Position, 1.0));
-    v_Normal            = mat3(modelMatrix) * a_Normal;   
+    v_UV                        = a_UV;
+    v_Pos                       = vec3(modelMatrix * vec4(a_Position, 1.0));
+    v_Normal                    = mat3(modelMatrix) * a_Normal;   
 
-    mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));
+    mat3 normalMatrix           = transpose(inverse(mat3(modelMatrix)));
 
-    vec3 T              = normalize(normalMatrix * a_Tangent);
-    vec3 N              = normalize(normalMatrix * a_Normal);
-    vec3 B              = normalize(normalMatrix * a_Bitangent);
+    vec3 T                      = normalize(normalMatrix * a_Tangent);
+    vec3 N                      = normalize(normalMatrix * a_Normal);
+    vec3 B                      = normalize(normalMatrix * a_Bitangent);
 
-    //T                   = normalize(T - dot(T, N) * N);
+    //T                         = normalize(T - dot(T, N) * N);
 
-    v_TBN               = transpose(mat3(T, B, N));
+    v_TBN                       = transpose(mat3(T, B, N));
 
-    v_FragPosLightSpace = bias * lightMVP * modelMatrix * vec4(a_Position, 1.0);
-    v_DirLightPos       = dirLightPosition.xyz;
-    v_CameraPos         = cameraPos.xyz;
+    v_FragPosLightSpace         = bias * directionalLightMVP * modelMatrix * vec4(a_Position, 1.0);
 
-    gl_Position = projMat * viewMat * modelMatrix * vec4(a_Position, 1.0);
+    gl_Position                 = projMatrix * viewMatrix * modelMatrix * vec4(a_Position, 1.0);
 }

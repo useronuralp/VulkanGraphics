@@ -1,28 +1,34 @@
 #version 450 core
 
-#define MAX_LIGHTS 8;
+#define MAX_LIGHTS 10;
 
 // INs
 layout(location = 0) in vec3  v_Pos;
 layout(location = 1) in vec2  v_UV;
 layout(location = 2) in vec3  v_Normal;
 layout(location = 3) in vec4  v_FragPosLightSpace;
-layout(location = 4) in vec3  v_DirLightPos;
-layout(location = 5) in vec3  v_CameraPos;
-layout(location = 6) in mat4  v_ViewMatrix;
-layout(location = 10) in mat3 v_TBN;
+layout(location = 4) in mat4  v_ViewMatrix;
+layout(location = 8) in mat3 v_TBN;
 
-layout(set = 0, binding = 1) uniform lightProperties
+layout(set = 0, binding = 0) uniform globalUBO
 {
-    vec4 pointLightpositions[4];
-    vec2 pointLightIntensities[4];
+    mat4 viewMatrix;
+    mat4 projMatrix;
+    mat4 directionalLightMVP;
+    vec4 dirLightPos;
+    vec4 cameraPosition;
+    vec4 viewportDimension;
+    vec4 pointLightPositions[5];
+    vec4 pointlightIntensities[5];
     vec4 directionalLightIntensity;
+    mat4 shadowMatrices[5][6];
 };
 
-layout(set = 0, binding = 2) uniform sampler2D u_DiffuseSampler;
-layout(set = 0, binding = 3) uniform sampler2D u_NormalSampler;
-layout(set = 0, binding = 4) uniform sampler2D u_RoughnessMetallicSampler;
-layout(set = 0, binding = 5) uniform sampler2D u_DirectionalShadowMap;
+layout(set = 0, binding = 1) uniform sampler2D u_DiffuseSampler;
+layout(set = 0, binding = 2) uniform sampler2D u_NormalSampler;
+layout(set = 0, binding = 3) uniform sampler2D u_RoughnessMetallicSampler;
+layout(set = 0, binding = 4) uniform sampler2D u_DirectionalShadowMap;
+layout(set = 0, binding = 5) uniform samplerCube[5] u_PointShadowMap;
 
 
 layout(location = 0) out vec4 FragColor;
@@ -110,6 +116,24 @@ float DirectionalShadowCalculation(vec4 fragPosLightSpace, vec3 fragPos, vec3 li
 	return shadow;
 }
 
+float PointShadowCalculation(int index, vec3 pointLightPosition)
+{
+    vec3 fragToLight = v_Pos - pointLightPosition;
+
+    float closestDepth = texture(u_PointShadowMap[index], fragToLight).r;
+
+    closestDepth *= 100.0;
+
+    float currentDepth = length(fragToLight);
+
+    float bias = 0.05f;
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+
+    return shadow;
+
+}
+
+
 vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float shadow, vec3 albedo, vec3 roughnessMetallic, vec3 lightColor)
 {
    float ao  = roughnessMetallic.r;
@@ -149,7 +173,7 @@ vec3 CalcDirectionalLight(vec3 normal, vec3 viewDir, vec3 dirLightPos, float sha
    return color;
 }
 
-vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, vec3 roughnessMetallic, vec3 lightColor, float intensity)
+vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, vec3 roughnessMetallic, vec3 lightColor, float intensity, float shadow)
 {
    float ao  = roughnessMetallic.r;
    float roughness = roughnessMetallic.g;
@@ -189,7 +213,7 @@ vec3 CalcPointLight(vec3 normal, vec3 viewDir, vec3 pointLightPos, vec3 albedo, 
    Lo += (kD * vec3(albedo) / PI + specular) * radiance * NdotL; 
 
    vec3 ambient = vec3(0.000f) * vec3(albedo) * ao;
-   vec3 color = Lo;
+   vec3 color = ambient + (Lo * (1.0 - shadow));
     
    return color;
 }
@@ -211,17 +235,28 @@ void main()
 
    //normal = v_Normal;
    
-   vec3 viewDir = normalize(v_TBN * v_CameraPos - v_TBN * v_Pos);
+   vec3 viewDir = normalize(v_TBN * cameraPosition.xyz - v_TBN * v_Pos);
    
-   float directionalShadow = DirectionalShadowCalculation(v_FragPosLightSpace, v_Pos, v_DirLightPos, normal);
-   
+   float directionalShadow = DirectionalShadowCalculation(v_FragPosLightSpace, v_Pos, dirLightPos.xyz, normal);
    
    vec3 color = vec3(0.0);
-   color += CalcDirectionalLight(normal, viewDir, v_DirLightPos, directionalShadow, albedo, roughnessMetallicTex, vec3(1.0, 1.0, 1.0));
-   color += CalcPointLight(normal, viewDir, pointLightpositions[0].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[0].x);
-   color += CalcPointLight(normal, viewDir, pointLightpositions[1].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[1].x);
-   color += CalcPointLight(normal, viewDir, pointLightpositions[2].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[2].x);
-   color += CalcPointLight(normal, viewDir, pointLightpositions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointLightIntensities[3].x);
+   color += CalcDirectionalLight(normal, viewDir, dirLightPos.xyz, directionalShadow, albedo, roughnessMetallicTex, vec3(1.0, 1.0, 1.0));
+
+   float pointShadow = PointShadowCalculation(0, pointLightPositions[0].xyz);
+   color += CalcPointLight(normal, viewDir, pointLightPositions[0].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[0].x, pointShadow);
+   
+   pointShadow = PointShadowCalculation(1, pointLightPositions[1].xyz);
+   color += CalcPointLight(normal, viewDir, pointLightPositions[1].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[1].x, pointShadow);
+   
+   pointShadow = PointShadowCalculation(2, pointLightPositions[2].xyz);
+   color += CalcPointLight(normal, viewDir, pointLightPositions[2].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[2].x, pointShadow);
+   
+   pointShadow = PointShadowCalculation(3, pointLightPositions[3].xyz);
+   color += CalcPointLight(normal, viewDir, pointLightPositions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[3].x, pointShadow);
+
+   pointShadow = PointShadowCalculation(4, pointLightPositions[4].xyz);
+   color += CalcPointLight(normal, viewDir, pointLightPositions[4].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.12, 0.19), pointlightIntensities[4].x, pointShadow);
+   
 
    // Reinhard tonemapping.
    float gamma = 3.2;

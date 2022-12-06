@@ -31,7 +31,7 @@ namespace OVK
 	private:
 		Mesh() = default;
 		Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Image>& diffuseTexture,
-			const Ref<Image>& normalTexture, const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, const Ref<Image>& shadowMap = nullptr);
+			const Ref<Image>& normalTexture, const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, const Ref<Image>& shadowMap = nullptr, std::vector<Ref<Image>> pointShadows = std::vector<Ref<Image>>());
 		Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
 		~Mesh();
 	private:
@@ -49,5 +49,6 @@ namespace OVK
 		Ref<Image>		m_ShadowMap			= nullptr;
 		// Cubemap texture, in case a mesh is created as a cubemap.
 		Ref<Image>	m_CubemapTexture = nullptr;
+		std::vector<Ref<Image>> m_PointShadows;
 	};
 }

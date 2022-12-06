@@ -17,19 +17,15 @@ namespace OVK
 		TEXTURE_SAMPLER_ROUGHNESSMETALLIC,
 		TEXTURE_SAMPLER_CUBEMAP,
 		UNIFORM_BUFFER,
-	};
-	enum class ShaderStage
-	{
-		FRAGMENT,
-		VERTEX
+		TEXTURE_SAMPLER_POINTSHADOWMAP
 	};
 	struct DescriptorBindingSpecs
 	{
-		Type		Type;
-		size_t		Size;
-		int			Count;
-		ShaderStage ShaderStage;
-		uint32_t	Binding;
+		Type					Type;
+		size_t					Size;
+		int						Count;
+		VkShaderStageFlags	ShaderStage;
+		uint32_t				Binding;
 	};
 	class Pipeline;
 	class DescriptorLayout
@@ -73,12 +69,4 @@ namespace OVK
 		std::vector<DescriptorBindingSpecs>    m_SetLayout;
 	};
 
-	static VkShaderStageFlags FromShaderStageToVulkanStageFlags(ShaderStage stage)
-	{
-		switch (stage)
-		{
-			case ShaderStage::FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
-			case ShaderStage::VERTEX:	return VK_SHADER_STAGE_VERTEX_BIT;
-		}
-	}
 }

@@ -100,7 +100,7 @@ namespace OVK
     {
         vkDestroyCommandPool(VulkanApplication::s_Device->GetVKDevice(), pool, nullptr);
     }
-    void CommandBuffer::PushConstants(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, VkShaderStageFlagBits shaderStage, uint32_t offset, uint32_t size, const void* pValues)
+    void CommandBuffer::PushConstants(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, VkShaderStageFlags shaderStage, uint32_t offset, uint32_t size, const void* pValues)
     {
         vkCmdPushConstants(cmdBuffer, pipelineLayout, shaderStage, offset, size, pValues);
     }

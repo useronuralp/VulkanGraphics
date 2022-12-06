@@ -23,8 +23,8 @@ namespace OVK
             delete m_Meshes[i];
         }
     }
-    Model::Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap)
-        :m_FullPath(path), m_Flags(flags), m_DefaultShadowMap(shadowMap)
+    Model::Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap, std::vector<Ref<Image>> pointShadows)
+        :m_FullPath(path), m_Flags(flags), m_DefaultShadowMap(shadowMap), m_DefaultPointShadowMaps(pointShadows)
 	{
         m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
         Assimp::Importer importer;
@@ -179,7 +179,7 @@ namespace OVK
             normalTexture            = LoadMaterialTextures(material, aiTextureType_NORMALS, m_NormalsCache);   // Load Normal map.
             roughnessMetallicTexture = LoadMaterialTextures(material, aiTextureType_UNKNOWN, m_RoughnessMetallicCache); // Load RoughnessMetallic (.gltf) texture
         }
-        return new Mesh(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, pool, layout, m_DefaultShadowMap);
+        return new Mesh(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, pool, layout, m_DefaultShadowMap, m_DefaultPointShadowMaps);
     }
 
     Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache)
@@ -246,25 +246,25 @@ namespace OVK
 
     void Model::Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout)
     {
-        // Currently used only to draw skyboxes. Extend if you need it.
+        // Currently used only to draw skyboxes/cubes. Extend if you need it.
         VkDeviceSize vertexOffset = 0;
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[0]->GetDescriptorSet(), 0, nullptr);
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
         vkCmdDraw(commandBuffer, 36, 1, 0, 0);
     }
 
-    void Model::Rotate(const float& degree, const float& x, const float& y, const float& z)
+    void Model::Rotate(const float degree, const float& x, const float& y, const float& z)
     {
-        m_ModelMatrix = glm::rotate(m_ModelMatrix, glm::radians(degree), glm::vec3(x, y, z));
+        m_Transform = glm::rotate(m_Transform, glm::radians(degree), glm::vec3(x, y, z));
     }
 
     void Model::Translate(const float& x, const float& y, const float& z)
     {
-        m_ModelMatrix = glm::translate(m_ModelMatrix, glm::vec3(x, y, z));
+        m_Transform = glm::translate(m_Transform, glm::vec3(x, y, z));
     }
 
     void Model::Scale(const float& x, const float& y, const float& z)
     {
-        m_ModelMatrix = glm::scale(m_ModelMatrix, glm::vec3(x, y, z));
+        m_Transform = glm::scale (m_Transform, glm::vec3(x, y, z));
     }
 }

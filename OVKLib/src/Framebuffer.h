@@ -8,7 +8,7 @@ namespace OVK
 	{
 	public:
 		Framebuffer() = default;
-		Framebuffer(const VkRenderPass& renderPass, std::vector<VkImageView> attachments, uint32_t width, uint32_t height);
+		Framebuffer(const VkRenderPass& renderPass, std::vector<VkImageView> attachments, uint32_t width, uint32_t height, int layerCount = 1);
 		~Framebuffer();
 		const uint32_t&			GetWidth()  { return m_Width;  }
 		const uint32_t&			GetHeight() { return m_Height; }

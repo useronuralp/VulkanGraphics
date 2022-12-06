@@ -38,29 +38,64 @@ namespace OVK
             VK_DYNAMIC_STATE_SCISSOR
         };
 
+        std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+
+
+        std::vector<char> vertShaderCode;
+        std::vector<char> fragShaderCode;
+        std::vector<char> geomShaderCode;
+
+        VkShaderModule vertShaderModule = VK_NULL_HANDLE;
+        VkShaderModule fragShaderModule = VK_NULL_HANDLE;
+        VkShaderModule geomShaderModule = VK_NULL_HANDLE;
         // Read shaders from file.
-        auto vertShaderCode = Utils::ReadFile(m_CI.VertexShaderPath);
-        auto fragShaderCode = Utils::ReadFile(m_CI.FragmentShaderPath);
+        if (m_CI.VertexShaderPath != "None")
+        {
+            vertShaderCode = Utils::ReadFile(m_CI.VertexShaderPath);
+            vertShaderModule = CreateShaderModule(vertShaderCode);
+
+            // Vertex shader stage info.
+            VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+            vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+            vertShaderStageInfo.module = vertShaderModule;
+            vertShaderStageInfo.pName = "main"; // Shaders can have multiple entry points. Input the name of the entry point you want.
+
+            shaderStages.push_back(vertShaderStageInfo);
+        }
+        if (m_CI.FragmentShaderPath!= "None")
+        {
+            fragShaderCode = Utils::ReadFile(m_CI.FragmentShaderPath);
+            fragShaderModule = CreateShaderModule(fragShaderCode);
+
+            // Fragment shader stage info.
+            VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+            fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+            fragShaderStageInfo.module = fragShaderModule;
+            fragShaderStageInfo.pName = "main";
+
+            shaderStages.push_back(fragShaderStageInfo);
+        }
+
+        if (m_CI.GeometryShaderPath != "None")
+        {
+            geomShaderCode = Utils::ReadFile(m_CI.GeometryShaderPath);
+            geomShaderModule = CreateShaderModule(geomShaderCode);
+
+            // Fragment shader stage info.
+            VkPipelineShaderStageCreateInfo geomShaderStageInfo{};
+            geomShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            geomShaderStageInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+            geomShaderStageInfo.module = geomShaderModule;
+            geomShaderStageInfo.pName = "main";
+
+            shaderStages.push_back(geomShaderStageInfo);
+        }
 
 
-        VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
-        VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
 
-        // Vertex shader stage info.
-        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-        vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // Shaders can have multiple entry points. Input the name of the entry point you want.
 
-        // Fragment shader stage info.
-        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        fragShaderStageInfo.module = fragShaderModule;
-        fragShaderStageInfo.pName = "main";
-
-        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
 
         // This "VkPipelineVertexInputStateCreateInfo" strcut specifies the format of the data that you are going to pass to the vertex shader.
@@ -180,14 +215,13 @@ namespace OVK
         pipelineLayoutInfo.setLayoutCount = 1;
         pipelineLayoutInfo.pSetLayouts = &m_CI.DescriptorLayout->GetDescriptorLayout();
 
-        VkPushConstantRange pushConstantRange;
-        if (m_CI.EnablePushConstant)
+        if (m_CI.PushConstantRanges.size() > 0)
         {
-            pushConstantRange.offset = m_CI.PushConstantOffset;
-            pushConstantRange.size = m_CI.PushConstantSize;
-            pushConstantRange.stageFlags = m_CI.PushConstantShaderStage;
-            pipelineLayoutInfo.pushConstantRangeCount = 1; // Optional
-            pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange; // Optional
+            //pushConstantRange.offset = m_CI.PushConstantOffset;
+            //pushConstantRange.size = m_CI.PushConstantSize;
+            //pushConstantRange.stageFlags = m_CI.PushConstantShaderStage;
+            pipelineLayoutInfo.pushConstantRangeCount = m_CI.PushConstantRanges.size(); // Optional
+            pipelineLayoutInfo.pPushConstantRanges = m_CI.PushConstantRanges.data(); // Optional
         }
         else
         {
@@ -200,8 +234,8 @@ namespace OVK
         // This struct binds together all the other structs we have created so far in this function up above.
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.stageCount = 2;
-        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
+        pipelineInfo.pStages = shaderStages.data();
         pipelineInfo.pVertexInputState = &vertexInputInfo;
         pipelineInfo.pInputAssemblyState = &inputAssembly;
         pipelineInfo.pViewportState = &viewportState;
@@ -219,8 +253,18 @@ namespace OVK
 
         ASSERT(vkCreateGraphicsPipelines(VulkanApplication::s_Device->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) == VK_SUCCESS, "Failed to create graphics pipeline!");
 
-        vkDestroyShaderModule(VulkanApplication::s_Device->GetVKDevice(), fragShaderModule, nullptr);
-        vkDestroyShaderModule(VulkanApplication::s_Device->GetVKDevice(), vertShaderModule, nullptr);
+        if (m_CI.FragmentShaderPath != "None")
+        {
+            vkDestroyShaderModule(VulkanApplication::s_Device->GetVKDevice(), fragShaderModule, nullptr);
+        }
+        if (m_CI.VertexShaderPath!= "None")
+        {
+            vkDestroyShaderModule(VulkanApplication::s_Device->GetVKDevice(), vertShaderModule, nullptr);
+        }
+        if (m_CI.GeometryShaderPath != "None")
+        {
+            vkDestroyShaderModule(VulkanApplication::s_Device->GetVKDevice(), geomShaderModule, nullptr);
+        }
     }
     VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& shaderCode)
     {

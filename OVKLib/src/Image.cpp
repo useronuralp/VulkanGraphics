@@ -30,6 +30,7 @@ namespace OVK
         int texHeight;
         int texChannels;
 
+        // Texture data loading.
         if (m_IsCubemap)
         {
             for (uint32_t i = 0; i < 6; i++)
@@ -88,10 +89,11 @@ namespace OVK
         }
         vkUnmapMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory);
 
-        // Do a layout transition operation to move the data from the staging buffer to the VkImage.
-        // TO DO : Learn pipeline barriers.
+        // Transition the layout to allow copying to m_Image.
         TransitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        // Copy the data to m_Image.
         CopyBufferToImage(stagingBuffer, m_Width, m_Height);
+        // If the image is a cubemap we are done and we can transition the layout to the final format to make it readable from shaders.
         if (m_IsCubemap)
         {
             TransitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -99,6 +101,7 @@ namespace OVK
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), stagingBuffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), stagingBufferMemory, nullptr);
 
+        // If the image is not a cubemap we want to generate the mipmaps. This step will automatically transtion the image to a shader readable format when it is done.
         if(!m_IsCubemap)
             GenerateMipmaps();
 
@@ -250,10 +253,15 @@ namespace OVK
 
     void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType)
     {
-        VkImageCreateFlags flags = 0;
-        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
-        uint32_t arrayLayers = 1;
+        if (imageType == ImageType::DEPTH_CUBEMAP)
+        {
+            m_IsCubemap = true;
+        }
+
         uint32_t layerCount = 1;
+        uint32_t arrayLayers = 1;
+        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+        VkImageCreateFlags flags = 0;
 
         if (m_IsCubemap)
         {

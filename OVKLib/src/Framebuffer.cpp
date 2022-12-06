@@ -5,7 +5,7 @@
 #include <iostream>
 namespace OVK
 {
-	Framebuffer::Framebuffer(const VkRenderPass& renderPass, const std::vector<VkImageView> attachments, uint32_t width, uint32_t height)
+	Framebuffer::Framebuffer(const VkRenderPass& renderPass, const std::vector<VkImageView> attachments, uint32_t width, uint32_t height, int layerCount)
 	{
         m_Width = width;
         m_Height = height;
@@ -17,7 +17,7 @@ namespace OVK
         framebufferInfo.pAttachments = attachments.data();
         framebufferInfo.width = m_Width;
         framebufferInfo.height = m_Height;
-        framebufferInfo.layers = 1;
+        framebufferInfo.layers = layerCount;
         
         ASSERT(vkCreateFramebuffer(VulkanApplication::s_Device->GetVKDevice(), &framebufferInfo, nullptr, &m_Framebuffer) == VK_SUCCESS, "Failed to create framebuffer!");
 	}

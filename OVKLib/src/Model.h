@@ -15,12 +15,12 @@ namespace OVK
 {
 	enum LoadingFlags
 	{
-		NONE		   = -1,
+		NONE				   = -1,
 		LOAD_VERTEX_POSITIONS  = (uint32_t(1) << 0),
-		LOAD_NORMALS   = (uint32_t(1) << 1),
-		LOAD_UV		   = (uint32_t(1) << 2),
-		LOAD_TANGENT   = (uint32_t(1) << 3),
-		LOAD_BITANGENT = (uint32_t(1) << 4),
+		LOAD_NORMALS		   = (uint32_t(1) << 1),
+		LOAD_UV				   = (uint32_t(1) << 2),
+		LOAD_TANGENT		   = (uint32_t(1) << 3),
+		LOAD_BITANGENT		   = (uint32_t(1) << 4),
 	};
 	
 
@@ -55,26 +55,31 @@ namespace OVK
 		Model()  = default;
 		~Model();
 		// This constructor is used to construct a model that contains at least one mesh.
-		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap = nullptr);
+		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap = nullptr, std::vector<Ref<Image>> pointShadows = std::vector<Ref<Image>>());
 		// This constructor is used to construct a single meshed model (skybox).
 		Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
 		const std::vector<Mesh*>&		GetMeshes() { return m_Meshes; }
-		glm::mat4&				GetModelMatrix() { return m_ModelMatrix; }
+
+		glm::mat4& GetTransform()  { return m_Transform; }
+
+		void Rotate(const float degree, const float& x, const float& y, const float& z);
+		void Translate(const float& x, const float& y, const float& z);
+		void Scale(const float& x, const float& y, const float& z);
+
+
 		const Unique<VertexBuffer>&		GetVBO() { return m_VBO; }
 		const Unique<IndexBuffer>&		GetIBO() { return m_IBO; }
 		void							DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
 		void							Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
 
-		void Rotate(const float& degree, const float& x, const float& y, const float& z);
-		void Translate(const float& x, const float& y, const float& z);
-		void Scale(const float& x, const float& y, const float& z);
 	private:
-		void			ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
+		void		ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
 		Mesh*		ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
 		Ref<Image>	LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache);
 	private:
+
+		mutable glm::mat4		  m_Transform = glm::mat4(1.0f);
 		std::vector<Mesh*>		  m_Meshes;
-		glm::mat4				  m_ModelMatrix = glm::mat4(1.0f); 
 		LoadingFlags			  m_Flags;
 
 		std::vector<Ref<Image>> m_AlbedoCache;
@@ -90,6 +95,7 @@ namespace OVK
 		std::string  m_FullPath;
 		std::string  m_Directory;
 
+		std::vector<Ref<Image>> m_DefaultPointShadowMaps;
 		Ref<Image>		m_DefaultShadowMap = nullptr;
 		Ref<Image>		m_DefaultCubeMap = nullptr;
 		Ref<Image>		m_DefaultAlbedo =				std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib\\textures\\Magenta_ERROR.png") }, VK_FORMAT_R8G8B8A8_SRGB);

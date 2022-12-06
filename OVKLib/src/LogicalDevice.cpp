@@ -71,7 +71,8 @@ namespace OVK
 
         // Enable Anisotropy.
         VkPhysicalDeviceFeatures deviceFeatures{};
-        deviceFeatures.samplerAnisotropy = true;
+        deviceFeatures.samplerAnisotropy = VK_TRUE;
+        deviceFeatures.geometryShader = VK_TRUE;
 
         VkPhysicalDeviceFeatures pDeviceFeatures[] =
         {

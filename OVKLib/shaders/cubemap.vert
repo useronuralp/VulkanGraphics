@@ -2,7 +2,7 @@
 
 layout(location = 0) in vec3 a_Position;
 
-layout(binding = 0) uniform ViewProjMatrix
+layout(binding = 0) uniform globalUBO
 {
     mat4 ProjMat;
 };

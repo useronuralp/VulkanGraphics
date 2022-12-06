@@ -25,7 +25,7 @@ namespace OVK
 				bindings[bindingIndex].binding = bindingSpecs.Binding; // binding number used in the shader.
 				bindings[bindingIndex].descriptorCount = 1;
 				bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				bindings[bindingIndex].stageFlags = FromShaderStageToVulkanStageFlags(bindingSpecs.ShaderStage);
+				bindings[bindingIndex].stageFlags = bindingSpecs.ShaderStage;
 				bindings[bindingIndex].pImmutableSamplers = nullptr;
 
 				poolSizes[bindingIndex].descriptorCount = 1;
@@ -38,7 +38,7 @@ namespace OVK
 				bindings[bindingIndex].descriptorCount = 1;
 				bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				bindings[bindingIndex].pImmutableSamplers = nullptr;
-				bindings[bindingIndex].stageFlags = FromShaderStageToVulkanStageFlags(bindingSpecs.ShaderStage);
+				bindings[bindingIndex].stageFlags = bindingSpecs.ShaderStage;
 		
 				poolSizes[bindingIndex].descriptorCount = 1;
 				poolSizes[bindingIndex].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -127,9 +127,8 @@ namespace OVK
 				bindings[i].binding = layout[i].Binding; // binding number used in the shader.
 				bindings[i].descriptorCount = layout[i].Count;
 				bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				bindings[i].stageFlags = FromShaderStageToVulkanStageFlags(layout[i].ShaderStage);
+				bindings[i].stageFlags = layout[i].ShaderStage;
 				bindings[i].pImmutableSamplers = nullptr;
-
 			}
 			else
 			{
@@ -138,8 +137,7 @@ namespace OVK
 				bindings[i].descriptorCount = layout[i].Count;
 				bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				bindings[i].pImmutableSamplers = nullptr;
-				bindings[i].stageFlags = FromShaderStageToVulkanStageFlags(layout[i].ShaderStage);
-
+				bindings[i].stageFlags = layout[i].ShaderStage;
 			}
 		}
 

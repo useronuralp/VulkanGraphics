@@ -31,6 +31,6 @@ namespace OVK
 		static void Submit(const VkCommandBuffer& cmdBuffer, const VkQueue& queue);
 		static void Reset(const VkCommandBuffer& cmdBuffer);
 		static void DestroyCommandPool(const VkCommandPool& pool);
-		static void PushConstants(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, VkShaderStageFlagBits shaderStage, uint32_t offset, uint32_t size, const void* pValues);
+		static void PushConstants(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout, VkShaderStageFlags shaderStage, uint32_t offset, uint32_t size, const void* pValues);
 	};
 }

@@ -3,13 +3,11 @@
 layout(location = 0) in vec3 a_Position;
 
 
-layout(set = 0, binding = 0) uniform UBO
+layout(set = 0, binding = 0) uniform globalUBO
 {
     mat4 viewMat;
     mat4 projMat;
     mat4 lightMVP;
-    vec4 dirLightPosition;
-    vec4 cameraPos;
 };
 
 layout( push_constant ) uniform modelMat

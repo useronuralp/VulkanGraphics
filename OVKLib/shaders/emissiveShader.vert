@@ -3,10 +3,10 @@
 // INs
 layout(location = 0) in vec3 a_Position;
 
-layout(set = 0, binding = 0) uniform UBO
+layout(set = 0, binding = 0) uniform globalUBO
 {
-    mat4 viewMat;
-    mat4 projMat;
+    mat4 viewMatrix;
+    mat4 projMatrix;
 };
 
 layout( push_constant ) uniform modelMat
@@ -16,5 +16,5 @@ layout( push_constant ) uniform modelMat
 
 void main()
 {
-    gl_Position = projMat * viewMat * modelMatrix * vec4(a_Position, 1.0);
+    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(a_Position, 1.0);
 }

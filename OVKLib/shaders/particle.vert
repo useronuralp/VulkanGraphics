@@ -19,15 +19,15 @@ layout (location = 5) out float outRowCellSize;
 layout (location = 6) out float outColumnCellSize;
 
 
-layout(set = 0, binding = 0) uniform UBO
+layout(set = 0, binding = 0) uniform globalUBO
 {
 	// Most of these members are not being used by this shader since it is shared buffer. Consider optimizing.
-    mat4 viewMat;
-    mat4 projMat;
-    mat4 lightMVP;
-    vec4 dirLightPosition;
-    vec4 cameraPos;
-	vec4 viewportDimension;
+    mat4 viewMatrix;
+    mat4 projMatrix;
+    mat4 directionalLightMVP;
+    vec4 dirLightPos;
+    vec4 cameraPosition;
+    vec4 viewportDimension;
 };
 
 out gl_PerVertex
@@ -46,13 +46,13 @@ void main ()
 	outRowCellSize = inRowCellSize;
 	outColumnCellSize = inColumnCellSize;
 	  
-	gl_Position = projMat * viewMat * vec4(inPos.xyz, 1.0);	
+	gl_Position = projMatrix * viewMatrix * vec4(inPos.xyz, 1.0);	
 	
 	// Base size of the point sprites
 	float spriteSize = 0.02 * inSize;
 
 	// Scale particle size depending on camera projection
-	vec4 eyePos = viewMat * vec4(inPos.xyz, 1.0);
-	vec4 projectedCorner = projMat * vec4(0.5 * spriteSize, 0.5 * spriteSize, eyePos.z, eyePos.w);
+	vec4 eyePos = viewMatrix * vec4(inPos.xyz, 1.0);
+	vec4 projectedCorner = projMatrix * vec4(0.5 * spriteSize, 0.5 * spriteSize, eyePos.z, eyePos.w);
 	gl_PointSize = viewportDimension.x * projectedCorner.x / projectedCorner.w;	
 }

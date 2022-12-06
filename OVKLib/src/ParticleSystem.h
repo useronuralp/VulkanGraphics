@@ -110,8 +110,9 @@ namespace OVK
         void InitTrail(Particle* particle, glm::vec4 pos, float alpha, float size);
         void SetupParticles();
     public:
-        void SetUBO(VkBuffer& buffer, size_t writeRange);
+        void SetUBO(VkBuffer& buffer, size_t writeRange, size_t offset);
         void UpdateParticles(float deltaTime);
+        inline void SetEmitterPosition(const glm::vec3& pos) { m_EmitterPos = pos; }
         void Draw(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout);
     };
 }

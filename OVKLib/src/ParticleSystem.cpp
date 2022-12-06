@@ -163,7 +163,7 @@ namespace OVK
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
 
-    void ParticleSystem::SetUBO(VkBuffer& buffer, size_t writeRange)
+    void ParticleSystem::SetUBO(VkBuffer& buffer, size_t writeRange, size_t offset)
     {
         m_ParticleUBOBuffer = &buffer;
 
