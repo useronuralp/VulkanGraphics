@@ -8,8 +8,8 @@ namespace OVK
 	Camera::Camera(float fov, float aspectRatio, float nearClip, float farClip)
 		:m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip)
 	{
-		UpdateView();
 		UpdateProjection();
+		UpdateView();
 	}
 
 	void Camera::OnUpdate(float deltaTime)
@@ -71,15 +71,17 @@ namespace OVK
 
 	void Camera::MouseZoom(float delta)
 	{
-		float zoomSpeed = 1.0f;
+		float zoomSpeed = 4.0f;
 		if (IsKeyDown(GLFW_KEY_LEFT_CONTROL))
-			zoomSpeed *= 10.0f;
-		m_Distance -= delta * zoomSpeed * 4;
-		if (m_Distance < 0.01f)
-		{
-			m_FocalPoint += GetForwardDirection();
-			m_Distance = 0.01f;
-		}
+			zoomSpeed = 20.0f;
+
+		m_FocalPoint -= normalize(GetForwardDirection()) * delta * zoomSpeed;
+		//m_Distance -= delta * zoomSpeed * 4;
+		//if (m_Distance < 0.01f)
+		//{
+		//	m_FocalPoint += GetForwardDirection();
+		//	m_Distance = 0.01f;
+		//}
 	}
 
 	glm::vec3 Camera::CalculatePosition() const
