@@ -61,16 +61,16 @@ public:
 #pragma endregion
 
 #pragma region Images&Framebuffers
-    Ref<Framebuffer> shadowMapFramebuffer;
+    Ref<Framebuffer> directionalShadowMapFramebuffer;
     Ref<Framebuffer> HDRFramebuffer;
-    std::vector<Ref<Framebuffer>> pointShadowFramebuffers;
+    std::vector<Ref<Framebuffer>> pointShadowMapFramebuffers;
     // Attachments. Each framebuffer can have multiple attachments.
-    Ref<Image>       shadowMapImage;
+    Ref<Image>       directionalShadowMapImage;
     Ref<Image>       HDRColorImage;
     Ref<Image>       HDRDepthImage;
     Ref<Image>       particleTexture;
     Ref<Image>       fireTexture;
-    std::vector<Ref<Image>> pointShadowCubemaps;
+    std::vector<Ref<Image>> pointShadowMaps;
 #pragma endregion
 
 #pragma region RenderPassBeginInfos
@@ -192,10 +192,8 @@ public:
 
     int   frameCount = 0;
 
-    glm::mat4 lightViewMatrix       = glm::lookAt(glm::vec3(directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 lightProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, near_plane, far_plane);
+    glm::mat4 directionalLightProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, near_plane, far_plane);
     glm::mat4 pointLightProjectionMatrix = glm::perspective(glm::radians(90.0f), 1.0f, point_near_plane, point_far_plane);
-    glm::mat4 directionalLightMVP   = lightProjectionMatrix * lightViewMatrix;
 
     float m_LastFrameRenderTime;
     float m_DeltaTimeLastFrame = GetRenderTime();
@@ -461,7 +459,6 @@ public:
 
         shadowPassPipeline = std::make_shared<Pipeline>(specs);
     }
-
     void SetupPointShadowPassPipeline()
     {
         Pipeline::Specs specs{};
@@ -530,7 +527,6 @@ public:
 
         pointShadowPassPipeline = std::make_shared<Pipeline>(specs);
     }
-
     void SetupSkyboxPipeline()
     {
         Pipeline::Specs specs{};
@@ -796,185 +792,6 @@ public:
 
         EmissiveObjectPipeline = std::make_shared<Pipeline>(specs);
     }
-
-    void CreateHDRFramebuffer()
-    {
-        HDRColorImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
-            VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, ImageType::COLOR);
-
-
-        HDRDepthImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
-            Utils::FindDepthFormat(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, ImageType::DEPTH);
-
-        std::vector<VkImageView> attachments =
-        {
-            HDRColorImage->GetImageView(),
-            HDRDepthImage->GetImageView()
-        };
-
-        HDRFramebuffer = std::make_shared<Framebuffer>(HDRRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
-    }
-
-    void CreateHDRRenderPass()
-    {
-        // HDR render pass.
-        VkAttachmentDescription colorAttachmentDescription;
-        VkAttachmentReference colorAttachmentRef;
-
-        VkAttachmentDescription depthAttachmentDescription;
-        VkAttachmentReference depthAttachmentRef;
-
-        colorAttachmentDescription.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        colorAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachmentDescription.flags = 0;
-        colorAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        // Color att. reference.
-        colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        // A single depth attachment for depth testing / occlusion.
-        depthAttachmentDescription.format = Utils::FindDepthFormat();
-        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachmentDescription.flags = 0;
-        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        // Depth att. reference.
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-        VkSubpassDependency dependency{};
-        dependency.srcSubpass = 0;
-        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
-        // TO DO: I don't know if these synchronization values are correct. UNDERSTAND THEM BETTER.
-        dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-        std::array<VkAttachmentDescription, 2> attachmentDescriptions;
-        attachmentDescriptions[0] = colorAttachmentDescription;
-        attachmentDescriptions[1] = depthAttachmentDescription;
-
-
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()); // Number of attachments.
-        renderPassInfo.pAttachments = attachmentDescriptions.data(); // An array with the size of "attachmentCount".
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = 1;
-        renderPassInfo.pDependencies = &dependency;
-
-        ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &HDRRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
-    }
-    void CreateShadowRenderPass()
-    {
-        VkAttachmentDescription depthAttachmentDescription;
-        VkAttachmentReference depthAttachmentRef;
-
-        depthAttachmentDescription.format = VK_FORMAT_D32_SFLOAT;
-        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachmentDescription.flags = 0;
-        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-
-        depthAttachmentRef.attachment = 0;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 0;
-        subpass.pColorAttachments = 0;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-        VkSubpassDependency dependency;
-
-        dependency.srcSubpass = 0;
-        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = 1;
-        renderPassInfo.pAttachments = &depthAttachmentDescription;
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = 1;
-        renderPassInfo.pDependencies = &dependency;
-
-        ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &shadowMapRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
-    }
-
-    void CreatePointShadowRenderPass()
-    {
-        VkAttachmentDescription depthAttachmentDescription;
-        VkAttachmentReference depthAttachmentRef;
-
-        depthAttachmentDescription.format = VK_FORMAT_D32_SFLOAT;
-        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachmentDescription.flags = 0;
-        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-        depthAttachmentRef.attachment = 0;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 0;
-        subpass.pColorAttachments = 0;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-        VkSubpassDependency dependency;
-
-        dependency.srcSubpass = 0;
-        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = 1;
-        renderPassInfo.pAttachments = &depthAttachmentDescription;
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = 1;
-        renderPassInfo.pDependencies = &dependency;
-
-        ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &pointShadowRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
-    }
-
     void SetupParticleSystems()
     {
         particleTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
@@ -1118,6 +935,258 @@ public:
         fireBase4->ColumnCellSize = 0.166666666666666f;
         fireBase4->ColumnOffset = 0.0f;
     }
+
+    void CreateHDRFramebuffer()
+    {
+        HDRColorImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
+            VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, ImageType::COLOR);
+
+
+        HDRDepthImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
+            Utils::FindDepthFormat(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, ImageType::DEPTH);
+
+        std::vector<VkImageView> attachments =
+        {
+            HDRColorImage->GetImageView(),
+            HDRDepthImage->GetImageView()
+        };
+
+        HDRFramebuffer = std::make_shared<Framebuffer>(HDRRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
+    }
+    void CreateHDRRenderPass()
+    {
+        // HDR render pass.
+        VkAttachmentDescription colorAttachmentDescription;
+        VkAttachmentReference colorAttachmentRef;
+
+        VkAttachmentDescription depthAttachmentDescription;
+        VkAttachmentReference depthAttachmentRef;
+
+        colorAttachmentDescription.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        colorAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentDescription.flags = 0;
+        colorAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        // Color att. reference.
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        // A single depth attachment for depth testing / occlusion.
+        depthAttachmentDescription.format = Utils::FindDepthFormat();
+        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachmentDescription.flags = 0;
+        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        // Depth att. reference.
+        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = 0;
+        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+        // TO DO: I don't know if these synchronization values are correct. UNDERSTAND THEM BETTER.
+        dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        std::array<VkAttachmentDescription, 2> attachmentDescriptions;
+        attachmentDescriptions[0] = colorAttachmentDescription;
+        attachmentDescriptions[1] = depthAttachmentDescription;
+
+
+        VkRenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()); // Number of attachments.
+        renderPassInfo.pAttachments = attachmentDescriptions.data(); // An array with the size of "attachmentCount".
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
+        ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &HDRRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
+    }
+    void CreateShadowRenderPass()
+    {
+        VkAttachmentDescription depthAttachmentDescription;
+        VkAttachmentReference depthAttachmentRef;
+
+        depthAttachmentDescription.format = VK_FORMAT_D32_SFLOAT;
+        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachmentDescription.flags = 0;
+        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+        depthAttachmentRef.attachment = 0;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 0;
+        subpass.pColorAttachments = 0;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+        VkSubpassDependency dependency;
+
+        dependency.srcSubpass = 0;
+        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+        VkRenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &depthAttachmentDescription;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
+        ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &shadowMapRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
+    }
+    void CreatePointShadowRenderPass()
+    {
+        VkAttachmentDescription depthAttachmentDescription;
+        VkAttachmentReference depthAttachmentRef;
+
+        depthAttachmentDescription.format = VK_FORMAT_D32_SFLOAT;
+        depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachmentDescription.flags = 0;
+        depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        depthAttachmentRef.attachment = 0;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 0;
+        subpass.pColorAttachments = 0;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+        VkSubpassDependency dependency;
+
+        dependency.srcSubpass = 0;
+        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+        VkRenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &depthAttachmentDescription;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
+        ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &pointShadowRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
+    }
+
+    // Shadow map generators
+    void DirectionalShadowPass()
+    {
+        glm::mat4 mat = model->GetTransform();
+        glm::mat4 mat2 = model2->GetTransform();
+
+        // Start shadow pass.---------------------------------------------
+        CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
+
+        // Render the objects you want to cast shadows.
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
+
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+        model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
+
+        CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+        // End shadow pass.---------------------------------------------
+    }
+    void PointLightShadowPass()
+    {
+        glm::mat4 mat = model->GetTransform();
+        glm::mat4 mat2 = model2->GetTransform();
+
+        // Start point shadow pass.--------------------
+        for (int i = 0; i < POINT_LIGHT_COUNT; i++) 
+        {
+            pointShadowPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            pointShadowPassBeginInfo.renderPass = pointShadowRenderPass;
+            pointShadowPassBeginInfo.framebuffer = pointShadowMapFramebuffers[i]->GetVKFramebuffer();
+            pointShadowPassBeginInfo.renderArea.offset = { 0, 0 };
+            pointShadowPassBeginInfo.renderArea.extent.width = pointShadowMapFramebuffers[i]->GetWidth();
+            pointShadowPassBeginInfo.renderArea.extent.height = pointShadowMapFramebuffers[i]->GetHeight();
+            pointShadowPassBeginInfo.clearValueCount = 1;
+            pointShadowPassBeginInfo.pClearValues = &depthPassClearValue;
+
+            CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+            CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
+
+            glm::vec3 position = glm::vec3(globalParametersUBO.lightPositions[i].x, globalParametersUBO.lightPositions[i].y, globalParametersUBO.lightPositions[i].z);
+
+            globalParametersUBO.shadowMatrices[i][0] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
+            globalParametersUBO.shadowMatrices[i][1] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
+            globalParametersUBO.shadowMatrices[i][2] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
+            globalParametersUBO.shadowMatrices[i][3] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
+            globalParametersUBO.shadowMatrices[i][4] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0));
+            globalParametersUBO.shadowMatrices[i][5] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0));
+
+            struct PC
+            {
+                glm::vec4 lightPos;
+                glm::vec4 farPlane;
+            };
+
+            glm::vec4 pointLightIndex = glm::vec4(i);
+
+            PC pc;
+            pc.lightPos = glm::vec4(position, 1.0f);
+            pc.farPlane = glm::vec4(point_far_plane);
+
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
+            model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
+
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
+            model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
+
+            CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+            // End point shadow pass.----------------------
+        }
+    }
 private:
     void OnVulkanInit() override
     {
@@ -1131,8 +1200,8 @@ private:
     void OnStart() override
     {
         CurlNoise::SetCurlSettings(false, 4.0f, 6, 1.0, 0.0);
-        pointShadowCubemaps.resize(POINT_LIGHT_COUNT);
-        pointShadowFramebuffers.resize(POINT_LIGHT_COUNT);
+        pointShadowMaps.resize(POINT_LIGHT_COUNT);
+        pointShadowMapFramebuffers.resize(POINT_LIGHT_COUNT);
 
         std::vector<DescriptorBindingSpecs> hdrLayout
         {
@@ -1198,11 +1267,11 @@ private:
         vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBufferMemory, 0, sizeof(GlobalParametersUBO), 0, &mappedGlobalParametersModelUBOBuffer);
         
         // Create an image for the shadowmap. We will render to this image when we are doing a shadow pass.
-        shadowMapImage = std::make_shared<Image>(SHADOW_DIM, SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), ImageType::DEPTH);
+        directionalShadowMapImage = std::make_shared<Image>(SHADOW_DIM, SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), ImageType::DEPTH);
 
         for (int i = 0; i < POINT_LIGHT_COUNT; i++)
         {
-            pointShadowCubemaps[i] = std::make_shared<Image>(POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT),
+            pointShadowMaps[i] = std::make_shared<Image>(POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT),
                 ImageType::DEPTH_CUBEMAP);
         }
 
@@ -1216,6 +1285,7 @@ private:
         VkResult rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &finalPassDescriptorSet);
         ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
+        // Setup resources.
         CreateHDRRenderPass();
         CreateShadowRenderPass();
         CreatePointShadowRenderPass();
@@ -1231,41 +1301,44 @@ private:
         SetupEmissiveObjectPipeline();
         SetupParticleSystemPipeline();
 
+        // Directional light shadowmap framebuffer.
         std::vector<VkImageView> attachments =
         {
-            shadowMapImage->GetImageView()
+            directionalShadowMapImage->GetImageView()
         };
         
-        shadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, attachments, SHADOW_DIM, SHADOW_DIM);
+        directionalShadowMapFramebuffer = std::make_shared<Framebuffer>(shadowMapRenderPass, attachments, SHADOW_DIM, SHADOW_DIM);
         
+
+        // Framebuffers need for point light shadows. (Dependent on the number of point lights in the scene)
         for (int i = 0; i < POINT_LIGHT_COUNT; i++)
         {
 
             attachments =
             {
-                pointShadowCubemaps[i]->GetImageView()
+                pointShadowMaps[i]->GetImageView()
             };
 
 
-            pointShadowFramebuffers[i] = std::make_shared<Framebuffer>(pointShadowRenderPass, attachments, POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, 6);
+            pointShadowMapFramebuffers[i] = std::make_shared<Framebuffer>(pointShadowRenderPass, attachments, POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, 6);
         }
 
         // Loading the model Sponza
         model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
-            pool, PBRLayout, shadowMapImage, pointShadowCubemaps );
+            pool, PBRLayout, directionalShadowMapImage, pointShadowMaps );
         model->Scale(0.005f, 0.005f, 0.005f);
         WriteDescriptorSetWithUBOs(model);
 
         // Loading the model Malenia's Helmet.
         model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
-            pool, PBRLayout, shadowMapImage, pointShadowCubemaps);
+            pool, PBRLayout, directionalShadowMapImage, pointShadowMaps);
         model2->Translate(0.0, 2.0f, 0.0);
         model2->Rotate(90, 0, 1, 0);
         model2->Scale(0.7f, 0.7f, 0.7f);
         WriteDescriptorSetWithUBOs(model2);
 
         torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
-            pool, PBRLayout, shadowMapImage, pointShadowCubemaps);
+            pool, PBRLayout, directionalShadowMapImage, pointShadowMaps);
 
 
         torch1modelMatrix = glm::translate(torch1modelMatrix, glm::vec3(2.450f, 1.3f, 0.810f));
@@ -1374,21 +1447,36 @@ private:
         WriteDescriptorSetCube(cube);
 
 
-        // Configure the render pass begin info for the depth pass here.
+        // Shadow pass begin Info.
         depthPassClearValue = { 1.0f, 0.0 };
         
         depthPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         depthPassBeginInfo.renderPass = shadowMapRenderPass;
-        depthPassBeginInfo.framebuffer = shadowMapFramebuffer->GetVKFramebuffer();
+        depthPassBeginInfo.framebuffer = directionalShadowMapFramebuffer->GetVKFramebuffer();
         depthPassBeginInfo.renderArea.offset = { 0, 0 };
-        depthPassBeginInfo.renderArea.extent.width = shadowMapFramebuffer->GetWidth();
-        depthPassBeginInfo.renderArea.extent.height = shadowMapFramebuffer->GetHeight();
+        depthPassBeginInfo.renderArea.extent.width = directionalShadowMapFramebuffer->GetWidth();
+        depthPassBeginInfo.renderArea.extent.height = directionalShadowMapFramebuffer->GetHeight();
         depthPassBeginInfo.clearValueCount = 1;
         depthPassBeginInfo.pClearValues = &depthPassClearValue;
 
 
+        // HDR pass begin Info.
+        clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+        clearValues[1].depthStencil = { 1.0f, 0 };
 
-        CommandBuffer::CreateCommandPool(s_GraphicsQueueFamily, cmdPool); 
+        HDRRenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        HDRRenderPassBeginInfo.framebuffer = HDRFramebuffer->GetVKFramebuffer();
+        HDRRenderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        HDRRenderPassBeginInfo.pClearValues = clearValues.data();
+        HDRRenderPassBeginInfo.pNext = nullptr;
+        HDRRenderPassBeginInfo.renderPass = HDRRenderPass;
+        HDRRenderPassBeginInfo.renderArea.offset = { 0, 0 };
+        HDRRenderPassBeginInfo.renderArea.extent.height = HDRFramebuffer->GetHeight();
+        HDRRenderPassBeginInfo.renderArea.extent.width = HDRFramebuffer->GetWidth();
+
+
+
+        CommandBuffer::CreateCommandBufferPool(s_GraphicsQueueFamily, cmdPool); 
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -1396,7 +1484,7 @@ private:
         }
 
         bloomAgent = std::make_shared<Bloom>();
-        bloomAgent->ConnectImageResourceToAddBloom(HDRColorImage);
+        bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
         finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1406,12 +1494,47 @@ private:
         // Begin command buffer recording.
         CommandBuffer::BeginRecording(cmdBuffers[CurrentFrameIndex()]);
 
+        // Timer.
+        float deltaTime;
+        deltaTime = DeltaTime();
+        timer += 7.0f * deltaTime;
+
+        // Update model matrices here.
+        model2->Rotate(2.0f * deltaTime, 0, 1, 0);
+
+        // Update the particle systems.
+        fireSparks->UpdateParticles(deltaTime);
+        fireSparks2->UpdateParticles(deltaTime);
+        fireSparks3->UpdateParticles(deltaTime);
+        fireSparks4->UpdateParticles(deltaTime);
+        fireBase->UpdateParticles(deltaTime);
+        fireBase2->UpdateParticles(deltaTime);
+        fireBase3->UpdateParticles(deltaTime);
+        fireBase4->UpdateParticles(deltaTime);
+
+        // Animating the directional light
+        glm::mat4 directionalLightMVP = directionalLightProjectionMatrix * glm::lookAt(glm::vec3(directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        // General data.
+        glm::mat4 cameraView = s_Camera->GetViewMatrix();
+        glm::mat4 cameraProj = s_Camera->GetProjectionMatrix();
+        glm::vec4 cameraPos = glm::vec4(s_Camera->GetPosition(), 1.0f);
+        glm::mat4 mat = model->GetTransform();
+        glm::mat4 mat2 = model2->GetTransform();
+
+        // Update some of parts of the global UBO buffer
+        globalParametersUBO.viewMatrix = cameraView;
+        globalParametersUBO.projMatrix = cameraProj;
+        globalParametersUBO.cameraPosition = cameraPos;
+        globalParametersUBO.dirLightPos = directionalLightPosition;
+        globalParametersUBO.directionalLightMVP = directionalLightMVP;
+        globalParametersUBO.viewportDimension = glm::vec4(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height, 0.0f, 0.0f);
+
         // Update point light positions. (Connected to the torch models.)
         globalParametersUBO.lightPositions[0] = glm::vec4(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f), 1.0f);
         globalParametersUBO.lightPositions[1] = glm::vec4(glm::vec3(torch2modelMatrix[3].x, torch2modelMatrix[3].y + 0.22f, torch2modelMatrix[3].z + 0.02f), 1.0f);
         globalParametersUBO.lightPositions[2] = glm::vec4(glm::vec3(torch3modelMatrix[3].x, torch3modelMatrix[3].y + 0.22f, torch3modelMatrix[3].z - 0.02f), 1.0f);
         globalParametersUBO.lightPositions[3] = glm::vec4(glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.22f, torch4modelMatrix[3].z + 0.02f), 1.0f);
-
 
         // Update Particle system positions. (Connected to the torch models)
         fireSparks->SetEmitterPosition(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f));
@@ -1423,15 +1546,6 @@ private:
         fireBase2->SetEmitterPosition(glm::vec3(torch2modelMatrix[3].x, torch2modelMatrix[3].y + 0.28f, torch2modelMatrix[3].z + 0.03f));
         fireBase3->SetEmitterPosition(glm::vec3(torch3modelMatrix[3].x, torch3modelMatrix[3].y + 0.28f, torch3modelMatrix[3].z - 0.03f));
         fireBase4->SetEmitterPosition(glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.28f, torch4modelMatrix[3].z + 0.03f));
-
-        // Timer.
-        float deltaTime;
-        deltaTime = DeltaTime();
-        timer += 7.0f * deltaTime;
-
-        // Animating the light
-        lightViewMatrix = glm::lookAt(glm::vec3(directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        directionalLightMVP = lightProjectionMatrix * lightViewMatrix;
 
         lightFlickerRate -= deltaTime * 1.0f;
 
@@ -1451,96 +1565,16 @@ private:
             globalParametersUBO.lightIntensities[4] = glm::vec4(500.0f);
         }
 
+        // Shadow passes ---------
+        DirectionalShadowPass();
+        PointLightShadowPass();
+        // Shadow passes end  ----
 
-        glm::mat4 view = s_Camera->GetViewMatrix();
-        glm::mat4 proj = s_Camera->GetProjectionMatrix();
-        glm::vec4 cameraPos = glm::vec4(s_Camera->GetPosition(), 1.0f);
-
-
-        
-        glm::mat4 mat = model->GetTransform();
-        model2->Rotate(2.0f * deltaTime, 0, 1, 0);
-        glm::mat4 mat2 = model2->GetTransform();
-
-        VkDeviceSize offset = 0;
-
-        // Start shadow pass.---------------------------------------------
-        CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
-
-        // Render the objects you want to cast shadows.
-        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
-        
-        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-        model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
-        
-        CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
-        // End shadow pass.---------------------------------------------
-
-        
-        // Start point shadow pass.--------------------
-        for (int i = 0; i < POINT_LIGHT_COUNT; i++) // Point light count goes here
-        {
-
-            pointShadowPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            pointShadowPassBeginInfo.renderPass = pointShadowRenderPass;
-            pointShadowPassBeginInfo.framebuffer = pointShadowFramebuffers[i]->GetVKFramebuffer();
-            pointShadowPassBeginInfo.renderArea.offset = { 0, 0 };
-            pointShadowPassBeginInfo.renderArea.extent.width = pointShadowFramebuffers[i]->GetWidth();
-            pointShadowPassBeginInfo.renderArea.extent.height = pointShadowFramebuffers[i]->GetHeight();
-            pointShadowPassBeginInfo.clearValueCount = 1;
-            pointShadowPassBeginInfo.pClearValues = &depthPassClearValue;
-
-            CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-            CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
-
-            glm::vec3 position = glm::vec3(globalParametersUBO.lightPositions[i].x, globalParametersUBO.lightPositions[i].y, globalParametersUBO.lightPositions[i].z);
-
-            globalParametersUBO.shadowMatrices[i][0] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
-            globalParametersUBO.shadowMatrices[i][1] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
-            globalParametersUBO.shadowMatrices[i][2] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
-            globalParametersUBO.shadowMatrices[i][3] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
-            globalParametersUBO.shadowMatrices[i][4] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0));
-            globalParametersUBO.shadowMatrices[i][5] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0));
-
-
-            struct PC
-            {
-                glm::vec4 lightPos;
-                glm::vec4 farPlane;
-            };
-
-            glm::vec4 pointLightIndex = glm::vec4(i);
-            
-            PC pc;
-            pc.lightPos = glm::vec4(position, 1.0f);
-            pc.farPlane = glm::vec4(point_far_plane);
-
-
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT,   0, sizeof(glm::mat4), &mat);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
-            model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
-
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
-            model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
-
-            CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
-            // End point shadow pass.----------------------
-        }
-
-        globalParametersUBO.viewMatrix = view;
-        globalParametersUBO.projMatrix = proj;
-        globalParametersUBO.cameraPosition = cameraPos;
-        globalParametersUBO.dirLightPos = directionalLightPosition;
-        globalParametersUBO.directionalLightMVP = directionalLightMVP;
-        globalParametersUBO.viewportDimension = glm::vec4(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height, 0.0f, 0.0f);
+        // Copy the global UBO data from CPU to GPU. 
         memcpy(mappedGlobalParametersModelUBOBuffer, &globalParametersUBO, sizeof(GlobalParametersUBO));
-        
 
+
+        // TO DO: The animation sprite sheet offsets are hardcoded here. We could use a better system to automatically calculate these variables.
         aniamtionRate -= deltaTime * 1.0f;
         if (aniamtionRate <= 0)
         {
@@ -1552,7 +1586,6 @@ private:
             }
         }
 
-        // TO DO: The animation sprite sheet offsets are hardcoded here. We could use a better system to automatically calculate these variables.
         int ct = 0;
         bool done = false;
         for (int i = 1; i <= 6; i++)
@@ -1584,30 +1617,16 @@ private:
         }
 
 
-
-        clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-        clearValues[1].depthStencil = { 1.0f, 0 };
-
-        HDRRenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        HDRRenderPassBeginInfo.framebuffer = HDRFramebuffer->GetVKFramebuffer();
-        HDRRenderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        HDRRenderPassBeginInfo.pClearValues = clearValues.data();
-        HDRRenderPassBeginInfo.pNext = nullptr;
-        HDRRenderPassBeginInfo.renderPass = HDRRenderPass;
-        HDRRenderPassBeginInfo.renderArea.offset = { 0, 0 };
-        HDRRenderPassBeginInfo.renderArea.extent.height = HDRFramebuffer->GetHeight();
-        HDRRenderPassBeginInfo.renderArea.extent.width = HDRFramebuffer->GetWidth();
-
         // Begin HDR rendering------------------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         // Drawing the skybox.
-        glm::mat4 skyBoxView = glm::mat4(glm::mat3(view));
+        glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], skyboxPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &skyBoxView);
         skybox->Draw(cmdBuffers[CurrentFrameIndex()], skyboxPipeline->GetPipelineLayout());
 
-        // Drawing the cube.
+        // Drawing the light cube.
         glm::mat4 viewMatrix = glm::mat4(1.0f);
         viewMatrix = glm::translate(viewMatrix, glm::vec3(globalParametersUBO.lightPositions[4].x, globalParametersUBO.lightPositions[4].y, globalParametersUBO.lightPositions[4].z));
         viewMatrix = glm::scale(viewMatrix, glm::vec3(0.05f));
@@ -1648,15 +1667,6 @@ private:
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &swordMat);
         model3->DrawIndexed(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout());
 
-        // Update the particle systems.
-        fireSparks->UpdateParticles(deltaTime);
-        fireSparks2->UpdateParticles(deltaTime);
-        fireSparks3->UpdateParticles(deltaTime);
-        fireSparks4->UpdateParticles(deltaTime);
-        fireBase->UpdateParticles(deltaTime);
-        fireBase2->UpdateParticles(deltaTime);
-        fireBase3->UpdateParticles(deltaTime);
-        fireBase4->UpdateParticles(deltaTime);
 
         // Draw the particles systems.
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline);
@@ -1687,7 +1697,7 @@ private:
         bloomAgent->ApplyBloom(cmdBuffers[CurrentFrameIndex()]);
         // Post processing end ---------------------------
 
-
+        // Final scene pass begin Info.
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
@@ -1697,7 +1707,8 @@ private:
         finalScenePassBeginInfo.pClearValues = clearValues.data();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
 
-        // Start final scene render pass (swapchain).-------------------------------
+
+        // Start final scene render pass (to swapchain).-------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
@@ -1708,8 +1719,6 @@ private:
         //ImGui::ShowDemoWindow();
 
         ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
 
         ImGui::DragFloat3("Directional Light", &directionalLightPosition.x, 0.1f, - 50, 50);
 
@@ -1780,8 +1789,10 @@ private:
         // End the command buffer recording phase(swapchain).-------------------------------.
 
         CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
+
         SubmitCommandBuffer(cmdBuffers[CurrentFrameIndex()]);
     }
+    
     void OnCleanup() override
     {
         delete model;
@@ -1825,12 +1836,36 @@ private:
         CreateHDRFramebuffer();
 
         bloomAgent = std::make_shared<Bloom>();
-        bloomAgent->ConnectImageResourceToAddBloom(HDRColorImage);
+        bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
 
         finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+
+        clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+        clearValues[1].depthStencil = { 1.0f, 0 };
+
+        // Reassign new framebuffer dimensions to the render pass begin infos.
+        HDRRenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        HDRRenderPassBeginInfo.framebuffer = HDRFramebuffer->GetVKFramebuffer();
+        HDRRenderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        HDRRenderPassBeginInfo.pClearValues = clearValues.data();
+        HDRRenderPassBeginInfo.pNext = nullptr;
+        HDRRenderPassBeginInfo.renderPass = HDRRenderPass;
+        HDRRenderPassBeginInfo.renderArea.offset = { 0, 0 };
+        HDRRenderPassBeginInfo.renderArea.extent.height = HDRFramebuffer->GetHeight();
+        HDRRenderPassBeginInfo.renderArea.extent.width = HDRFramebuffer->GetWidth();
+
+        finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
+        finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
+        finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
+        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        finalScenePassBeginInfo.pClearValues = clearValues.data();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
     }
     float DeltaTime()
     {

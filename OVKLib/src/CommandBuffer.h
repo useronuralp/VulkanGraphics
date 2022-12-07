@@ -15,7 +15,7 @@ namespace OVK
 	{
 	public:
 		static void CreateCommandBuffer(VkCommandBuffer& outCmdBuffer, const VkCommandPool& poolToAllocateFrom);
-		static void CreateCommandPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool);
+		static void CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool);
 		static void BeginRecording(const VkCommandBuffer& cmdBuffer);
 		static void EndRecording(const VkCommandBuffer& cmdBuffer);
 		static void BeginRenderPass(const VkCommandBuffer& cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo, VkSubpassContents contents);

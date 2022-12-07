@@ -22,7 +22,7 @@ namespace OVK
 
         ASSERT(vkAllocateCommandBuffers(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &outCmdBuffer) == VK_SUCCESS, "Failed to allocate command buffer memory");
     }
-    void CommandBuffer::CreateCommandPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool)
+    void CommandBuffer::CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool)
     {
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;

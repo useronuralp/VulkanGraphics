@@ -65,7 +65,7 @@ namespace OVK
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), m_BrightnessIsolationPass, nullptr);
     }
 
-    void Bloom::ConnectImageResourceToAddBloom(const Ref<Image>& frame)
+    void Bloom::ConnectImageResourceToAddBloomTo(const Ref<Image>& frame)
     {
         m_HDRImage = frame;
         if (m_FirstPassEver)

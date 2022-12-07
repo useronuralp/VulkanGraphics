@@ -142,7 +142,7 @@ namespace OVK
         }
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
-        CommandBuffer::CreateCommandPool(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool);
+        CommandBuffer::CreateCommandBufferPool(VulkanApplication::s_GraphicsQueueFamily, singleCmdPool);
         CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
         CommandBuffer::BeginRecording(singleCmdBuffer);
 
@@ -193,7 +193,7 @@ namespace OVK
     {
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
-        CommandBuffer::CreateCommandPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
+        CommandBuffer::CreateCommandBufferPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
         CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
         CommandBuffer::BeginRecording(singleCmdBuffer);
 
@@ -326,7 +326,7 @@ namespace OVK
 
         VkCommandBuffer cmdBuffer;
         VkCommandPool cmdPool;
-        CommandBuffer::CreateCommandPool(VulkanApplication::s_TransferQueueFamily, cmdPool);
+        CommandBuffer::CreateCommandBufferPool(VulkanApplication::s_TransferQueueFamily, cmdPool);
         CommandBuffer::CreateCommandBuffer(cmdBuffer, cmdPool);
         CommandBuffer::BeginRecording(cmdBuffer);
 

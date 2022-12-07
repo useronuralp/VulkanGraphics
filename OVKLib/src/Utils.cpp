@@ -86,7 +86,7 @@ namespace OVK
     {
         VkCommandPool singleCmdPool;
         VkCommandBuffer singleCmdBuffer;
-        CommandBuffer::CreateCommandPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
+        CommandBuffer::CreateCommandBufferPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
         CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
         CommandBuffer::BeginRecording(singleCmdBuffer);
 

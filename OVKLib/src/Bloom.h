@@ -18,7 +18,7 @@ namespace OVK
         ~Bloom();
     public:
         void ApplyBloom(const VkCommandBuffer& cmdBuffer);
-        void ConnectImageResourceToAddBloom(const Ref<Image>& frame);
+        void ConnectImageResourceToAddBloomTo(const Ref<Image>& frame);
         Ref<Image> GetPostProcessedImage() { return m_MergeColorBuffer; }
 	private:
 
