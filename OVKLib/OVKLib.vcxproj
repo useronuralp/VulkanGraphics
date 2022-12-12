@@ -112,6 +112,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -153,6 +154,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;assimp-vc142-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.211.0\Lib;$(SolutionDir)OVKLib\vendor\GLFW\lib-vc2022;$(SolutionDir)OVKLib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <Profile>true</Profile>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(SolutionDir)OVKLib\vendor\Assimp\assimp\lib\Release\assimp-vc142-mt.dll" "$(SolutionDir)OVKLib\bin\$(Configuration)" /y</Command>

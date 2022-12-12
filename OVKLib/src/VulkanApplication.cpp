@@ -243,6 +243,8 @@ namespace OVK
 
             }
 
+
+
             // ImGui
             ImGui_ImplVulkan_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -283,7 +285,6 @@ namespace OVK
                         ImGui::PopID();
                         ImGui::End();
                         ImGui::EndFrame();
-                        OnWindowResize(); // Make a specialized function instead of this one.
                         breakFrame = true;
                         break;
                     }
@@ -295,17 +296,19 @@ namespace OVK
 
             if (breakFrame)
             {
+
                 vkDeviceWaitIdle(s_Device->GetVKDevice());
+                OnWindowResize(); // Make a specialized function instead of this one.
                 continue;
             }
 
             ImGui::End();
-
+            
+            vkResetFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
             // Call client OnUpdate() code here. This function usually contains command buffer calls and a SubmitCommandBuffer() call.
             OnUpdate();
-            
-            vkResetFences(s_Device->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
+
 
             // Update camera movement using delta time.
             if(!ImGui::GetIO().WantCaptureMouse)
@@ -342,7 +345,7 @@ namespace OVK
             result = vkQueuePresentKHR(graphicsQueue, &presentInfo);
             ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
 
-            CommandBuffer::Reset(*m_CommandBufferReference);
+            //CommandBuffer::Reset(*m_CommandBufferReference);
 
             m_CurrentFrame = ++m_CurrentFrame % m_FramesInFlight;
             m_ActiveImageIndex = READY_TO_ACQUIRE; // Reset the active image index back to an invalid number.

@@ -51,7 +51,7 @@ namespace OVK
         AI.pApplicationName   = "Vulkan Graphics";
         AI.pEngineName        = "No Engine";
         AI.pNext              = nullptr;
-        AI.apiVersion         = VK_API_VERSION_1_0;
+        AI.apiVersion         = VK_API_VERSION_1_1;
         AI.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         AI.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
 

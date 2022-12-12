@@ -53,6 +53,7 @@ private:
         glm::vec4 lightIntensities[POINT_LIGHT_COUNT];
         glm::vec4 directionalLightIntensity;
         glm::mat4 shadowMatrices[POINT_LIGHT_COUNT][6];
+        glm::vec4 far_plane;
     };
 public:
 #pragma region ClearValues
@@ -1138,7 +1139,7 @@ public:
         glm::mat4 mat2 = model2->GetTransform();
 
         // Start point shadow pass.--------------------
-        for (int i = 0; i < POINT_LIGHT_COUNT; i++) 
+        for (int i = 0; i < POINT_LIGHT_COUNT; i++)
         {
             pointShadowPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             pointShadowPassBeginInfo.renderPass = pointShadowRenderPass;
@@ -1370,6 +1371,8 @@ private:
         globalParametersUBO.lightIntensities[4] = glm::vec4(50.0f);
         globalParametersUBO.directionalLightIntensity.x = 10.0;
 
+        globalParametersUBO.far_plane = glm::vec4(point_far_plane);
+
 
         model3 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sword\\scene.gltf", LOAD_VERTEX_POSITIONS, pool, emissiveLayout);
         model3->Translate(-2, 7, 0);
@@ -1491,6 +1494,8 @@ private:
 	}
     void OnUpdate() override
     {
+        CommandBuffer::Reset(cmdBuffers[CurrentFrameIndex()]);
+
         // Begin command buffer recording.
         CommandBuffer::BeginRecording(cmdBuffers[CurrentFrameIndex()]);
 
@@ -1558,10 +1563,10 @@ private:
             std::uniform_real_distribution<> distr2(75.0f, 100.0f);
             std::uniform_real_distribution<> distr3(12.5f, 25.0f); 
             std::uniform_real_distribution<> distr4(25.0f, 50.0f); 
-            globalParametersUBO.lightIntensities[0] = glm::vec4(distr(gen));
-            globalParametersUBO.lightIntensities[1] = glm::vec4(distr2(gen));
-            globalParametersUBO.lightIntensities[2] = glm::vec4(distr3(gen));
-            globalParametersUBO.lightIntensities[3] = glm::vec4(distr4(gen));
+            globalParametersUBO.lightIntensities[0] = glm::vec4(distr(gen) / 2) ;
+            globalParametersUBO.lightIntensities[1] = glm::vec4(distr2(gen) / 2);
+            globalParametersUBO.lightIntensities[2] = glm::vec4(distr3(gen) / 2);
+            globalParametersUBO.lightIntensities[3] = glm::vec4(distr4(gen) / 2);
             globalParametersUBO.lightIntensities[4] = glm::vec4(500.0f);
         }
 

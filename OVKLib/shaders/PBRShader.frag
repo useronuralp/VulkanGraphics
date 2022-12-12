@@ -22,6 +22,7 @@ layout(set = 0, binding = 0) uniform globalUBO
     vec4 pointlightIntensities[5];
     vec4 directionalLightIntensity;
     mat4 shadowMatrices[5][6];
+    vec4 far_plane;
 };
 
 layout(set = 0, binding = 1) uniform sampler2D u_DiffuseSampler;
@@ -116,21 +117,47 @@ float DirectionalShadowCalculation(vec4 fragPosLightSpace, vec3 fragPos, vec3 li
 	return shadow;
 }
 
+vec3 sampleOffsetDirections[20] = vec3[]
+(
+   vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+   vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+   vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+   vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+   vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+);
+
 float PointShadowCalculation(int index, vec3 pointLightPosition)
 {
     vec3 fragToLight = v_Pos - pointLightPosition;
-
+    
     float closestDepth = texture(u_PointShadowMap[index], fragToLight).r;
-
-    closestDepth *= 100.0;
-
+    
+    closestDepth *= far_plane.x;
+    
     float currentDepth = length(fragToLight);
-
+    
     float bias = 0.05f;
     float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
-
+    
     return shadow;
 
+    //float shadow  = 0.0;
+    //float bias    = 0.05; 
+    //float samples = 20.0;
+    //float offset  = 0.1;
+    //vec3 fragToLight = v_Pos - pointLightPosition;
+    //float currentDepth = length(fragToLight);
+    //float viewDistance = length(cameraPosition.xyz - v_Pos);
+    //float diskRadius = (1.0 + (viewDistance / 100.0)) / 25.0;
+    //for(int i = 0; i < samples; ++i)
+    //{
+    //    float closestDepth = texture(u_PointShadowMap[index], fragToLight + sampleOffsetDirections[i] * diskRadius).r;
+    //    closestDepth *= 100.0;   // undo mapping [0;1]
+    //    if(currentDepth - bias > closestDepth)
+    //        shadow += 1.0;
+    //}
+    //shadow /= float(samples);  
+    //return shadow;
 }
 
 
@@ -253,9 +280,9 @@ void main()
    
    pointShadow = PointShadowCalculation(3, pointLightPositions[3].xyz);
    color += CalcPointLight(normal, viewDir, pointLightPositions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[3].x, pointShadow);
-
+   
    pointShadow = PointShadowCalculation(4, pointLightPositions[4].xyz);
-   color += CalcPointLight(normal, viewDir, pointLightPositions[4].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.12, 0.19), pointlightIntensities[4].x, pointShadow);
+   color += CalcPointLight(normal, viewDir, pointLightPositions[4].xyz, albedo, roughnessMetallicTex, vec3(1.0, 0.0, 0.0), pointlightIntensities[4].x, pointShadow);
    
 
    // Reinhard tonemapping.

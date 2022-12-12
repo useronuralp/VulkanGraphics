@@ -93,7 +93,7 @@ namespace OVK
     }
     void CommandBuffer::Reset(const VkCommandBuffer& cmdBuffer)
     {
-        vkDeviceWaitIdle(VulkanApplication::s_Device->GetVKDevice());
+        //vkQueueWaitIdle(VulkanApplication::s_Device->GetGraphicsQueue());
         vkResetCommandBuffer(cmdBuffer, 0);
     }
     void CommandBuffer::DestroyCommandPool(const VkCommandPool& pool)
