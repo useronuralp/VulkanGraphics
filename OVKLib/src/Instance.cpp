@@ -51,7 +51,7 @@ namespace OVK
         AI.pApplicationName   = "Vulkan Graphics";
         AI.pEngineName        = "No Engine";
         AI.pNext              = nullptr;
-        AI.apiVersion         = VK_API_VERSION_1_1;
+        AI.apiVersion         = VK_API_VERSION_1_3;
         AI.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         AI.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
 
@@ -61,6 +61,7 @@ namespace OVK
         vkCreateInfo.pApplicationInfo  = &AI;
 
         std::vector<const char*> requiredExtensions     = GetRequiredExtensions(validationLayersSupported);
+        requiredExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         uint32_t                 requiredExtensionCount = requiredExtensions.size();
 
         vkCreateInfo.enabledExtensionCount     = requiredExtensionCount;
@@ -150,9 +151,7 @@ namespace OVK
         if (isValLayersSupported)
         {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            //extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
-        //extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         std::cout << "Required Instance Extensions: \n";
         for (const auto& extension : extensions)
         {

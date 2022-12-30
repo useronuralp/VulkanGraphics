@@ -12,9 +12,13 @@ layout(set = 0, binding = 0) uniform globalUBO
 layout( push_constant ) uniform modelMat
 {
 	mat4 modelMatrix;
+    vec4 color;
 };
+
+layout(location = 0) out vec3 v_Color;
 
 void main()
 {
+    v_Color = color.xyz;
     gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(a_Position, 1.0);
 }

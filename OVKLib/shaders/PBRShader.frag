@@ -1,6 +1,6 @@
 #version 450 core
 
-#define MAX_LIGHTS 10;
+#define MAX_POINT_LIGHT 10
 
 // INs
 layout(location = 0) in vec3  v_Pos;
@@ -18,11 +18,13 @@ layout(set = 0, binding = 0) uniform globalUBO
     vec4 dirLightPos;
     vec4 cameraPosition;
     vec4 viewportDimension;
-    vec4 pointLightPositions[5];
-    vec4 pointlightIntensities[5];
+    vec4 pointLightPositions[MAX_POINT_LIGHT];
+    vec4 pointlightIntensities[MAX_POINT_LIGHT];
+    vec4 pointLightColors[MAX_POINT_LIGHT];
     vec4 directionalLightIntensity;
-    mat4 shadowMatrices[5][6];
+    mat4 shadowMatrices[MAX_POINT_LIGHT][6];
     vec4 far_plane;
+    vec4 pointLightCount;
 };
 
 layout(set = 0, binding = 1) uniform sampler2D u_DiffuseSampler;
@@ -269,20 +271,25 @@ void main()
    vec3 color = vec3(0.0);
    color += CalcDirectionalLight(normal, viewDir, dirLightPos.xyz, directionalShadow, albedo, roughnessMetallicTex, vec3(1.0, 1.0, 1.0));
 
-   float pointShadow = PointShadowCalculation(0, pointLightPositions[0].xyz);
-   color += CalcPointLight(normal, viewDir, pointLightPositions[0].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[0].x, pointShadow);
+
+   for(int i = 0; i < pointLightCount.x; i++)
+   {
+        float pointShadow = PointShadowCalculation(i, pointLightPositions[i].xyz);
+        color += CalcPointLight(normal, viewDir, pointLightPositions[i].xyz, albedo, roughnessMetallicTex, pointLightColors[i].xyz, pointlightIntensities[i].x, pointShadow);
+   }
+
    
-   pointShadow = PointShadowCalculation(1, pointLightPositions[1].xyz);
-   color += CalcPointLight(normal, viewDir, pointLightPositions[1].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[1].x, pointShadow);
-   
-   pointShadow = PointShadowCalculation(2, pointLightPositions[2].xyz);
-   color += CalcPointLight(normal, viewDir, pointLightPositions[2].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[2].x, pointShadow);
-   
-   pointShadow = PointShadowCalculation(3, pointLightPositions[3].xyz);
-   color += CalcPointLight(normal, viewDir, pointLightPositions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[3].x, pointShadow);
-   
-   pointShadow = PointShadowCalculation(4, pointLightPositions[4].xyz);
-   color += CalcPointLight(normal, viewDir, pointLightPositions[4].xyz, albedo, roughnessMetallicTex, vec3(1.0, 0.0, 0.0), pointlightIntensities[4].x, pointShadow);
+   //pointShadow = PointShadowCalculation(1, pointLightPositions[1].xyz);
+   //color += CalcPointLight(normal, viewDir, pointLightPositions[1].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[1].x, pointShadow);
+   //
+   //pointShadow = PointShadowCalculation(2, pointLightPositions[2].xyz);
+   //color += CalcPointLight(normal, viewDir, pointLightPositions[2].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[2].x, pointShadow);
+   //
+   //pointShadow = PointShadowCalculation(3, pointLightPositions[3].xyz);
+   //color += CalcPointLight(normal, viewDir, pointLightPositions[3].xyz, albedo, roughnessMetallicTex, vec3(0.97, 0.76, 0.46), pointlightIntensities[3].x, pointShadow);
+   //
+   //pointShadow = PointShadowCalculation(4, pointLightPositions[4].xyz);
+   //color += CalcPointLight(normal, viewDir, pointLightPositions[4].xyz, albedo, roughnessMetallicTex, vec3(1.0, 0.0, 0.0), pointlightIntensities[4].x, pointShadow);
    
 
    // Reinhard tonemapping.

@@ -29,16 +29,19 @@
 
 #include <glm/gtx/matrix_decompose.hpp>
 
-#define POINT_LIGHT_COUNT 5
-#define SHADOW_DIM 10000 // Shadow map resolution.
+#define MAX_POINT_LIGHT_COUNT 10
+#define SHADOW_DIM 10000 
 #define POUNT_SHADOW_DIM 1000
-#define MAX_FRAMES_IN_FLIGHT 2 // TO DO: I can't seem to get an FPS boost by rendering multiple frames at once.
+#define MAX_FRAMES_IN_FLIGHT 1 
 int CURRENT_FRAME = 0;
 
 using namespace OVK;
 class MyApplication : public OVK::VulkanApplication
 {
 public:
+    //PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;
+    //PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR;
+
     MyApplication(uint32_t framesInFlight) : VulkanApplication(framesInFlight){}
 private:
     struct GlobalParametersUBO
@@ -49,11 +52,13 @@ private:
         glm::vec4 dirLightPos;
         glm::vec4 cameraPosition;
         glm::vec4 viewportDimension;
-        glm::vec4 lightPositions[POINT_LIGHT_COUNT];
-        glm::vec4 lightIntensities[POINT_LIGHT_COUNT];
+        glm::vec4 lightPositions[MAX_POINT_LIGHT_COUNT];
+        glm::vec4 lightIntensities[MAX_POINT_LIGHT_COUNT];
+        glm::vec4 pointLightColors[MAX_POINT_LIGHT_COUNT];
         glm::vec4 directionalLightIntensity;
-        glm::mat4 shadowMatrices[POINT_LIGHT_COUNT][6];
+        glm::mat4 shadowMatrices[MAX_POINT_LIGHT_COUNT][6];
         glm::vec4 far_plane;
+        glm::vec4 pointLightCount;
     };
 public:
 #pragma region ClearValues
@@ -465,7 +470,7 @@ public:
         Pipeline::Specs specs{};
         specs.DescriptorLayout = PBRLayout;
         specs.pRenderPass = &pointShadowRenderPass;
-        specs.CullMode = VK_CULL_MODE_NONE;
+        specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 1.25f;
         specs.DepthBiasSlopeFactor = 1.75f;
@@ -583,6 +588,7 @@ public:
 
         skyboxPipeline = std::make_shared<Pipeline>(specs);
     }
+    // cube pipeline is not being used right now.
     void SetupCubePipeline()
     {
         Pipeline::Specs specs{};
@@ -598,12 +604,12 @@ public:
         specs.EnableDepthWriting = VK_TRUE;
         specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         specs.PolygonMode = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath = "shaders/cubeVERT.spv";
-        specs.FragmentShaderPath = "shaders/cubeFRAG.spv";
+        specs.VertexShaderPath = "shaders/emissiveShaderVERT.spv";
+        specs.FragmentShaderPath = "shaders/emissiveShaderFRAG.spv";
 
         VkPushConstantRange pcRange;
         pcRange.offset = 0;
-        pcRange.size = sizeof(glm::mat4);
+        pcRange.size = sizeof(glm::mat4) + sizeof(glm::vec4) + sizeof(glm::vec4);
         pcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
         specs.PushConstantRanges = { pcRange };
@@ -753,7 +759,7 @@ public:
 
         specs.PushConstantRanges = { pcRange };
 
-        specs.CullMode = VK_CULL_MODE_NONE;
+        specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
         specs.DepthBiasSlopeFactor = 0.0f;
@@ -977,6 +983,10 @@ public:
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+
+
+
+
         // A single depth attachment for depth testing / occlusion.
         depthAttachmentDescription.format = Utils::FindDepthFormat();
         depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1139,7 +1149,7 @@ public:
         glm::mat4 mat2 = model2->GetTransform();
 
         // Start point shadow pass.--------------------
-        for (int i = 0; i < POINT_LIGHT_COUNT; i++)
+        for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
         {
             pointShadowPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             pointShadowPassBeginInfo.renderPass = pointShadowRenderPass;
@@ -1161,6 +1171,7 @@ public:
             globalParametersUBO.shadowMatrices[i][3] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
             globalParametersUBO.shadowMatrices[i][4] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0));
             globalParametersUBO.shadowMatrices[i][5] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0));
+
 
             struct PC
             {
@@ -1192,7 +1203,8 @@ private:
     void OnVulkanInit() override
     {
         // Set the device extensions we want Vulkan to enable.
-        SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE1_EXTENSION_NAME });
+        SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
+             VK_KHR_MAINTENANCE2_EXTENSION_NAME, VK_KHR_MULTIVIEW_EXTENSION_NAME,  VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME });
 
         // Set the parameters of the main camera.
         SetCameraConfiguration(45.0f, 0.1f, 1500.0f);
@@ -1200,9 +1212,22 @@ private:
 
     void OnStart() override
     {
+        //vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(s_Device->GetVKDevice(), "vkCmdBeginRenderingKHR"));
+        //vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(s_Device->GetVKDevice(), "vkCmdEndRenderingKHR"));
+
+
+        globalParametersUBO.pointLightCount = glm::vec4(5);
+
+        // Set the point light colors here.
+        globalParametersUBO.pointLightColors[0] = glm::vec4(0.97, 0.76, 0.46, 1.0);
+        globalParametersUBO.pointLightColors[1] = glm::vec4(0.97, 0.76, 0.46, 1.0);
+        globalParametersUBO.pointLightColors[2] = glm::vec4(0.97, 0.76, 0.46, 1.0);
+        globalParametersUBO.pointLightColors[3] = glm::vec4(0.97, 0.76, 0.46, 1.0);
+        globalParametersUBO.pointLightColors[4] = glm::vec4(1.0, 0.0, 0.0, 1.0);
+        
         CurlNoise::SetCurlSettings(false, 4.0f, 6, 1.0, 0.0);
-        pointShadowMaps.resize(POINT_LIGHT_COUNT);
-        pointShadowMapFramebuffers.resize(POINT_LIGHT_COUNT);
+        pointShadowMaps.resize(globalParametersUBO.pointLightCount.x);
+        pointShadowMapFramebuffers.resize(globalParametersUBO.pointLightCount.x);
 
         std::vector<DescriptorBindingSpecs> hdrLayout
         {
@@ -1270,7 +1295,7 @@ private:
         // Create an image for the shadowmap. We will render to this image when we are doing a shadow pass.
         directionalShadowMapImage = std::make_shared<Image>(SHADOW_DIM, SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), ImageType::DEPTH);
 
-        for (int i = 0; i < POINT_LIGHT_COUNT; i++)
+        for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
         {
             pointShadowMaps[i] = std::make_shared<Image>(POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT),
                 ImageType::DEPTH_CUBEMAP);
@@ -1302,6 +1327,8 @@ private:
         SetupEmissiveObjectPipeline();
         SetupParticleSystemPipeline();
 
+
+
         // Directional light shadowmap framebuffer.
         std::vector<VkImageView> attachments =
         {
@@ -1312,7 +1339,7 @@ private:
         
 
         // Framebuffers need for point light shadows. (Dependent on the number of point lights in the scene)
-        for (int i = 0; i < POINT_LIGHT_COUNT; i++)
+        for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
         {
 
             attachments =
@@ -1494,8 +1521,6 @@ private:
 	}
     void OnUpdate() override
     {
-        CommandBuffer::Reset(cmdBuffers[CurrentFrameIndex()]);
-
         // Begin command buffer recording.
         CommandBuffer::BeginRecording(cmdBuffers[CurrentFrameIndex()]);
 
@@ -1621,6 +1646,32 @@ private:
             ct++;
         }
 
+        //VkRenderingAttachmentInfoKHR colorAtt;
+        //colorAtt.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        //colorAtt.imageView = HDRColorImage->GetImageView();
+        //colorAtt.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
+        //colorAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        //colorAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        //colorAtt.clearValue = clearValues[0];
+        //
+        //VkRenderingAttachmentInfoKHR depthAtt{};
+        //depthAtt.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        //depthAtt.imageView = HDRDepthImage->GetImageView();
+        //depthAtt.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        //depthAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        //depthAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        //depthAtt.clearValue = clearValues[1];
+        //
+        //VkRenderingInfoKHR renderingInfo{};
+        //renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+        //renderingInfo.renderArea = { 0, 0, HDRFramebuffer->GetWidth(), HDRFramebuffer->GetHeight() };
+        //renderingInfo.layerCount = 1;
+        //renderingInfo.colorAttachmentCount = 1;
+        //renderingInfo.pColorAttachments = &colorAtt;
+        //renderingInfo.pDepthAttachment = &depthAtt;
+        //renderingInfo.pStencilAttachment = &depthAtt;
+        //
+        //vkCmdBeginRenderingKHR(cmdBuffers[CurrentFrameIndex()], &renderingInfo);
 
         // Begin HDR rendering------------------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -1631,13 +1682,22 @@ private:
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], skyboxPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &skyBoxView);
         skybox->Draw(cmdBuffers[CurrentFrameIndex()], skyboxPipeline->GetPipelineLayout());
 
+        struct pushConst
+        {
+            glm::mat4 modelMat;
+            glm::vec4 color;
+        };
+
+        pushConst lightCubePC;
         // Drawing the light cube.
-        glm::mat4 viewMatrix = glm::mat4(1.0f);
-        viewMatrix = glm::translate(viewMatrix, glm::vec3(globalParametersUBO.lightPositions[4].x, globalParametersUBO.lightPositions[4].y, globalParametersUBO.lightPositions[4].z));
-        viewMatrix = glm::scale(viewMatrix, glm::vec3(0.05f));
-        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
-        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], cubePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &viewMatrix);
-        cube->Draw(cmdBuffers[CurrentFrameIndex()], cubePipeline->GetPipelineLayout());
+        glm::mat4 lightCubeMat = glm::mat4(1.0f);
+        lightCubeMat = glm::translate(lightCubeMat, glm::vec3(globalParametersUBO.lightPositions[4].x, globalParametersUBO.lightPositions[4].y, globalParametersUBO.lightPositions[4].z));
+        lightCubeMat = glm::scale(lightCubeMat, glm::vec3(0.05f));
+        lightCubePC.modelMat = lightCubeMat;
+        lightCubePC.color = glm::vec4(4.5f, 1.0f, 1.0f, 1.0f);
+        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &lightCubePC);
+        cube->Draw(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout());
 
         // Drawing the Sponza.
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -1665,11 +1725,12 @@ private:
             torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
         }
 
-
+        pushConst swordPC;
         // Draw the emissive sword.
-        glm::mat4 swordMat = model3->GetTransform();
+        swordPC.modelMat = model3->GetTransform();
+        swordPC.color = glm::vec4(0.1f, 3.0f, 0.1f, 1.0f);
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
-        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &swordMat);
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &swordPC);
         model3->DrawIndexed(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout());
 
 
@@ -1695,6 +1756,8 @@ private:
         fireBase4->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
 
 
+        //vkCmdEndRenderingKHR(cmdBuffers[CurrentFrameIndex()]);
+
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
         // End HDR Rendering ------------------------------------------
 
@@ -1711,85 +1774,103 @@ private:
         finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
         finalScenePassBeginInfo.pClearValues = clearValues.data();
         finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
-
-
+        
+        
         // Start final scene render pass (to swapchain).-------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
+        
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
         vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline->GetPipelineLayout(), 0, 1, &finalPassDescriptorSet, 0, nullptr);
         vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
-
+        
         
         //ImGui::ShowDemoWindow();
-
+        
         ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
+        
         ImGui::DragFloat3("Directional Light", &directionalLightPosition.x, 0.1f, - 50, 50);
-
+        
         float* p[3] = 
         {
             &model2->GetTransform()[3].x,
             &model2->GetTransform()[3].y,
             &model2->GetTransform()[3].z,
         };
-
-        ImGui::DragFloat3("Model2", *p, 0.01f, -10, 10);
-
+        
+        ImGui::DragFloat3("Helmet", *p, 0.01f, -10, 10);
+        
+        float* p2[3] =
+        {
+            &model3->GetTransform()[3].x,
+            &model3->GetTransform()[3].y,
+            &model3->GetTransform()[3].z,
+        };
+        
+        ImGui::DragFloat3("Sword", *p2, 0.01f, -10, 10);
+        
         float* t[3] =
         {
             &torch1modelMatrix[3].x,
             &torch1modelMatrix[3].y,
             &torch1modelMatrix[3].z,
         };
-
+        
         ImGui::DragFloat3("Torch 1", *t, 0.01f, -10, 10);
-
+        
         float* t2[3] =
         {
             &torch2modelMatrix[3].x,
             &torch2modelMatrix[3].y,
             &torch2modelMatrix[3].z,
         };
-
+        
         ImGui::DragFloat3("Torch 2", *t2, 0.01f, -10, 10);
-
+        
         float* t3[3] =
         {
             &torch3modelMatrix[3].x,
             &torch3modelMatrix[3].y,
             &torch3modelMatrix[3].z,
         };
-
+        
         ImGui::DragFloat3("Torch 3", *t3, 0.01f, -10, 10);
-
+        
         float* t4[3] =
         {
             &torch4modelMatrix[3].x,
             &torch4modelMatrix[3].y,
             &torch4modelMatrix[3].z,
         };
-
+        
         ImGui::DragFloat3("Torch 4", *t4, 0.01f, -10, 10);
-
-        float* p2[3] =
+        
+        float* p3[3] =
         {
             &globalParametersUBO.lightPositions[4].x,
             &globalParametersUBO.lightPositions[4].y,
             &globalParametersUBO.lightPositions[4].z
         };
-
-        ImGui::DragFloat3("point light", *p2, 0.01f, -10, 10);
-
-
+        
+        ImGui::DragFloat3("point light", *p3, 0.01f, -10, 10);
+        
+        float* c[3] =
+        {
+            &globalParametersUBO.pointLightColors[4].x,
+            &globalParametersUBO.pointLightColors[4].x,
+            &globalParametersUBO.pointLightColors[4].x
+        };
+        
+        ImGui::ColorPicker4("Point Light Color", *c);
+        
+        
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
-
+        
         ImGui::Render();
-
+        
         ImDrawData* draw_data = ImGui::GetDrawData();
         ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[CurrentFrameIndex()]);
-
+        
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
         // End the command buffer recording phase(swapchain).-------------------------------.
 

@@ -74,6 +74,11 @@ namespace OVK
         deviceFeatures.samplerAnisotropy = VK_TRUE;
         deviceFeatures.geometryShader = VK_TRUE;
 
+        constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+            .dynamicRendering = VK_TRUE,
+        };
+
         VkPhysicalDeviceFeatures pDeviceFeatures[] =
         {
             deviceFeatures
@@ -82,6 +87,7 @@ namespace OVK
         // Create info for the device.
         VkDeviceCreateInfo CI {};
         CI.sType                    = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        CI.pNext                    = &dynamic_rendering_feature;
         CI.queueCreateInfoCount     = deviceQueueCreateInfos.size();
         CI.pQueueCreateInfos        = deviceQueueCreateInfos.data();
         CI.pEnabledFeatures         = pDeviceFeatures;

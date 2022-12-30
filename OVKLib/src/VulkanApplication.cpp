@@ -296,7 +296,6 @@ namespace OVK
 
             if (breakFrame)
             {
-
                 vkDeviceWaitIdle(s_Device->GetVKDevice());
                 OnWindowResize(); // Make a specialized function instead of this one.
                 continue;
@@ -308,7 +307,6 @@ namespace OVK
 
             // Call client OnUpdate() code here. This function usually contains command buffer calls and a SubmitCommandBuffer() call.
             OnUpdate();
-
 
             // Update camera movement using delta time.
             if(!ImGui::GetIO().WantCaptureMouse)
