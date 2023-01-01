@@ -1158,7 +1158,7 @@ public:
             pointShadowPassBeginInfo.pClearValues = &depthPassClearValue;
 
             CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-            //CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
+            CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
 
             glm::vec3 position = glm::vec3(globalParametersUBO.lightPositions[i].x, globalParametersUBO.lightPositions[i].y, globalParametersUBO.lightPositions[i].z);
 
