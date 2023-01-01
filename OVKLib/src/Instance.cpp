@@ -61,7 +61,6 @@ namespace OVK
         vkCreateInfo.pApplicationInfo  = &AI;
 
         std::vector<const char*> requiredExtensions     = GetRequiredExtensions(validationLayersSupported);
-        requiredExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         uint32_t                 requiredExtensionCount = requiredExtensions.size();
 
         vkCreateInfo.enabledExtensionCount     = requiredExtensionCount;

@@ -39,9 +39,6 @@ using namespace OVK;
 class MyApplication : public OVK::VulkanApplication
 {
 public:
-    //PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;
-    //PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR;
-
     MyApplication(uint32_t framesInFlight) : VulkanApplication(framesInFlight){}
 private:
     struct GlobalParametersUBO
@@ -1161,7 +1158,7 @@ public:
             pointShadowPassBeginInfo.pClearValues = &depthPassClearValue;
 
             CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-            CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
+            //CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
 
             glm::vec3 position = glm::vec3(globalParametersUBO.lightPositions[i].x, globalParametersUBO.lightPositions[i].y, globalParametersUBO.lightPositions[i].z);
 
@@ -1203,8 +1200,7 @@ private:
     void OnVulkanInit() override
     {
         // Set the device extensions we want Vulkan to enable.
-        SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
-             VK_KHR_MAINTENANCE2_EXTENSION_NAME, VK_KHR_MULTIVIEW_EXTENSION_NAME,  VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME });
+        SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
 
         // Set the parameters of the main camera.
         SetCameraConfiguration(45.0f, 0.1f, 1500.0f);
@@ -1212,10 +1208,6 @@ private:
 
     void OnStart() override
     {
-        //vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(s_Device->GetVKDevice(), "vkCmdBeginRenderingKHR"));
-        //vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(s_Device->GetVKDevice(), "vkCmdEndRenderingKHR"));
-
-
         globalParametersUBO.pointLightCount = glm::vec4(5);
 
         // Set the point light colors here.
@@ -1645,34 +1637,6 @@ private:
             }
             ct++;
         }
-
-        //VkRenderingAttachmentInfoKHR colorAtt;
-        //colorAtt.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-        //colorAtt.imageView = HDRColorImage->GetImageView();
-        //colorAtt.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
-        //colorAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        //colorAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        //colorAtt.clearValue = clearValues[0];
-        //
-        //VkRenderingAttachmentInfoKHR depthAtt{};
-        //depthAtt.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-        //depthAtt.imageView = HDRDepthImage->GetImageView();
-        //depthAtt.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        //depthAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        //depthAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        //depthAtt.clearValue = clearValues[1];
-        //
-        //VkRenderingInfoKHR renderingInfo{};
-        //renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-        //renderingInfo.renderArea = { 0, 0, HDRFramebuffer->GetWidth(), HDRFramebuffer->GetHeight() };
-        //renderingInfo.layerCount = 1;
-        //renderingInfo.colorAttachmentCount = 1;
-        //renderingInfo.pColorAttachments = &colorAtt;
-        //renderingInfo.pDepthAttachment = &depthAtt;
-        //renderingInfo.pStencilAttachment = &depthAtt;
-        //
-        //vkCmdBeginRenderingKHR(cmdBuffers[CurrentFrameIndex()], &renderingInfo);
-
         // Begin HDR rendering------------------------------------------
         CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
