@@ -57,6 +57,7 @@ namespace OVK
 		void Init();
 		void InitImGui();
 		void SetupQueueFamilies();
+		void CreateSynchronizationPrimitives();
 		VkSampleCountFlagBits GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice);
 	private:
 		float			m_Time = 0.0f;

@@ -16,6 +16,7 @@ layout(set = 0, binding = 0) uniform globalUBO
     vec4 pointLightPositions[MAX_POINT_LIGHT];
     vec4 pointlightIntensities[MAX_POINT_LIGHT];
     vec4 pointLightColors[MAX_POINT_LIGHT];
+    vec4 enablePointLightShadows;
     vec4 directionalLightIntensity;
     mat4 shadowMatrices[MAX_POINT_LIGHT][6];
 };

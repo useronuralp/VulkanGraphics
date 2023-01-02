@@ -107,26 +107,7 @@ namespace OVK
 
         s_Camera = std::make_shared<Camera>(m_CamFOV, s_Surface->GetVKExtent().width / (float)s_Surface->GetVKExtent().height, m_CamNearClip, m_CamFarClip);
 
-        // Initialize 2 sempahores and a single fence needed to synchronize rendering and presentation.
-        m_RenderingCompleteSemaphores.resize(m_FramesInFlight);
-        m_ImageAvailableSemaphores.resize(m_FramesInFlight);
-        m_InFlightFences.resize(m_FramesInFlight);
-
-        // Setup the fences and semaphores needed to synchronize the rendering.
-        VkFenceCreateInfo fenceCreateInfo = {};
-        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-        // Create the scynhronization objects as many times as the frames in flight number.
-        for (int i = 0; i < m_FramesInFlight; i++)
-        {
-            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
-            ASSERT(vkCreateFence(s_Device->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InFlightFences[i]) == VK_SUCCESS, "Failed to create is rendering fence.");
-            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) == VK_SUCCESS, "Failed to create image available semaphore.");
-        }
+        CreateSynchronizationPrimitives();
     }
 
     void VulkanApplication::InitImGui()
@@ -236,14 +217,13 @@ namespace OVK
                     s_Camera->SetViewportSize(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height);
                     ImGui::EndFrame();
                     m_ActiveImageIndex = READY_TO_ACQUIRE;
+                    CreateSynchronizationPrimitives();
                     continue;
                 }
 
                 ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
 
             }
-
-
 
             // ImGui
             ImGui_ImplVulkan_NewFrame();
@@ -405,6 +385,40 @@ namespace OVK
         // Try to find a transfer queue family.
         index = s_PhysicalDevice->FindQueueFamily(VK_QUEUE_TRANSFER_BIT);
         s_TransferQueueFamily = index;
+    }
+
+    void VulkanApplication::CreateSynchronizationPrimitives()
+    {
+        if (m_RenderingCompleteSemaphores.size() > 0 || m_ImageAvailableSemaphores.size() > 0 || m_InFlightFences.size() > 0)
+        {
+            for (int i = 0; i < m_FramesInFlight; i++)
+            {
+                vkDestroySemaphore(s_Device->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
+                vkDestroySemaphore(s_Device->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
+                vkDestroyFence(s_Device->GetVKDevice(), m_InFlightFences[i], nullptr);
+            }
+        }
+
+        // Initialize 2 sempahores and a single fence needed to synchronize rendering and presentation.
+        m_RenderingCompleteSemaphores.resize(m_FramesInFlight);
+        m_ImageAvailableSemaphores.resize(m_FramesInFlight);
+        m_InFlightFences.resize(m_FramesInFlight);
+
+        // Setup the fences and semaphores needed to synchronize the rendering.
+        VkFenceCreateInfo fenceCreateInfo = {};
+        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        // Create the scynhronization objects as many times as the frames in flight number.
+        for (int i = 0; i < m_FramesInFlight; i++)
+        {
+            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) == VK_SUCCESS, "Failed to create rendering complete semaphore.");
+            ASSERT(vkCreateFence(s_Device->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InFlightFences[i]) == VK_SUCCESS, "Failed to create is rendering fence.");
+            ASSERT(vkCreateSemaphore(s_Device->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) == VK_SUCCESS, "Failed to create image available semaphore.");
+        }
     }
 
     VkSampleCountFlagBits VulkanApplication::GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice)

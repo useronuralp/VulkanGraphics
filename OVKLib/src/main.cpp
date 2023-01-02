@@ -41,6 +41,7 @@ class MyApplication : public OVK::VulkanApplication
 public:
     MyApplication(uint32_t framesInFlight) : VulkanApplication(framesInFlight){}
 private:
+    bool pointLightShadows = true;
     struct GlobalParametersUBO
     {
         glm::mat4 viewMatrix;
@@ -49,9 +50,10 @@ private:
         glm::vec4 dirLightPos;
         glm::vec4 cameraPosition;
         glm::vec4 viewportDimension;
-        glm::vec4 lightPositions[MAX_POINT_LIGHT_COUNT];
-        glm::vec4 lightIntensities[MAX_POINT_LIGHT_COUNT];
+        glm::vec4 pointLightPositions[MAX_POINT_LIGHT_COUNT];
+        glm::vec4 pointLightIntensities[MAX_POINT_LIGHT_COUNT];
         glm::vec4 pointLightColors[MAX_POINT_LIGHT_COUNT];
+        glm::vec4 enablePointLightShadows = glm::vec4(1.0f);
         glm::vec4 directionalLightIntensity;
         glm::mat4 shadowMatrices[MAX_POINT_LIGHT_COUNT][6];
         glm::vec4 far_plane;
@@ -1160,7 +1162,7 @@ public:
             CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
             CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
 
-            glm::vec3 position = glm::vec3(globalParametersUBO.lightPositions[i].x, globalParametersUBO.lightPositions[i].y, globalParametersUBO.lightPositions[i].z);
+            glm::vec3 position = glm::vec3(globalParametersUBO.pointLightPositions[i].x, globalParametersUBO.pointLightPositions[i].y, globalParametersUBO.pointLightPositions[i].z);
 
             globalParametersUBO.shadowMatrices[i][0] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
             globalParametersUBO.shadowMatrices[i][1] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
@@ -1381,13 +1383,13 @@ private:
         SetupParticleSystems();
 
         // Set the positions of the point lights in the scene we have 4 torches.
-        globalParametersUBO.lightPositions[0] = glm::vec4(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f), 1.0f);
-        globalParametersUBO.lightPositions[1] = glm::vec4(glm::vec3(torch2modelMatrix[3].x, torch2modelMatrix[3].y + 0.22f, torch2modelMatrix[3].z + 0.02f), 1.0f);
-        globalParametersUBO.lightPositions[2] = glm::vec4(glm::vec3(torch3modelMatrix[3].x, torch3modelMatrix[3].y + 0.22f, torch3modelMatrix[3].z - 0.02f), 1.0f);
-        globalParametersUBO.lightPositions[3] = glm::vec4(glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.22f, torch4modelMatrix[3].z + 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[0] = glm::vec4(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[1] = glm::vec4(glm::vec3(torch2modelMatrix[3].x, torch2modelMatrix[3].y + 0.22f, torch2modelMatrix[3].z + 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[2] = glm::vec4(glm::vec3(torch3modelMatrix[3].x, torch3modelMatrix[3].y + 0.22f, torch3modelMatrix[3].z - 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[3] = glm::vec4(glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.22f, torch4modelMatrix[3].z + 0.02f), 1.0f);
 
-        globalParametersUBO.lightPositions[4] = glm::vec4(-0.3f, 3.190, -0.180, 1.0f);
-        globalParametersUBO.lightIntensities[4] = glm::vec4(50.0f);
+        globalParametersUBO.pointLightPositions[4] = glm::vec4(-0.3f, 3.190, -0.180, 1.0f);
+        globalParametersUBO.pointLightIntensities[4] = glm::vec4(50.0f);
         globalParametersUBO.directionalLightIntensity.x = 10.0;
 
         globalParametersUBO.far_plane = glm::vec4(point_far_plane);
@@ -1553,10 +1555,10 @@ private:
         globalParametersUBO.viewportDimension = glm::vec4(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height, 0.0f, 0.0f);
 
         // Update point light positions. (Connected to the torch models.)
-        globalParametersUBO.lightPositions[0] = glm::vec4(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f), 1.0f);
-        globalParametersUBO.lightPositions[1] = glm::vec4(glm::vec3(torch2modelMatrix[3].x, torch2modelMatrix[3].y + 0.22f, torch2modelMatrix[3].z + 0.02f), 1.0f);
-        globalParametersUBO.lightPositions[2] = glm::vec4(glm::vec3(torch3modelMatrix[3].x, torch3modelMatrix[3].y + 0.22f, torch3modelMatrix[3].z - 0.02f), 1.0f);
-        globalParametersUBO.lightPositions[3] = glm::vec4(glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.22f, torch4modelMatrix[3].z + 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[0] = glm::vec4(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[1] = glm::vec4(glm::vec3(torch2modelMatrix[3].x, torch2modelMatrix[3].y + 0.22f, torch2modelMatrix[3].z + 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[2] = glm::vec4(glm::vec3(torch3modelMatrix[3].x, torch3modelMatrix[3].y + 0.22f, torch3modelMatrix[3].z - 0.02f), 1.0f);
+        globalParametersUBO.pointLightPositions[3] = glm::vec4(glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.22f, torch4modelMatrix[3].z + 0.02f), 1.0f);
 
         // Update Particle system positions. (Connected to the torch models)
         fireSparks->SetEmitterPosition(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f));
@@ -1580,17 +1582,20 @@ private:
             std::uniform_real_distribution<> distr2(75.0f, 100.0f);
             std::uniform_real_distribution<> distr3(12.5f, 25.0f); 
             std::uniform_real_distribution<> distr4(25.0f, 50.0f); 
-            globalParametersUBO.lightIntensities[0] = glm::vec4(distr(gen) / 2) ;
-            globalParametersUBO.lightIntensities[1] = glm::vec4(distr2(gen) / 2);
-            globalParametersUBO.lightIntensities[2] = glm::vec4(distr3(gen) / 2);
-            globalParametersUBO.lightIntensities[3] = glm::vec4(distr4(gen) / 2);
-            globalParametersUBO.lightIntensities[4] = glm::vec4(500.0f);
+            globalParametersUBO.pointLightIntensities[0] = glm::vec4(distr(gen) / 2) ;
+            globalParametersUBO.pointLightIntensities[1] = glm::vec4(distr2(gen) / 2);
+            globalParametersUBO.pointLightIntensities[2] = glm::vec4(distr3(gen) / 2);
+            globalParametersUBO.pointLightIntensities[3] = glm::vec4(distr4(gen) / 2);
+            globalParametersUBO.pointLightIntensities[4] = glm::vec4(500.0f);
         }
 
-        // Shadow passes ---------
-        DirectionalShadowPass();
-        PointLightShadowPass();
-        // Shadow passes end  ----
+        if (globalParametersUBO.enablePointLightShadows.x == 1.0f)
+        {
+            // Shadow passes ---------
+            DirectionalShadowPass();
+            PointLightShadowPass();
+            // Shadow passes end  ----
+        }
 
         // Copy the global UBO data from CPU to GPU. 
         memcpy(mappedGlobalParametersModelUBOBuffer, &globalParametersUBO, sizeof(GlobalParametersUBO));
@@ -1655,7 +1660,7 @@ private:
         pushConst lightCubePC;
         // Drawing the light cube.
         glm::mat4 lightCubeMat = glm::mat4(1.0f);
-        lightCubeMat = glm::translate(lightCubeMat, glm::vec3(globalParametersUBO.lightPositions[4].x, globalParametersUBO.lightPositions[4].y, globalParametersUBO.lightPositions[4].z));
+        lightCubeMat = glm::translate(lightCubeMat, glm::vec3(globalParametersUBO.pointLightPositions[4].x, globalParametersUBO.pointLightPositions[4].y, globalParametersUBO.pointLightPositions[4].z));
         lightCubeMat = glm::scale(lightCubeMat, glm::vec3(0.05f));
         lightCubePC.modelMat = lightCubeMat;
         lightCubePC.color = glm::vec4(4.5f, 1.0f, 1.0f, 1.0f);
@@ -1810,21 +1815,17 @@ private:
         
         float* p3[3] =
         {
-            &globalParametersUBO.lightPositions[4].x,
-            &globalParametersUBO.lightPositions[4].y,
-            &globalParametersUBO.lightPositions[4].z
+            &globalParametersUBO.pointLightPositions[4].x,
+            &globalParametersUBO.pointLightPositions[4].y,
+            &globalParametersUBO.pointLightPositions[4].z
         };
         
         ImGui::DragFloat3("point light", *p3, 0.01f, -10, 10);
         
-        float* c[3] =
+        if (ImGui::Checkbox("Point light shadows", &pointLightShadows))
         {
-            &globalParametersUBO.pointLightColors[4].x,
-            &globalParametersUBO.pointLightColors[4].x,
-            &globalParametersUBO.pointLightColors[4].x
-        };
-        
-        ImGui::ColorPicker4("Point Light Color", *c);
+            pointLightShadows ? globalParametersUBO.enablePointLightShadows.x = 1.0f : globalParametersUBO.enablePointLightShadows.x = 0.0f;
+        }
         
         
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);

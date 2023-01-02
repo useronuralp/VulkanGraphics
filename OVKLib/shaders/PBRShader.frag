@@ -21,6 +21,7 @@ layout(set = 0, binding = 0) uniform globalUBO
     vec4 pointLightPositions[MAX_POINT_LIGHT];
     vec4 pointlightIntensities[MAX_POINT_LIGHT];
     vec4 pointLightColors[MAX_POINT_LIGHT];
+    vec4 enablePointLightShadows;
     vec4 directionalLightIntensity;
     mat4 shadowMatrices[MAX_POINT_LIGHT][6];
     vec4 far_plane;
@@ -274,8 +275,15 @@ void main()
 
    for(int i = 0; i < pointLightCount.x; i++)
    {
-        float pointShadow = PointShadowCalculation(i, pointLightPositions[i].xyz);
-        color += CalcPointLight(normal, viewDir, pointLightPositions[i].xyz, albedo, roughnessMetallicTex, pointLightColors[i].xyz, pointlightIntensities[i].x, pointShadow);
+        if(enablePointLightShadows.x == 1.0)
+        {
+            float pointShadow = PointShadowCalculation(i, pointLightPositions[i].xyz);
+            color += CalcPointLight(normal, viewDir, pointLightPositions[i].xyz, albedo, roughnessMetallicTex, pointLightColors[i].xyz, pointlightIntensities[i].x, pointShadow);
+        }
+        else
+        {
+            color += CalcPointLight(normal, viewDir, pointLightPositions[i].xyz, albedo, roughnessMetallicTex, pointLightColors[i].xyz, pointlightIntensities[i].x, 0.0);
+        }
    }
 
    
