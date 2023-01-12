@@ -51,7 +51,7 @@ namespace OVK
     {
         OnVulkanInit();
         // Create a Window.
-        s_Window = std::make_shared<Window>("Vulkan Application", 1280, 720);
+        s_Window = std::make_shared<Window>("Vulkan Application", 1920, 1080);
 
         // Create an Instance,
         s_Instance = std::make_shared<Instance>();
@@ -153,6 +153,11 @@ namespace OVK
 
         ImGui_ImplVulkan_Init(&init_info, s_Swapchain->GetSwapchainRenderPass());
 
+        // Loading a custom font here and scaling the the font so that it can work on a 4K display. 
+        // TO DO: You should dynamically handle the DPI of the monitor that the application is running on rather than setting a fixed scale for the font.
+        ImGuiIO& io = ImGui::GetIO();
+        io.Fonts->AddFontFromFileTTF((std::string(SOLUTION_DIR) + "OVKLib\\resources\\Open_Sans\\static\\OpenSans\\OpenSans-Regular.ttf").c_str(), 30);
+
         VkCommandBuffer singleCmdBuffer;
         VkCommandPool singleCmdPool;
         CommandBuffer::CreateCommandBufferPool(VulkanApplication::s_TransferQueueFamily, singleCmdPool);
@@ -165,7 +170,6 @@ namespace OVK
         CommandBuffer::Submit(singleCmdBuffer, VulkanApplication::s_Device->GetTransferQueue());
         CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, VulkanApplication::s_Device->GetTransferQueue());
         CommandBuffer::DestroyCommandPool(singleCmdPool);
-
 
     }
 
@@ -229,9 +233,7 @@ namespace OVK
             ImGui_ImplVulkan_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-
             ImGui::Begin("Shaders:");
-
             bool breakFrame = false;
             for (const auto& entry : std::filesystem::directory_iterator((std::string(SOLUTION_DIR) + "\\OVKLib\\shaders").c_str()))
             {

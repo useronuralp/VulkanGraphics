@@ -72,11 +72,11 @@ namespace OVK
         float v = rnd(0.0f, 1.0f);
         float theta = u * 2.0f * M_PI;
         float phi = acos(2.0 * v - 1.0f);
-        float r = rnd(0.0f, m_SphereRadius);
+        float r = rnd(-m_SphereRadius, m_SphereRadius);
 
-        particle->Position.x = r * rnd(-1.0f, 1.0f);
-        particle->Position.y = r * rnd(-1.0f, 1.0f);
-        particle->Position.z = r * rnd(-1.0f, 1.0f);
+        particle->Position.x = r * rnd(-1.0f, 1.0);
+        particle->Position.y = r * rnd(-1.0f, 1.0);
+        particle->Position.z = r * rnd(-1.0f, 1.0);
 
         particle->Position += glm::vec4(emitterPos, 0.0f);
     }
@@ -201,14 +201,14 @@ namespace OVK
             }
 
             CurlNoise::float3 curlNoise = CurlNoise::ComputeCurlNoBoundaries(Vectormath::Aos::Vector3(m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z));
-            float noise = scaled_raw_noise_3d(-20, 20, m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z);
-            m_Particles[i].Position.y += m_Particles[i].Velocity.y * 3.0f * (m_EnableNoise ? (curlNoise.val[1] / 10) + 1 : 1) * particleTimer * 3.5f;
+            //float noise = scaled_raw_noise_3d(-20, 20, m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z);
+            m_Particles[i].Position.y += m_Particles[i].Velocity.y * 3.0f * (m_EnableNoise ? (curlNoise.val[1] / 10) + 1 : 1)* particleTimer * 3.5f;
             m_Particles[i].Position.x += m_Particles[i].Velocity.x * (m_EnableNoise ? curlNoise.val[0] : 1) * particleTimer * 3.5f;
             m_Particles[i].Position.z += m_Particles[i].Velocity.z * (m_EnableNoise ? curlNoise.val[2] : 1) * particleTimer * 3.5f;
 
 
             m_Particles[i].Velocity = m_Particles[i].Velocity;
-            m_Particles[i].LifeTime -= 1.0f * deltaTime;
+            m_Particles[i].LifeTime -= m_ImmortalParticle ? 0 : 1.0f * deltaTime;
             m_Particles[i].Alpha = m_ImmortalParticle ? 1.0f : m_Particles[i].LifeTime / m_Particles[i].StartingLifeTime;
             m_Particles[i].SizeRadius = m_Particles[i].SizeRadius;
             m_Particles[i].Color = m_Particles[i].Color;

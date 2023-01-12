@@ -32,7 +32,7 @@
 #define MAX_POINT_LIGHT_COUNT 10
 #define SHADOW_DIM 10000 
 #define POUNT_SHADOW_DIM 1000
-#define MAX_FRAMES_IN_FLIGHT 1 
+#define MAX_FRAMES_IN_FLIGHT 1
 int CURRENT_FRAME = 0;
 
 using namespace OVK;
@@ -74,6 +74,7 @@ public:
     Ref<Image>       HDRColorImage;
     Ref<Image>       HDRDepthImage;
     Ref<Image>       particleTexture;
+    Ref<Image>       dustTexture;
     Ref<Image>       fireTexture;
     std::vector<Ref<Image>> pointShadowMaps;
 #pragma endregion
@@ -141,6 +142,8 @@ public:
 
     ParticleSystem* fireSparks4;
     ParticleSystem* fireBase4;
+
+    ParticleSystem* ambientParticles;
 #pragma endregion
 
 #pragma region UBOs
@@ -802,6 +805,7 @@ public:
     {
         particleTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
         fireTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/fire_sprite_sheet.png")}, VK_FORMAT_R8G8B8A8_SRGB);
+        dustTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/dust.png") }, VK_FORMAT_R8G8B8A8_SRGB);
 
         ParticleSpecs specs{};
         specs.ParticleCount = 10;
@@ -940,6 +944,21 @@ public:
         fireBase4->RowCellSize = 0.0833333333333333333333f;
         fireBase4->ColumnCellSize = 0.166666666666666f;
         fireBase4->ColumnOffset = 0.0f;
+
+        specs.ParticleCount = 500;
+        specs.EnableNoise = true;
+        specs.TrailLength = 0;
+        specs.SphereRadius = 5.0f;
+        specs.ImmortalParticle = true;
+        specs.ParticleSize = 0.5f;
+        specs.EmitterPos = glm::vec3(0, 2.0f, 0);
+        specs.ParticleMinLifetime = 5.0f;
+        specs.ParticleMaxLifetime = 10.0f;
+        specs.MinVel = glm::vec3(-0.3f, -0.3f, -0.3f);
+        specs.MaxVel = glm::vec3(0.3f, 0.3f, 0.3f);
+
+        ambientParticles = new ParticleSystem(specs, dustTexture, particleSystemLayout, pool);
+        ambientParticles->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
     }
 
     void CreateHDRFramebuffer()
@@ -959,6 +978,7 @@ public:
 
         HDRFramebuffer = std::make_shared<Framebuffer>(HDRRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
     }
+
     void CreateHDRRenderPass()
     {
         // HDR render pass.
@@ -982,10 +1002,6 @@ public:
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-
-
-
-
         // A single depth attachment for depth testing / occlusion.
         depthAttachmentDescription.format = Utils::FindDepthFormat();
         depthAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1008,11 +1024,11 @@ public:
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
         VkSubpassDependency dependency{};
-        dependency.srcSubpass = 0;
-        dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
         // TO DO: I don't know if these synchronization values are correct. UNDERSTAND THEM BETTER.
-        dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
@@ -1535,6 +1551,7 @@ private:
         fireBase2->UpdateParticles(deltaTime);
         fireBase3->UpdateParticles(deltaTime);
         fireBase4->UpdateParticles(deltaTime);
+        ambientParticles->UpdateParticles(deltaTime);
 
         // Animating the directional light
         glm::mat4 directionalLightMVP = directionalLightProjectionMatrix * glm::lookAt(glm::vec3(directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -1710,6 +1727,8 @@ private:
         sparkBrigtness.x = 5.0f;
         glm::vec4 flameBrigthness;
         flameBrigthness.x = 4.0f;
+        glm::vec4 dustBrigthness;
+        dustBrigthness.x = 1.0f;
 
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &sparkBrigtness);
         fireSparks->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
@@ -1723,6 +1742,9 @@ private:
         fireBase2->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
         fireBase3->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
         fireBase4->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
+
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &dustBrigthness);
+        ambientParticles->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
 
 
         //vkCmdEndRenderingKHR(cmdBuffers[CurrentFrameIndex()]);
@@ -1860,6 +1882,7 @@ private:
         delete fireBase3;
         delete fireSparks4;
         delete fireBase4;
+        delete ambientParticles;
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
