@@ -32,10 +32,6 @@ namespace OVK
 			uint32_t							 ViewportWidth  = UINT32_MAX;
 			uint32_t							 ViewportHeight = UINT32_MAX;
 			std::vector<VkPushConstantRange>	 PushConstantRanges;
-			//bool								 EnablePushConstant = false;
-			//uint32_t							 PushConstantOffset  = 0;
-			//uint32_t							 PushConstantSize = 0;
-			//VkShaderStageFlags					 PushConstantShaderStage;
 			VkPrimitiveTopology					 PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 			VkPipelineColorBlendAttachmentState	 ColorBlendAttachmentState;
 			VkVertexInputBindingDescription*	 pVertexInputBindingDescriptions = nullptr;

@@ -58,20 +58,19 @@ namespace OVK
 		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap = nullptr, std::vector<Ref<Image>> pointShadows = std::vector<Ref<Image>>());
 		// This constructor is used to construct a single meshed model (skybox).
 		Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
-		const std::vector<Mesh*>&		GetMeshes() { return m_Meshes; }
 
-		glm::mat4& GetTransform()  { return m_Transform; }
+		const std::vector<Mesh*>&		GetMeshes()		{ return m_Meshes; }
+		int								GetMeshCount()	{ return m_Meshes.size(); }
+		glm::mat4&						GetTransform()  { return m_Transform; }
+		const Unique<VertexBuffer>&		GetVBO()		{ return m_VBO; }
+		const Unique<IndexBuffer>&		GetIBO()		{ return m_IBO; }
 
 		void Rotate(const float degree, const float& x, const float& y, const float& z);
 		void Translate(const float& x, const float& y, const float& z);
 		void Scale(const float& x, const float& y, const float& z);
 
-
-		const Unique<VertexBuffer>&		GetVBO() { return m_VBO; }
-		const Unique<IndexBuffer>&		GetIBO() { return m_IBO; }
-		void							DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
-		void							Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
-
+		void DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
+		void Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
 	private:
 		void		ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
 		Mesh*		ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);

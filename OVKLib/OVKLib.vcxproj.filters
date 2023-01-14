@@ -213,6 +213,9 @@
     <ClInclude Include="vendor\stb_image\include\stb_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\OVKLib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\texture.jpg">

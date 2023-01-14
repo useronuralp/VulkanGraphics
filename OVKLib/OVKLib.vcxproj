@@ -211,6 +211,7 @@
     <ClInclude Include="src\LogicalDevice.h" />
     <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\Model.h" />
+    <ClInclude Include="src\OVKLib.h" />
     <ClInclude Include="src\ParticleSystem.h" />
     <ClInclude Include="src\PhysicalDevice.h" />
     <ClInclude Include="src\Pipeline.h" />

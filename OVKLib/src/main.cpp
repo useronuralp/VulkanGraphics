@@ -1,33 +1,4 @@
-#include "VulkanApplication.h"
-#include "Model.h"
-#include "Image.h"
-#include "Framebuffer.h"
-#include "Pipeline.h"
-#include "Surface.h"
-#include "Swapchain.h"
-#include "LogicalDevice.h"
-#include "Utils.h"
-#include "PhysicalDevice.h"
-#include "CommandBuffer.h"
-#include "Window.h"
-#include "CommandBuffer.h"
-#include "Camera.h"
-#include "Buffer.h"
-#include "Mesh.h"
-#include "ParticleSystem.h"
-#include "Bloom.h"
-#include "Instance.h"
-
-// External
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_vulkan.h>
-#include <simplexnoise.h>
-#include <random>
-#include <Curl.h>
-#include <filesystem>
-
-#include <glm/gtx/matrix_decompose.hpp>
+#include "OVKLib.h"
 
 #define MAX_POINT_LIGHT_COUNT 10
 #define SHADOW_DIM 10000 
@@ -207,9 +178,9 @@ public:
     float m_DeltaTimeLastFrame = GetRenderTime();
 
     // Helpers
-    void WriteDescriptorSetWithUBOs(Model* model)
+    void WriteDescriptorSetWithGlobalUBO(Model* model)
     {
-        for (int i = 0; i < model->GetMeshes().size(); i++)
+        for (int i = 0; i < model->GetMeshCount(); i++)
         {
             // Write the descriptor set.
             VkWriteDescriptorSet descriptorWrite{};
@@ -232,7 +203,7 @@ public:
             vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
         }
     }
-    void WriteDescriptorSetSkybox(Model* model)
+    void WriteDescriptorSet_Skybox(Model* model)
     {
         // Write the descriptor set.
         VkWriteDescriptorSet descriptorWrite{};
@@ -254,7 +225,7 @@ public:
 
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
-    void WriteDescriptorSetCube(Model* model)
+    void WriteDescriptorSet_Cube(Model* model)
     {
         // Write the descriptor set.
         VkWriteDescriptorSet descriptorWrite{};
@@ -276,9 +247,9 @@ public:
 
         vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
-    void WriteDescriptorSetEmissiveObject(Model* model)
+    void WriteDescriptorSet_EmissiveObject(Model* model)
     {
-        for (int i = 0; i < model->GetMeshes().size(); i++)
+        for (int i = 0; i < model->GetMeshCount(); i++)
         {
             // Write the descriptor set.
             VkWriteDescriptorSet descriptorWrite{};
@@ -319,6 +290,7 @@ public:
         specs.PolygonMode = VK_POLYGON_MODE_FILL;
         specs.VertexShaderPath = "shaders/PBRShaderVERT.spv";
         specs.FragmentShaderPath = "shaders/PBRShaderFRAG.spv";
+
 
         VkPushConstantRange pcRange;
         pcRange.offset = 0;
@@ -590,7 +562,6 @@ public:
 
         skyboxPipeline = std::make_shared<Pipeline>(specs);
     }
-    // cube pipeline is not being used right now.
     void SetupCubePipeline()
     {
         Pipeline::Specs specs{};
@@ -801,6 +772,7 @@ public:
 
         EmissiveObjectPipeline = std::make_shared<Pipeline>(specs);
     }
+
     void SetupParticleSystems()
     {
         particleTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
@@ -1174,7 +1146,7 @@ public:
             pointShadowPassBeginInfo.renderArea.extent.height = pointShadowMapFramebuffers[i]->GetHeight();
             pointShadowPassBeginInfo.clearValueCount = 1;
             pointShadowPassBeginInfo.pClearValues = &depthPassClearValue;
-
+            
             CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
             CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
 
@@ -1365,7 +1337,7 @@ private:
         model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
             pool, PBRLayout, directionalShadowMapImage, pointShadowMaps );
         model->Scale(0.005f, 0.005f, 0.005f);
-        WriteDescriptorSetWithUBOs(model);
+        WriteDescriptorSetWithGlobalUBO(model);
 
         // Loading the model Malenia's Helmet.
         model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
@@ -1373,7 +1345,7 @@ private:
         model2->Translate(0.0, 2.0f, 0.0);
         model2->Rotate(90, 0, 1, 0);
         model2->Scale(0.7f, 0.7f, 0.7f);
-        WriteDescriptorSetWithUBOs(model2);
+        WriteDescriptorSetWithGlobalUBO(model2);
 
         torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
             pool, PBRLayout, directionalShadowMapImage, pointShadowMaps);
@@ -1394,7 +1366,7 @@ private:
         torch4modelMatrix = glm::translate(torch4modelMatrix, glm::vec3(2.45f, 1.3f, -1.170f));
         torch4modelMatrix = glm::scale(torch4modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
         torch4modelMatrix = glm::rotate(torch4modelMatrix, glm::radians(-90.0f), glm::vec3(0, 1, 0));
-        WriteDescriptorSetWithUBOs(torch);
+        WriteDescriptorSetWithGlobalUBO(torch);
 
         SetupParticleSystems();
 
@@ -1416,7 +1388,7 @@ private:
         model3->Rotate(54, 0, 0, 1);
         model3->Rotate(90, 0, 1, 0);
         model3->Scale(0.7f, 0.7f, 0.7f);
-        WriteDescriptorSetEmissiveObject(model3);
+        WriteDescriptorSet_EmissiveObject(model3);
 
 
         // Vertex data for the skybox.
@@ -1480,11 +1452,11 @@ private:
 
         // Create the mesh for the skybox.
         skybox = new Model(cubeVertices, vertexCount, cubemap, pool, skyboxLayout);
-        WriteDescriptorSetSkybox(skybox);
+        WriteDescriptorSet_Skybox(skybox);
 
         // A cube model to depict/debug point lights.
         cube = new Model(cubeVertices, vertexCount, nullptr, pool2, cubeLayout);
-        WriteDescriptorSetCube(cube);
+        WriteDescriptorSet_Cube(cube);
 
 
         // Shadow pass begin Info.
@@ -1696,7 +1668,7 @@ private:
 
 
         // Drawing 4 torches.
-        for (int i = 0; i < torch->GetMeshes().size(); i++)
+        for (int i = 0; i < torch->GetMeshCount(); i++)
         {
             CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch1modelMatrix);
             torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
