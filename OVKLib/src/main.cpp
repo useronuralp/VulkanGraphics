@@ -12,9 +12,14 @@ class MyApplication : public OVK::VulkanApplication
 public:
     MyApplication(uint32_t framesInFlight) : VulkanApplication(framesInFlight){}
 private:
+
     bool pointLightShadows = true;
+    bool showDOFFocus = false;
+    bool enableDepthOfField = true;
+
     struct GlobalParametersUBO
     {
+        // The alignment in a struct equals to the largest base alignemnt of any of its members. In this case all of the members need to be aligned to a vec4 format.
         glm::mat4 viewMatrix;
         glm::mat4 projMatrix;
         glm::mat4 directionalLightMVP;
@@ -27,8 +32,18 @@ private:
         glm::vec4 enablePointLightShadows = glm::vec4(1.0f);
         glm::vec4 directionalLightIntensity;
         glm::mat4 shadowMatrices[MAX_POINT_LIGHT_COUNT][6];
-        glm::vec4 far_plane;
+        glm::vec4 pointFarPlane;
         glm::vec4 pointLightCount;
+        // padding
+        float padding[12];
+        // padding
+        glm::vec4 DOFFramebufferSize;
+        glm::vec4 cameraNearPlane;
+        glm::vec4 cameraFarPlane;
+        glm::vec4 showDOFFocus;
+        glm::vec4 focalDepth;
+        glm::vec4 focalLength;
+        glm::vec4 fstop;
     };
 public:
 #pragma region ClearValues
@@ -131,6 +146,9 @@ public:
     VkSampler                           finalPassSampler;
     VkDescriptorSet                     finalPassDescriptorSet;
 
+    float cameraFarPlane = 1500.0f;
+    float cameraNearPlane = 0.1f;
+
 
     std::random_device                  rd; // obtain a random number from hardware
     std::mt19937                        gen; // seed the generator
@@ -163,19 +181,34 @@ public:
 
     glm::vec4 directionalLightPosition = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
 
-    float near_plane = 1.0f;
-    float far_plane = 100.0f;
+    float directionalNearPlane = 1.0f;
+    float directionalFarPlane = 100.0f;
 
-    float point_near_plane = 0.1f;
-    float point_far_plane = 100.0f;
+    float pointNearPlane = 0.1f;
+    float pointFarPlane = 100.0f;
 
     int   frameCount = 0;
 
-    glm::mat4 directionalLightProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, near_plane, far_plane);
-    glm::mat4 pointLightProjectionMatrix = glm::perspective(glm::radians(90.0f), 1.0f, point_near_plane, point_far_plane);
+    glm::mat4 directionalLightProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, directionalNearPlane, directionalFarPlane);
+    glm::mat4 pointLightProjectionMatrix = glm::perspective(glm::radians(90.0f), 1.0f, pointNearPlane, pointFarPlane);
 
     float m_LastFrameRenderTime;
     float m_DeltaTimeLastFrame = GetRenderTime();
+
+
+    //Experimental
+    Ref<Image>       bokehPassImage;
+    VkRenderPassBeginInfo bokehPassBeginInfo;
+    VkRenderPass bokehRenderPass;
+    Ref<Framebuffer> bokehPassFramebuffer;
+    Ref<Pipeline> bokehPassPipeline;
+
+    VkRenderPassBeginInfo bokehRenderPassBeginInfo;
+    VkSampler  bokehPassSceneSampler;
+    VkSampler  bokehPassDepthSampler;
+    VkDescriptorSet bokehDescriptorSet;
+    Ref<DescriptorLayout> bokehPassLayout;
+
 
     // Helpers
     void WriteDescriptorSetWithGlobalUBO(Model* model)
@@ -271,6 +304,28 @@ public:
 
             vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
         }
+    }
+    void WriteDescriptorSet_BokehDOF()
+    {
+        // Write the descriptor set.
+        VkWriteDescriptorSet descriptorWrite{};
+        VkDescriptorBufferInfo bufferInfo{};
+
+        bufferInfo.buffer = globalParametersUBOBuffer;
+        bufferInfo.offset = offsetof(GlobalParametersUBO, DOFFramebufferSize);
+        bufferInfo.range = sizeof(glm::vec4) * 7;
+
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = bokehDescriptorSet;
+        descriptorWrite.dstBinding = 2;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pImageInfo = nullptr; // Optional
+        descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
 
     void SetupPBRPipeline()
@@ -637,8 +692,6 @@ public:
         particleSpecs.FragmentShaderPath = "shaders/particleFRAG.spv";
         particleSpecs.PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 
-
-
         VkPushConstantRange pcRange;
         pcRange.offset = 0;
         pcRange.size = sizeof(glm::vec4);
@@ -771,6 +824,40 @@ public:
         specs.pVertexInputAttributeDescriptons = attributeDescriptions5.data();
 
         EmissiveObjectPipeline = std::make_shared<Pipeline>(specs);
+    }
+    void SetupBokehPassPipeline()
+    {
+        Pipeline::Specs specs{};
+        specs.DescriptorLayout = bokehPassLayout;
+        specs.pRenderPass = &bokehRenderPass;
+        specs.CullMode = VK_CULL_MODE_NONE;
+        specs.DepthBiasClamp = 0.0f;
+        specs.DepthBiasConstantFactor = 0.0f;
+        specs.DepthBiasSlopeFactor = 0.0f;
+        specs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        specs.EnableDepthBias = false;
+        specs.EnableDepthTesting = VK_FALSE;
+        specs.EnableDepthWriting = VK_FALSE;
+        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        specs.PolygonMode = VK_POLYGON_MODE_FILL;
+        specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
+        specs.FragmentShaderPath = "shaders/bokehPassFRAG.spv";
+        specs.ViewportHeight = bokehPassFramebuffer->GetHeight();
+        specs.ViewportWidth = bokehPassFramebuffer->GetWidth();
+
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_TRUE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+        specs.ColorBlendAttachmentState = colorBlendAttachment;
+
+        bokehPassPipeline = std::make_shared<Pipeline>(specs);
     }
 
     void SetupParticleSystems()
@@ -940,7 +1027,7 @@ public:
 
 
         HDRDepthImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
-            Utils::FindDepthFormat(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, ImageType::DEPTH);
+            Utils::FindDepthFormat(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, ImageType::DEPTH);
 
         std::vector<VkImageView> attachments =
         {
@@ -950,7 +1037,68 @@ public:
 
         HDRFramebuffer = std::make_shared<Framebuffer>(HDRRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
     }
+    void CreateBokehFramebuffer()
+    {
+        bokehPassImage = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
+            VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, ImageType::COLOR);
 
+        std::vector<VkImageView> attachments =
+        {
+            bokehPassImage->GetImageView()
+        };
+
+        bokehPassFramebuffer = std::make_shared<Framebuffer>(bokehRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
+    }
+
+    void CreateBokehRenderPass()
+    {
+        // HDR render pass.
+        VkAttachmentDescription colorAttachmentDescription;
+        VkAttachmentReference colorAttachmentRef;
+
+        colorAttachmentDescription.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        colorAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentDescription.flags = 0;
+        colorAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        // Color att. reference.
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pDepthStencilAttachment = nullptr;
+
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        // TO DO: I don't know if these synchronization values are correct. UNDERSTAND THEM BETTER.
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        std::array<VkAttachmentDescription, 1> attachmentDescriptions;
+        attachmentDescriptions[0] = colorAttachmentDescription;
+
+        VkRenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()); // Number of attachments.
+        renderPassInfo.pAttachments = attachmentDescriptions.data(); // An array with the size of "attachmentCount".
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
+        ASSERT(vkCreateRenderPass(VulkanApplication::s_Device->GetVKDevice(), &renderPassInfo, nullptr, &bokehRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
+    }
     void CreateHDRRenderPass()
     {
         // HDR render pass.
@@ -983,7 +1131,7 @@ public:
         depthAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
         // Depth att. reference.
         depthAttachmentRef.attachment = 1;
@@ -1170,7 +1318,7 @@ public:
 
             PC pc;
             pc.lightPos = glm::vec4(position, 1.0f);
-            pc.farPlane = glm::vec4(point_far_plane);
+            pc.farPlane = glm::vec4(pointFarPlane);
 
             CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
             CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
@@ -1186,6 +1334,25 @@ public:
             // End point shadow pass.----------------------
         }
     }
+
+    // Connects the processed image that has bokeh depth of blur in it to the final render pass.
+    void EnableDepthOfField()
+    {
+        vkDeviceWaitIdle(s_Device->GetVKDevice());
+        vkDestroySampler(s_Device->GetVKDevice(), finalPassSampler, nullptr);
+
+        finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+    // Connects the bloom image to the final render pass.
+    void DisableDepthOfField()
+    {
+        vkDeviceWaitIdle(s_Device->GetVKDevice());
+        vkDestroySampler(s_Device->GetVKDevice(), finalPassSampler, nullptr);
+
+        finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
 private:
     void OnVulkanInit() override
     {
@@ -1193,7 +1360,7 @@ private:
         SetDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
 
         // Set the parameters of the main camera.
-        SetCameraConfiguration(45.0f, 0.1f, 1500.0f);
+        SetCameraConfiguration(45.0f, cameraNearPlane, cameraFarPlane);
     }
 
     void OnStart() override
@@ -1248,6 +1415,12 @@ private:
             DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4) * 2,   1, VK_SHADER_STAGE_VERTEX_BIT,    0},
         };
 
+        std::vector<DescriptorBindingSpecs> BokehPassLayout
+        {
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
+            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
+            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::vec4) * 7,               1, VK_SHADER_STAGE_FRAGMENT_BIT , 2},
+        };
 
         // We are using only a single pool for all our descriptor sets. Set it up here.
         std::vector<VkDescriptorType> types;
@@ -1259,7 +1432,6 @@ private:
         types.clear();
         types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         pool2 = std::make_shared<DescriptorPool>(500, types);
-        
 
         // Descriptor Set Layouts
         particleSystemLayout = std::make_shared<DescriptorLayout>(ParticleSystemLayout);
@@ -1268,6 +1440,7 @@ private:
         PBRLayout = std::make_shared<DescriptorLayout>(hdrLayout);
         oneSamplerLayout = std::make_shared<DescriptorLayout>(OneSamplerLayout);
         emissiveLayout = std::make_shared<DescriptorLayout>(EmissiveLayout);
+        bokehPassLayout = std::make_shared<DescriptorLayout>(BokehPassLayout);
 
 
         // Following are the global Uniform Buffes shared by all shaders.
@@ -1293,12 +1466,23 @@ private:
         VkResult rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &finalPassDescriptorSet);
         ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
+        // Allocate bokeh pass descriptor Set.
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = pool->GetDescriptorPool();
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &bokehPassLayout->GetDescriptorLayout();
+
+        rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &bokehDescriptorSet);
+        ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+
         // Setup resources.
         CreateHDRRenderPass();
         CreateShadowRenderPass();
         CreatePointShadowRenderPass();
+        CreateBokehRenderPass();
 
         CreateHDRFramebuffer();
+        CreateBokehFramebuffer();
 
         SetupFinalPassPipeline();
         SetupPBRPipeline();
@@ -1308,8 +1492,7 @@ private:
         SetupPointShadowPassPipeline();
         SetupEmissiveObjectPipeline();
         SetupParticleSystemPipeline();
-
-
+        SetupBokehPassPipeline();
 
         // Directional light shadowmap framebuffer.
         std::vector<VkImageView> attachments =
@@ -1375,12 +1558,15 @@ private:
         globalParametersUBO.pointLightPositions[1] = glm::vec4(glm::vec3(torch2modelMatrix[3].x, torch2modelMatrix[3].y + 0.22f, torch2modelMatrix[3].z + 0.02f), 1.0f);
         globalParametersUBO.pointLightPositions[2] = glm::vec4(glm::vec3(torch3modelMatrix[3].x, torch3modelMatrix[3].y + 0.22f, torch3modelMatrix[3].z - 0.02f), 1.0f);
         globalParametersUBO.pointLightPositions[3] = glm::vec4(glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.22f, torch4modelMatrix[3].z + 0.02f), 1.0f);
-
+        globalParametersUBO.cameraNearPlane = glm::vec4(cameraNearPlane);
+        globalParametersUBO.cameraFarPlane = glm::vec4(cameraFarPlane);
+        globalParametersUBO.focalDepth = glm::vec4(1.5f);
+        globalParametersUBO.focalLength = glm::vec4(15.0f);
+        globalParametersUBO.fstop = glm::vec4(6.0f);
         globalParametersUBO.pointLightPositions[4] = glm::vec4(-0.3f, 3.190, -0.180, 1.0f);
         globalParametersUBO.pointLightIntensities[4] = glm::vec4(50.0f);
-        globalParametersUBO.directionalLightIntensity.x = 10.0;
-
-        globalParametersUBO.far_plane = glm::vec4(point_far_plane);
+        globalParametersUBO.directionalLightIntensity = glm::vec4(10.0);
+        globalParametersUBO.pointFarPlane = glm::vec4(pointFarPlane);
 
 
         model3 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\sword\\scene.gltf", LOAD_VERTEX_POSITIONS, pool, emissiveLayout);
@@ -1486,8 +1672,6 @@ private:
         HDRRenderPassBeginInfo.renderArea.extent.height = HDRFramebuffer->GetHeight();
         HDRRenderPassBeginInfo.renderArea.extent.width = HDRFramebuffer->GetWidth();
 
-
-
         CommandBuffer::CreateCommandBufferPool(s_GraphicsQueueFamily, cmdPool); 
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -1498,8 +1682,16 @@ private:
         bloomAgent = std::make_shared<Bloom>();
         bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
-        finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        bokehPassSceneSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        bokehPassDepthSampler = Utils::CreateSampler(HDRDepthImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+
+        WriteDescriptorSet_BokehDOF();
 	}
     void OnUpdate() override
     {
@@ -1542,6 +1734,8 @@ private:
         globalParametersUBO.dirLightPos = directionalLightPosition;
         globalParametersUBO.directionalLightMVP = directionalLightMVP;
         globalParametersUBO.viewportDimension = glm::vec4(s_Surface->GetVKExtent().width, s_Surface->GetVKExtent().height, 0.0f, 0.0f);
+        globalParametersUBO.DOFFramebufferSize.x = bokehPassFramebuffer->GetWidth();
+        globalParametersUBO.DOFFramebufferSize.y = bokehPassFramebuffer->GetHeight();
 
         // Update point light positions. (Connected to the torch models.)
         globalParametersUBO.pointLightPositions[0] = glm::vec4(glm::vec3(torch1modelMatrix[3].x, torch1modelMatrix[3].y + 0.22f, torch1modelMatrix[3].z - 0.02f), 1.0f);
@@ -1571,7 +1765,7 @@ private:
             std::uniform_real_distribution<> distr2(75.0f, 100.0f);
             std::uniform_real_distribution<> distr3(12.5f, 25.0f); 
             std::uniform_real_distribution<> distr4(25.0f, 50.0f); 
-            globalParametersUBO.pointLightIntensities[0] = glm::vec4(distr(gen) / 2) ;
+            globalParametersUBO.pointLightIntensities[0] = glm::vec4(distr(gen) / 2);
             globalParametersUBO.pointLightIntensities[1] = glm::vec4(distr2(gen) / 2);
             globalParametersUBO.pointLightIntensities[2] = glm::vec4(distr3(gen) / 2);
             globalParametersUBO.pointLightIntensities[3] = glm::vec4(distr4(gen) / 2);
@@ -1691,7 +1885,6 @@ private:
         CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &swordPC);
         model3->DrawIndexed(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout());
 
-
         // Draw the particles systems.
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline);
 
@@ -1725,27 +1918,32 @@ private:
         // End HDR Rendering ------------------------------------------
 
         // Post processing begin ---------------------------
+
         bloomAgent->ApplyBloom(cmdBuffers[CurrentFrameIndex()]);
+
+        if (enableDepthOfField)
+        {
+            // Bokeh Pass start---------------------
+            bokehPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            bokehPassBeginInfo.renderPass = bokehRenderPass;
+            bokehPassBeginInfo.framebuffer = bokehPassFramebuffer->GetVKFramebuffer();
+            bokehPassBeginInfo.renderArea.offset = { 0, 0 };
+            bokehPassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
+            bokehPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+            bokehPassBeginInfo.pClearValues = clearValues.data();
+
+            CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], bokehPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+            CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, bokehPassPipeline);
+
+            vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, bokehPassPipeline->GetPipelineLayout(), 0, 1, &bokehDescriptorSet, 0, nullptr);
+            vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
+
+            CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+        }
+        // Bokeh pass end----------------------
         // Post processing end ---------------------------
 
-        // Final scene pass begin Info.
-        finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
-        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
-        finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
-        finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
-        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        finalScenePassBeginInfo.pClearValues = clearValues.data();
-        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
-        
-        
-        // Start final scene render pass (to swapchain).-------------------------------
-        CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        
-        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
-        vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline->GetPipelineLayout(), 0, 1, &finalPassDescriptorSet, 0, nullptr);
-        vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
-        
+
         
         //ImGui::ShowDemoWindow();
         
@@ -1820,12 +2018,44 @@ private:
         {
             pointLightShadows ? globalParametersUBO.enablePointLightShadows.x = 1.0f : globalParametersUBO.enablePointLightShadows.x = 0.0f;
         }
-        
+
+        if (ImGui::Checkbox("Enable Depth of Field", &enableDepthOfField))
+        {
+            enableDepthOfField ? EnableDepthOfField() : DisableDepthOfField();
+        }
+
+        if (ImGui::Checkbox("Show DOF focus", &showDOFFocus))
+        {
+            showDOFFocus ? globalParametersUBO.showDOFFocus.x = 1.0f : globalParametersUBO.showDOFFocus.x = 0.0f;
+        }
+
+        ImGui::DragFloat("Focal Depth", &globalParametersUBO.focalDepth.x, 0.01f, -10, 10);
+        ImGui::DragFloat("Focal Length", &globalParametersUBO.focalLength.x, 0.01f, -10, 10);
+        ImGui::DragFloat("Fstop", &globalParametersUBO.fstop.x, 0.01f, -10, 10);
         
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
         
         ImGui::Render();
+
+
+        // Final scene pass begin Info.
+        finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        finalScenePassBeginInfo.renderPass = s_Swapchain->GetSwapchainRenderPass();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetActiveFramebuffer();
+        finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
+        finalScenePassBeginInfo.renderArea.extent = VulkanApplication::s_Surface->GetVKExtent();
+        finalScenePassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        finalScenePassBeginInfo.pClearValues = clearValues.data();
+        finalScenePassBeginInfo.framebuffer = s_Swapchain->GetFramebuffers()[GetActiveImageIndex()]->GetVKFramebuffer();
+
+
+        // Start final scene render pass (to swapchain).-------------------------------
+        CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
+        vkCmdBindDescriptorSets(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline->GetPipelineLayout(), 0, 1, &finalPassDescriptorSet, 0, nullptr);
+        vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
         
         ImDrawData* draw_data = ImGui::GetDrawData();
         ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[CurrentFrameIndex()]);
@@ -1833,8 +2063,8 @@ private:
         CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
         // End the command buffer recording phase(swapchain).-------------------------------.
 
-        CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
 
+        CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
         SubmitCommandBuffer(cmdBuffers[CurrentFrameIndex()]);
     }
     
@@ -1862,7 +2092,10 @@ private:
         }
         CommandBuffer::DestroyCommandPool(cmdPool);
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassSceneSampler, nullptr);
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassDepthSampler, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), shadowMapRenderPass, nullptr);
+        vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), bokehRenderPass, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBuffer, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), HDRRenderPass, nullptr);
@@ -1881,14 +2114,26 @@ private:
 
         CreateHDRFramebuffer();
 
+        // Experimental. TO DO: Carry this part into the post processing pipeline. Do it like how you did with Bloom.
+        //CreateBokehRenderPass();
+        CreateBokehFramebuffer();
+        SetupBokehPassPipeline();
+
         bloomAgent = std::make_shared<Bloom>();
         bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassDepthSampler, nullptr);
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassSceneSampler, nullptr);
 
-        finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+        bokehPassSceneSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        bokehPassDepthSampler = Utils::CreateSampler(HDRDepthImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
         clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
         clearValues[1].depthStencil = { 1.0f, 0 };

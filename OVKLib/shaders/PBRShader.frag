@@ -24,7 +24,7 @@ layout(set = 0, binding = 0) uniform globalUBO
     vec4 enablePointLightShadows;
     vec4 directionalLightIntensity;
     mat4 shadowMatrices[MAX_POINT_LIGHT][6];
-    vec4 far_plane;
+    vec4 pointFarPlane;
     vec4 pointLightCount;
 };
 
@@ -135,7 +135,7 @@ float PointShadowCalculation(int index, vec3 pointLightPosition)
     
     float closestDepth = texture(u_PointShadowMap[index], fragToLight).r;
     
-    closestDepth *= far_plane.x;
+    closestDepth *= pointFarPlane.x;
     
     float currentDepth = length(fragToLight);
     

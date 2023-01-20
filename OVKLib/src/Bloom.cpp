@@ -80,51 +80,6 @@ namespace OVK
         }
         Utils::WriteDescriptorSetWithSampler(m_BrigtnessFilterDescriptorSet, m_BrigtnessFilterSampler, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        m_MergeColorBuffer = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
-            VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, ImageType::COLOR);
-
-        std::vector<VkImageView> attachments;
-        // Merge framebuffer.
-        attachments =
-        {
-            m_MergeColorBuffer->GetImageView()
-        };
-
-        m_MergeFramebuffer = std::make_unique<Framebuffer>(m_MergeRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
-
-        // Merge pipeline.
-        Pipeline::Specs specs{};
-        specs.DescriptorLayout = m_TwoSamplerLayout;
-        specs.pRenderPass = &m_MergeRenderPass;
-        specs.CullMode = VK_CULL_MODE_NONE;
-        specs.DepthBiasClamp = 0.0f;
-        specs.DepthBiasConstantFactor = 0.0f;
-        specs.DepthBiasSlopeFactor = 0.0f;
-        specs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-        specs.EnableDepthBias = false;
-        specs.EnableDepthTesting = VK_FALSE;
-        specs.EnableDepthWriting = VK_FALSE;
-        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        specs.PolygonMode = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
-        specs.FragmentShaderPath = "shaders/finalPassShaderFRAG.spv";
-        specs.ViewportHeight = m_MergeFramebuffer->GetHeight();
-        specs.ViewportWidth = m_MergeFramebuffer->GetWidth();
-
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = VK_TRUE;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-        specs.ColorBlendAttachmentState = colorBlendAttachment;
-
-        m_MergePipeline = std::make_unique<Pipeline>(specs);
-
         // Merge pass.
         m_MergeSamplerHDR = Utils::CreateSampler(m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         m_MergeSamplerBloom = Utils::CreateSampler(m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
@@ -405,6 +360,17 @@ namespace OVK
 
             m_UpscalingFramebuffers[i] = std::make_unique<Framebuffer>(m_BlurRenderPass, attachments, width, height);
         }
+
+        m_MergeColorBuffer = std::make_shared<Image>(VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height,
+            VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, ImageType::COLOR);
+
+        // Merge framebuffer.
+        attachments =
+        {
+            m_MergeColorBuffer->GetImageView()
+        };
+
+        m_MergeFramebuffer = std::make_unique<Framebuffer>(m_MergeRenderPass, attachments, VulkanApplication::s_Surface->GetVKExtent().width, VulkanApplication::s_Surface->GetVKExtent().height);
     }
 
     void Bloom::SetupDesciptorSets()
@@ -579,5 +545,36 @@ namespace OVK
 
             m_UpscalingPipelines[i] = std::make_shared<Pipeline>(specs);
         }
+
+        // Merge pipeline.
+        specs.DescriptorLayout = m_TwoSamplerLayout;
+        specs.pRenderPass = &m_MergeRenderPass;
+        specs.CullMode = VK_CULL_MODE_NONE;
+        specs.DepthBiasClamp = 0.0f;
+        specs.DepthBiasConstantFactor = 0.0f;
+        specs.DepthBiasSlopeFactor = 0.0f;
+        specs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        specs.EnableDepthBias = false;
+        specs.EnableDepthTesting = VK_FALSE;
+        specs.EnableDepthWriting = VK_FALSE;
+        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        specs.PolygonMode = VK_POLYGON_MODE_FILL;
+        specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
+        specs.FragmentShaderPath = "shaders/finalPassShaderFRAG.spv";
+        specs.ViewportHeight = m_MergeFramebuffer->GetHeight();
+        specs.ViewportWidth = m_MergeFramebuffer->GetWidth();
+
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_TRUE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+        specs.ColorBlendAttachmentState = colorBlendAttachment;
+
+        m_MergePipeline = std::make_unique<Pipeline>(specs);
     }
 }

@@ -260,7 +260,7 @@ namespace OVK
                         }
 
                         std::string outputName = shaderName + extensionWithoutDot + ".spv";
-                        std::string command = std::string(SOLUTION_DIR) + "OVKLib\\vendor\\VULKAN\\1.3.211.0\\bin\\glslc.exe " + shadersFolder + shaderPath + " -o " + "shaders\\" + outputName;
+                        std::string command = std::string(SOLUTION_DIR) + "OVKLib\\vendor\\VULKAN\\1.3.236.0\\bin\\glslc.exe " + shadersFolder + shaderPath + " -o " + "shaders\\" + outputName;
                         int success = system(command.c_str());
 
 
