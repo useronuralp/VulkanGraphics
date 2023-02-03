@@ -123,13 +123,13 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.236.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include;$(SolutionDir)OVKLib\vendor\Curl\include;$(SolutionDir)OVKLib\vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.239.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include;$(SolutionDir)OVKLib\vendor\Curl\include;$(SolutionDir)OVKLib\vendor\imgui</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;assimp-vc142-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.236.0\Lib;$(SolutionDir)OVKLib\vendor\GLFW\lib-vc2022;$(SolutionDir)OVKLib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.239.0\Lib;$(SolutionDir)OVKLib\vendor\GLFW\lib-vc2022;$(SolutionDir)OVKLib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(SolutionDir)OVKLib\vendor\Assimp\assimp\lib\Release\assimp-vc142-mt.dll" "$(SolutionDir)OVKLib\bin\$(Configuration)" /y</Command>
@@ -145,7 +145,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.236.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include;$(SolutionDir)OVKLib\vendor\Curl\include;$(SolutionDir)OVKLib\vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.239.0\Include;$(SolutionDir)OVKLib\vendor\GLFW\include;$(SolutionDir)OVKLib\vendor\stb_image\include;$(SolutionDir)OVKLib\vendor\Assimp\assimp\include;$(SolutionDir)OVKLib\vendor\Simplex\include;$(SolutionDir)OVKLib\vendor\Curl\include;$(SolutionDir)OVKLib\vendor\imgui</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -153,7 +153,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;assimp-vc142-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.236.0\Lib;$(SolutionDir)OVKLib\vendor\GLFW\lib-vc2022;$(SolutionDir)OVKLib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)OVKLib\vendor\VULKAN\1.3.239.0\Lib;$(SolutionDir)OVKLib\vendor\GLFW\lib-vc2022;$(SolutionDir)OVKLib\vendor\Assimp\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <Profile>true</Profile>
     </Link>
     <PostBuildEvent>
