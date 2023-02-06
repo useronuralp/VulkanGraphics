@@ -179,24 +179,6 @@ namespace OVK
         return sampler;
     }
 
-    void Utils::WriteDescriptorSetWithSampler(const VkDescriptorSet& dscSet, const VkSampler& sampler, const VkImageView& imageView, uint32_t bindingIndex, VkImageLayout layout, int arrayIndex)
-    {
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = layout;
-        imageInfo.imageView = imageView;
-        imageInfo.sampler = sampler;
-
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = dscSet;
-        descriptorWrite.dstBinding = bindingIndex;
-        descriptorWrite.dstArrayElement = arrayIndex;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pImageInfo = &imageInfo;
-        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-    }
-
     VkFormat Utils::FindDepthFormat()
     {
         return FindSupportedFormat({ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
@@ -218,5 +200,44 @@ namespace OVK
             }
         }
         ASSERT(false, "Failed to find depth format");
+    }
+    void Utils::UpdateDescriptorSet(const VkDescriptorSet& dscSet, const VkSampler& sampler, const VkImageView& imageView, uint32_t bindingIndex, VkImageLayout layout, int arrayIndex)
+    {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = layout;
+        imageInfo.imageView = imageView;
+        imageInfo.sampler = sampler;
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = dscSet;
+        descriptorWrite.dstBinding = bindingIndex;
+        descriptorWrite.dstArrayElement = arrayIndex;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pImageInfo = &imageInfo;
+        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+    }
+    void Utils::UpdateDescriptorSet(const VkDescriptorSet& dscSet, const VkBuffer& buffer, VkDeviceSize offset, VkDeviceSize range, uint32_t bindingIndex)
+    {
+        // Write the descriptor set.
+        VkWriteDescriptorSet descriptorWrite{};
+        VkDescriptorBufferInfo bufferInfo{};
+
+        bufferInfo.buffer = buffer;
+        bufferInfo.offset = offset;
+        bufferInfo.range = range;
+
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = dscSet;
+        descriptorWrite.dstBinding = bindingIndex;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pImageInfo = nullptr; // Optional
+        descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
     }
 }

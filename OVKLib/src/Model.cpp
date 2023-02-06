@@ -23,7 +23,7 @@ namespace OVK
             delete m_Meshes[i];
         }
     }
-    Model::Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap, std::vector<Ref<Image>> pointShadows)
+    Model::Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout, Ref<Image> shadowMap, std::vector<Ref<Image>> pointShadows)
         :m_FullPath(path), m_Flags(flags), m_DefaultShadowMap(shadowMap), m_DefaultPointShadowMaps(pointShadows)
 	{
         m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
@@ -57,7 +57,7 @@ namespace OVK
         m_IBO = std::make_unique<IndexBuffer>(indicesAll);
 	}
 
-    Model::Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
+    Model::Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout)
         : m_FullPath("No path. Not loaded from a file"), m_DefaultCubeMap(cubemapTex), m_Flags(NONE)
     {
         m_Meshes.emplace_back(new Mesh(vertices, vertexCount, m_DefaultCubeMap, pool, layout));
@@ -65,7 +65,7 @@ namespace OVK
         m_VBO = std::make_unique<VertexBuffer>(m_Meshes[0]->m_Vertices);
     }
 
-    void Model::ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout)
+    void Model::ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout)
     {
         // process all the node's meshes (if any)
         for (unsigned int i = 0; i < node->mNumMeshes; i++)
@@ -79,7 +79,7 @@ namespace OVK
             ProcessNode(node->mChildren[i], scene, pool, layout);
         }
     }
-    Mesh* Model::ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout)
+    Mesh* Model::ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout)
     {
         std::vector<float>     vertices;
         std::vector<uint32_t>  indices;

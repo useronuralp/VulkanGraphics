@@ -81,13 +81,13 @@ public:
 #pragma endregion 
 
 #pragma region Layouts
-    // Descriptor Layouts
-    Ref<DescriptorLayout> oneSamplerLayout;
-    Ref<DescriptorLayout> emissiveLayout;
-    Ref<DescriptorLayout> PBRLayout;
-    Ref<DescriptorLayout> skyboxLayout;
-    Ref<DescriptorLayout> cubeLayout;
-    Ref<DescriptorLayout> particleSystemLayout;
+    // Descriptor Set Layouts
+    Ref<DescriptorSetLayout> oneSamplerLayout;
+    Ref<DescriptorSetLayout> emissiveLayout;
+    Ref<DescriptorSetLayout> PBRLayout;
+    Ref<DescriptorSetLayout> skyboxLayout;
+    Ref<DescriptorSetLayout> cubeLayout;
+    Ref<DescriptorSetLayout> particleSystemLayout;
 #pragma endregion
 
 #pragma region Pools
@@ -207,131 +207,12 @@ public:
     VkSampler  bokehPassSceneSampler;
     VkSampler  bokehPassDepthSampler;
     VkDescriptorSet bokehDescriptorSet;
-    Ref<DescriptorLayout> bokehPassLayout;
-
-
-    // Helpers
-    void WriteDescriptorSetWithGlobalUBO(Model* model)
-    {
-        for (int i = 0; i < model->GetMeshCount(); i++)
-        {
-            // Write the descriptor set.
-            VkWriteDescriptorSet descriptorWrite{};
-            VkDescriptorBufferInfo bufferInfo{};
-
-            bufferInfo.buffer = globalParametersUBOBuffer;
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(GlobalParametersUBO);
-
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = model->GetMeshes()[i]->GetDescriptorSet();
-            descriptorWrite.dstBinding = 0;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pBufferInfo = &bufferInfo;
-            descriptorWrite.pImageInfo = nullptr; // Optional
-            descriptorWrite.pTexelBufferView = nullptr; // Optional
-
-            vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-        }
-    }
-    void WriteDescriptorSet_Skybox(Model* model)
-    {
-        // Write the descriptor set.
-        VkWriteDescriptorSet descriptorWrite{};
-        VkDescriptorBufferInfo bufferInfo{};
-
-        bufferInfo.buffer = globalParametersUBOBuffer;
-        bufferInfo.offset = sizeof(glm::mat4);
-        bufferInfo.range = sizeof(glm::mat4);
-
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = model->GetMeshes()[0]->GetDescriptorSet();
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
-        descriptorWrite.pImageInfo = nullptr; // Optional
-        descriptorWrite.pTexelBufferView = nullptr; // Optional
-
-        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-    }
-    void WriteDescriptorSet_Cube(Model* model)
-    {
-        // Write the descriptor set.
-        VkWriteDescriptorSet descriptorWrite{};
-        VkDescriptorBufferInfo bufferInfo{};
-
-        bufferInfo.buffer = globalParametersUBOBuffer;
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(glm::mat4) + sizeof(glm::mat4);
-
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = model->GetMeshes()[0]->GetDescriptorSet();
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
-        descriptorWrite.pImageInfo = nullptr; // Optional
-        descriptorWrite.pTexelBufferView = nullptr; // Optional
-
-        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-    }
-    void WriteDescriptorSet_EmissiveObject(Model* model)
-    {
-        for (int i = 0; i < model->GetMeshCount(); i++)
-        {
-            // Write the descriptor set.
-            VkWriteDescriptorSet descriptorWrite{};
-            VkDescriptorBufferInfo bufferInfo{};
-
-            bufferInfo.buffer = globalParametersUBOBuffer;
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(glm::mat4) * 2;
-
-            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet = model->GetMeshes()[i]->GetDescriptorSet();
-            descriptorWrite.dstBinding = 0;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pBufferInfo = &bufferInfo;
-            descriptorWrite.pImageInfo = nullptr; // Optional
-            descriptorWrite.pTexelBufferView = nullptr; // Optional
-
-            vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-        }
-    }
-    void WriteDescriptorSet_BokehDOF()
-    {
-        // Write the descriptor set.
-        VkWriteDescriptorSet descriptorWrite{};
-        VkDescriptorBufferInfo bufferInfo{};
-
-        bufferInfo.buffer = globalParametersUBOBuffer;
-        bufferInfo.offset = offsetof(GlobalParametersUBO, DOFFramebufferSize);
-        bufferInfo.range = sizeof(glm::vec4) * 7;
-
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = bokehDescriptorSet;
-        descriptorWrite.dstBinding = 2;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
-        descriptorWrite.pImageInfo = nullptr; // Optional
-        descriptorWrite.pTexelBufferView = nullptr; // Optional
-
-        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-    }
+    Ref<DescriptorSetLayout> bokehPassLayout;
 
     void SetupPBRPipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = PBRLayout;
+        specs.DescriptorSetLayout = PBRLayout;
         specs.pRenderPass = &HDRRenderPass;
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
@@ -407,7 +288,7 @@ public:
     void SetupFinalPassPipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = oneSamplerLayout;
+        specs.DescriptorSetLayout = oneSamplerLayout;
         specs.pRenderPass = &s_Swapchain->GetSwapchainRenderPass();
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
@@ -440,7 +321,7 @@ public:
     void SetupShadowPassPipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = PBRLayout;
+        specs.DescriptorSetLayout = PBRLayout;
         specs.pRenderPass = &shadowMapRenderPass;
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
@@ -497,7 +378,7 @@ public:
     void SetupPointShadowPassPipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = PBRLayout;
+        specs.DescriptorSetLayout = PBRLayout;
         specs.pRenderPass = &pointShadowRenderPass;
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
@@ -565,7 +446,7 @@ public:
     void SetupSkyboxPipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = skyboxLayout;
+        specs.DescriptorSetLayout = skyboxLayout;
         specs.pRenderPass = &HDRRenderPass;
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
@@ -620,7 +501,7 @@ public:
     void SetupCubePipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = cubeLayout;
+        specs.DescriptorSetLayout = cubeLayout;
         specs.pRenderPass = &HDRRenderPass;
         specs.CullMode = VK_CULL_MODE_NONE;
         specs.DepthBiasClamp = 0.0f;
@@ -675,8 +556,8 @@ public:
     void SetupParticleSystemPipeline()
     {
         Pipeline::Specs particleSpecs{};
-        Ref<DescriptorLayout> layout = particleSystemLayout;
-        particleSpecs.DescriptorLayout = layout;
+        Ref<DescriptorSetLayout> layout = particleSystemLayout;
+        particleSpecs.DescriptorSetLayout = layout;
         particleSpecs.pRenderPass = &HDRRenderPass;
         particleSpecs.CullMode = VK_CULL_MODE_BACK_BIT;
         particleSpecs.DepthBiasClamp = 0.0f;
@@ -773,7 +654,7 @@ public:
     {
         // Emissive object pipeline.
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = emissiveLayout;
+        specs.DescriptorSetLayout = emissiveLayout;
         specs.pRenderPass = &HDRRenderPass;
         specs.VertexShaderPath = "shaders/emissiveShaderVERT.spv";
         specs.FragmentShaderPath = "shaders/emissiveShaderFRAG.spv";
@@ -828,7 +709,7 @@ public:
     void SetupBokehPassPipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = bokehPassLayout;
+        specs.DescriptorSetLayout = bokehPassLayout;
         specs.pRenderPass = &bokehRenderPass;
         specs.CullMode = VK_CULL_MODE_NONE;
         specs.DepthBiasClamp = 0.0f;
@@ -1342,7 +1223,7 @@ public:
         vkDestroySampler(s_Device->GetVKDevice(), finalPassSampler, nullptr);
 
         finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
     // Connects the bloom image to the final render pass.
     void DisableDepthOfField()
@@ -1351,7 +1232,7 @@ public:
         vkDestroySampler(s_Device->GetVKDevice(), finalPassSampler, nullptr);
 
         finalPassSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 private:
     void OnVulkanInit() override
@@ -1434,13 +1315,13 @@ private:
         pool2 = std::make_shared<DescriptorPool>(500, types);
 
         // Descriptor Set Layouts
-        particleSystemLayout = std::make_shared<DescriptorLayout>(ParticleSystemLayout);
-        skyboxLayout = std::make_shared<DescriptorLayout>(SkyboxLayout);
-        cubeLayout = std::make_shared<DescriptorLayout>(CubeLayout);
-        PBRLayout = std::make_shared<DescriptorLayout>(hdrLayout);
-        oneSamplerLayout = std::make_shared<DescriptorLayout>(OneSamplerLayout);
-        emissiveLayout = std::make_shared<DescriptorLayout>(EmissiveLayout);
-        bokehPassLayout = std::make_shared<DescriptorLayout>(BokehPassLayout);
+        particleSystemLayout = std::make_shared<DescriptorSetLayout>(ParticleSystemLayout);
+        skyboxLayout = std::make_shared<DescriptorSetLayout>(SkyboxLayout);
+        cubeLayout = std::make_shared<DescriptorSetLayout>(CubeLayout);
+        PBRLayout = std::make_shared<DescriptorSetLayout>(hdrLayout);
+        oneSamplerLayout = std::make_shared<DescriptorSetLayout>(OneSamplerLayout);
+        emissiveLayout = std::make_shared<DescriptorSetLayout>(EmissiveLayout);
+        bokehPassLayout = std::make_shared<DescriptorSetLayout>(BokehPassLayout);
 
 
         // Following are the global Uniform Buffes shared by all shaders.
@@ -1520,7 +1401,12 @@ private:
         model = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\Sponza\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
             pool, PBRLayout, directionalShadowMapImage, pointShadowMaps );
         model->Scale(0.005f, 0.005f, 0.005f);
-        WriteDescriptorSetWithGlobalUBO(model);
+
+        for (int i = 0; i < model->GetMeshCount(); i++)
+        {
+            Utils::UpdateDescriptorSet(model->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
+        }
+
 
         // Loading the model Malenia's Helmet.
         model2 = new OVK::Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\MaleniaHelmet\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
@@ -1528,7 +1414,12 @@ private:
         model2->Translate(0.0, 2.0f, 0.0);
         model2->Rotate(90, 0, 1, 0);
         model2->Scale(0.7f, 0.7f, 0.7f);
-        WriteDescriptorSetWithGlobalUBO(model2);
+
+        for (int i = 0; i < model2->GetMeshCount(); i++)
+        {
+            Utils::UpdateDescriptorSet(model2->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
+        }
+
 
         torch = new Model(std::string(SOLUTION_DIR) + "OVKLib\\models\\torch\\scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
             pool, PBRLayout, directionalShadowMapImage, pointShadowMaps);
@@ -1549,7 +1440,11 @@ private:
         torch4modelMatrix = glm::translate(torch4modelMatrix, glm::vec3(2.45f, 1.3f, -1.170f));
         torch4modelMatrix = glm::scale(torch4modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
         torch4modelMatrix = glm::rotate(torch4modelMatrix, glm::radians(-90.0f), glm::vec3(0, 1, 0));
-        WriteDescriptorSetWithGlobalUBO(torch);
+
+        for (int i = 0; i < torch->GetMeshCount(); i++)
+        {
+            Utils::UpdateDescriptorSet(torch->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
+        }
 
         SetupParticleSystems();
 
@@ -1574,8 +1469,11 @@ private:
         model3->Rotate(54, 0, 0, 1);
         model3->Rotate(90, 0, 1, 0);
         model3->Scale(0.7f, 0.7f, 0.7f);
-        WriteDescriptorSet_EmissiveObject(model3);
 
+        for (int i = 0; i < model3->GetMeshCount(); i++)
+        {
+            Utils::UpdateDescriptorSet(model3->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) * 2, 0);
+        }
 
         // Vertex data for the skybox.
         const uint32_t vertexCount = 3 * 6 * 6;
@@ -1638,11 +1536,12 @@ private:
 
         // Create the mesh for the skybox.
         skybox = new Model(cubeVertices, vertexCount, cubemap, pool, skyboxLayout);
-        WriteDescriptorSet_Skybox(skybox);
+        Utils::UpdateDescriptorSet(skybox->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, sizeof(glm::mat4), sizeof(glm::mat4), 0);
 
         // A cube model to depict/debug point lights.
         cube = new Model(cubeVertices, vertexCount, nullptr, pool2, cubeLayout);
-        WriteDescriptorSet_Cube(cube);
+
+        Utils::UpdateDescriptorSet(cube->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
 
         // Shadow pass begin Info.
@@ -1683,15 +1582,15 @@ private:
         bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
         finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         bokehPassSceneSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         bokehPassDepthSampler = Utils::CreateSampler(HDRDepthImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
-        WriteDescriptorSet_BokehDOF();
+        Utils::UpdateDescriptorSet(bokehDescriptorSet, globalParametersUBOBuffer, offsetof(GlobalParametersUBO, DOFFramebufferSize), sizeof(glm::vec4) * 7, 2);
 	}
     void OnUpdate() override
     {
@@ -2127,13 +2026,13 @@ private:
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassSceneSampler, nullptr);
 
         finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         bokehPassSceneSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         bokehPassDepthSampler = Utils::CreateSampler(HDRDepthImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::WriteDescriptorSetWithSampler(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
         clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
         clearValues[1].depthStencil = { 1.0f, 0 };

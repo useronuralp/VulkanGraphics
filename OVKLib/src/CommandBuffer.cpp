@@ -64,11 +64,11 @@ namespace OVK
     {
         vkCmdBindIndexBuffer(cmdBuffer, IBO, offset, indexType);
     }
-    void CommandBuffer::BindDescriptorSets(const VkCommandBuffer& cmdBuffer, VkPipelineBindPoint bindPoint, uint32_t firstSet, uint32_t descCount, const VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet,
-        uint32_t dynamicOffsetCount, const uint32_t* dynamicOffsets)
-    {
-        vkCmdBindDescriptorSets(cmdBuffer, bindPoint, pipelineLayout, firstSet, descCount, &descriptorSet->GetVKDescriptorSet(), dynamicOffsetCount, dynamicOffsets);
-    }
+    //void CommandBuffer::BindDescriptorSets(const VkCommandBuffer& cmdBuffer, VkPipelineBindPoint bindPoint, uint32_t firstSet, uint32_t descCount, const VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet,
+    //    uint32_t dynamicOffsetCount, const uint32_t* dynamicOffsets)
+    //{
+    //    vkCmdBindDescriptorSets(cmdBuffer, bindPoint, pipelineLayout, firstSet, descCount, &descriptorSet->GetVKDescriptorSet(), dynamicOffsetCount, dynamicOffsets);
+    //}
     void CommandBuffer::DrawIndexed(const VkCommandBuffer& cmdBuffer, uint32_t indicesCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance)
     {
         vkCmdDrawIndexed(cmdBuffer, indicesCount, instanceCount, firstIndex, vertexOffset, firstInstance);

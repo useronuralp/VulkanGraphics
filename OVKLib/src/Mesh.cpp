@@ -11,7 +11,7 @@ namespace OVK
 {
 
 	Mesh::Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Image>& diffuseTexture, const Ref<Image>& normalTexture,
-		const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, const Ref<Image>& shadowMap, std::vector<Ref<Image>> pointShadows)
+		const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout, const Ref<Image>& shadowMap, std::vector<Ref<Image>> pointShadows)
 		: m_Albedo(diffuseTexture), m_Normals(normalTexture), m_RoughnessMetallic(roughnessMetallicTexture), m_ShadowMap(shadowMap), m_Vertices(vertices), m_Indices(indices), m_PointShadows(pointShadows)
 	{
 		VkDescriptorSetAllocateInfo allocInfo{};
@@ -29,25 +29,25 @@ namespace OVK
 			if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_NORMAL)
 			{
 				sampler = Utils::CreateSampler(m_Normals, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_Normals->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+				Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_Normals->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE)
 			{
 				sampler = Utils::CreateSampler(m_Albedo, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_Albedo->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+				Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_Albedo->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC)
 			{
 				sampler = Utils::CreateSampler(m_RoughnessMetallic, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_RoughnessMetallic->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+				Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_RoughnessMetallic->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_SHADOWMAP)
 			{
 				sampler = Utils::CreateSampler(m_ShadowMap, ImageType::DEPTH, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_ShadowMap->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+				Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_ShadowMap->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_POINTSHADOWMAP)
@@ -55,14 +55,14 @@ namespace OVK
 				for (int i = 0; i < m_PointShadows.size(); i++)
 				{
 					sampler = Utils::CreateCubemapSampler();
-					Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_PointShadows[i]->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, i);
+					Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_PointShadows[i]->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, i);
 					m_Samplers.push_back(sampler);
 				}
 			}
 		}
 	}
 
-	Mesh::Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout)
+	Mesh::Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout)
 		: m_CubemapTexture(cubemapTex)
 	{
 		// Fill up the vector.
@@ -86,7 +86,7 @@ namespace OVK
 			if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_CUBEMAP)
 			{
 				sampler = Utils::CreateCubemapSampler();
-				Utils::WriteDescriptorSetWithSampler(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+				Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
 		}

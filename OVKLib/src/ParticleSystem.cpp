@@ -9,7 +9,7 @@
 #include <simplexnoise.h>
 namespace OVK
 {
-    ParticleSystem::ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorLayout>& layout, const Ref<DescriptorPool>& pool)
+    ParticleSystem::ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorSetLayout>& layout, const Ref<DescriptorPool>& pool)
         :m_ParticleTexture(texture)
     {
         // Create shared descriptor set for all particle systems.

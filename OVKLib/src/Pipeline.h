@@ -7,7 +7,7 @@
 #include <vulkan/vulkan.h>
 namespace OVK
 {
-	class DescriptorLayout;
+	class DescriptorSetLayout;
 	class Pipeline
 	{
 	public:
@@ -15,7 +15,7 @@ namespace OVK
 		{
 			// TO DO: Check these references here. Can you make them Unique<> ?
 			VkRenderPass*						 pRenderPass;
-			Ref<DescriptorLayout>				 DescriptorLayout; 
+			Ref<DescriptorSetLayout>				 DescriptorSetLayout; 
 			std::string							 VertexShaderPath = "None";
 			std::string							 FragmentShaderPath = "None";
 			std::string							 GeometryShaderPath = "None";

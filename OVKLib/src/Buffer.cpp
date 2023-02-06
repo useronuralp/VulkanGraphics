@@ -96,38 +96,38 @@ namespace OVK
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), m_Buffer, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory, nullptr);
     }
-    UniformBuffer::UniformBuffer(const Ref<DescriptorSet>& dscSet, size_t allocationSize, uint32_t bindingIndex)
-    {
-        VkDeviceSize bufferSize = allocationSize;
-        Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_BufferMemory);
-
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_Buffer;
-        bufferInfo.offset = 0;
-        bufferInfo.range = allocationSize;
-
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = dscSet->GetVKDescriptorSet();
-        descriptorWrite.dstBinding = bindingIndex;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
-        descriptorWrite.pImageInfo = nullptr; // Optional
-        descriptorWrite.pTexelBufferView = nullptr; // Optional
-        vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
-    }
-    UniformBuffer::~UniformBuffer()
-    {
-        vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), m_Buffer, nullptr);
-        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory, nullptr);
-    }
-    void UniformBuffer::UpdateUniformBuffer(void* dataToCopy, size_t dataSize)
-    {
-        void* bufferHandle;
-        vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory, 0, dataSize, 0, &bufferHandle);
-        memcpy(bufferHandle, dataToCopy, dataSize);
-        vkUnmapMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory);
-    }
+    //UniformBuffer::UniformBuffer(const Ref<DescriptorSet>& dscSet, size_t allocationSize, uint32_t bindingIndex)
+    //{
+    //    VkDeviceSize bufferSize = allocationSize;
+    //    Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_BufferMemory);
+    //
+    //    VkDescriptorBufferInfo bufferInfo{};
+    //    bufferInfo.buffer = m_Buffer;
+    //    bufferInfo.offset = 0;
+    //    bufferInfo.range = allocationSize;
+    //
+    //    VkWriteDescriptorSet descriptorWrite{};
+    //    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //    descriptorWrite.dstSet = dscSet->GetVKDescriptorSet();
+    //    descriptorWrite.dstBinding = bindingIndex;
+    //    descriptorWrite.dstArrayElement = 0;
+    //    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //    descriptorWrite.descriptorCount = 1;
+    //    descriptorWrite.pBufferInfo = &bufferInfo;
+    //    descriptorWrite.pImageInfo = nullptr; // Optional
+    //    descriptorWrite.pTexelBufferView = nullptr; // Optional
+    //    vkUpdateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+    //}
+    //UniformBuffer::~UniformBuffer()
+    //{
+    //    vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), m_Buffer, nullptr);
+    //    vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory, nullptr);
+    //}
+    //void UniformBuffer::UpdateUniformBuffer(void* dataToCopy, size_t dataSize)
+    //{
+    //    void* bufferHandle;
+    //    vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory, 0, dataSize, 0, &bufferHandle);
+    //    memcpy(bufferHandle, dataToCopy, dataSize);
+    //    vkUnmapMemory(VulkanApplication::s_Device->GetVKDevice(), m_BufferMemory);
+    //}
 }

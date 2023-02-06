@@ -9,7 +9,7 @@ namespace OVK
     class Framebuffer;
     class Image;
     class Pipeline;
-    class DescriptorLayout;
+    class DescriptorSetLayout;
     class DescriptorPool;
 	class Bloom
 	{
@@ -24,9 +24,9 @@ namespace OVK
 
         Ref<Image>              m_HDRImage = nullptr;
 
-        Ref<DescriptorLayout>   m_TwoSamplerLayout;
+        Ref<DescriptorSetLayout>   m_TwoSamplerLayout;
         Unique<DescriptorPool>  m_DescriptorPool;
-        Ref<DescriptorLayout>   m_OneSamplerLayout;
+        Ref<DescriptorSetLayout>   m_OneSamplerLayout;
         bool                    m_FirstPassEver = true;
 
 

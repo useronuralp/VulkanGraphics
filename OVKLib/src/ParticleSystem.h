@@ -47,7 +47,7 @@ namespace OVK
         glm::vec3 MaxVel;
     };
 
-    class DescriptorLayout;
+    class DescriptorSetLayout;
     class DescriptorPool;
     class ParticleSystem
     {
@@ -58,7 +58,7 @@ namespace OVK
         float RowCellSize = 1.0f;
         float ColumnCellSize = 1.0f;
     public:
-        ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorLayout>& layout, const Ref<DescriptorPool>& pool);
+        ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorSetLayout>& layout, const Ref<DescriptorPool>& pool);
         ~ParticleSystem();
     private:
         // Per particle system variables.

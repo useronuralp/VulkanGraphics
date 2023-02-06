@@ -13,7 +13,7 @@ namespace OVK
 	class IndexBuffer;
 	class VertexBuffer;
 	class DescriptorPool;
-	class DescriptorLayout;
+	class DescriptorSetLayout;
 	class Image;
 	class CubemapTexture;
 	class Mesh
@@ -31,8 +31,8 @@ namespace OVK
 	private:
 		Mesh() = default;
 		Mesh(const std::vector<float>& vertices, const std::vector<uint32_t>& indices, const Ref<Image>& diffuseTexture,
-			const Ref<Image>& normalTexture, const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, const Ref<Image>& shadowMap = nullptr, std::vector<Ref<Image>> pointShadows = std::vector<Ref<Image>>());
-		Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
+			const Ref<Image>& normalTexture, const Ref<Image>& roughnessMetallicTexture, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout, const Ref<Image>& shadowMap = nullptr, std::vector<Ref<Image>> pointShadows = std::vector<Ref<Image>>());
+		Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout);
 		~Mesh();
 	private:
 		VkDescriptorSet			m_DescriptorSet;

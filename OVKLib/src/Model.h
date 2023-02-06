@@ -44,7 +44,7 @@ namespace OVK
 	class RenderPass;
 	class Swapchain;
 	class DescriptorPool;
-	class DescriptorLayout;
+	class DescriptorSetLayout;
 	class Pipeline;
 	class Framebuffer;
 	class CommandBuffer;
@@ -55,9 +55,9 @@ namespace OVK
 		Model()  = default;
 		~Model();
 		// This constructor is used to construct a model that contains at least one mesh.
-		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout, Ref<Image> shadowMap = nullptr, std::vector<Ref<Image>> pointShadows = std::vector<Ref<Image>>());
+		Model(const std::string& path, LoadingFlags flags, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout, Ref<Image> shadowMap = nullptr, std::vector<Ref<Image>> pointShadows = std::vector<Ref<Image>>());
 		// This constructor is used to construct a single meshed model (skybox).
-		Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorLayout> layout);
+		Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout);
 
 		const std::vector<Mesh*>&		GetMeshes()		{ return m_Meshes; }
 		int								GetMeshCount()	{ return m_Meshes.size(); }
@@ -72,8 +72,8 @@ namespace OVK
 		void DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
 		void Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
 	private:
-		void		ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
-		Mesh*		ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorLayout>& layout);
+		void		ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout);
+		Mesh*		ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout);
 		Ref<Image>	LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache);
 	private:
 

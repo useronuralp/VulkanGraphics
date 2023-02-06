@@ -38,8 +38,8 @@ namespace OVK
         m_DescriptorPool = std::make_unique<DescriptorPool>(200, types);
 
         // Create the layouts used in the blur passes and merge.
-        m_TwoSamplerLayout = std::make_unique<DescriptorLayout>(layout);
-        m_OneSamplerLayout = std::make_unique<DescriptorLayout>(layout2);
+        m_TwoSamplerLayout = std::make_unique<DescriptorSetLayout>(layout);
+        m_OneSamplerLayout = std::make_unique<DescriptorSetLayout>(layout2);
 
         SetupPipelines();
 
@@ -78,14 +78,14 @@ namespace OVK
             vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), m_BrigtnessFilterSampler, nullptr);
             m_BrigtnessFilterSampler = Utils::CreateSampler(m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         }
-        Utils::WriteDescriptorSetWithSampler(m_BrigtnessFilterDescriptorSet, m_BrigtnessFilterSampler, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(m_BrigtnessFilterDescriptorSet, m_BrigtnessFilterSampler, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         // Merge pass.
         m_MergeSamplerHDR = Utils::CreateSampler(m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         m_MergeSamplerBloom = Utils::CreateSampler(m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
 
-        Utils::WriteDescriptorSetWithSampler(m_MergeDescriptorSet, m_MergeSamplerHDR, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        Utils::WriteDescriptorSetWithSampler(m_MergeDescriptorSet, m_MergeSamplerBloom, m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(m_MergeDescriptorSet, m_MergeSamplerHDR, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(m_MergeDescriptorSet, m_MergeSamplerBloom, m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
@@ -422,12 +422,12 @@ namespace OVK
             if (i == 0)
             {
                 m_BlurSamplers[i] = Utils::CreateSampler(m_BrightnessIsolatedImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                Utils::WriteDescriptorSetWithSampler(m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BrightnessIsolatedImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                Utils::UpdateDescriptorSet(m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BrightnessIsolatedImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             }
             else
             {
                 m_BlurSamplers[i] = Utils::CreateSampler(m_BlurColorBuffers[i - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                Utils::WriteDescriptorSetWithSampler(m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BlurColorBuffers[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                Utils::UpdateDescriptorSet(m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BlurColorBuffers[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
             }
         }
@@ -443,23 +443,23 @@ namespace OVK
                 m_UpscalingSamplersFirst[i] = Utils::CreateSampler(m_BlurColorBuffers[a], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
                 m_UpscalingSamplersSecond[i] = Utils::CreateSampler(m_BlurColorBuffers[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
 
-                Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_BlurColorBuffers[a]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-                Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                Utils::UpdateDescriptorSet(m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_BlurColorBuffers[a]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                Utils::UpdateDescriptorSet(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             }
             else
             {
 
                 m_UpscalingSamplersFirst[i] = Utils::CreateSampler(m_UpscalingColorBuffers[i - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_UpscalingColorBuffers[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                Utils::UpdateDescriptorSet(m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_UpscalingColorBuffers[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 if (a == 0)
                 {
                     m_UpscalingSamplersSecond[i] = Utils::CreateSampler(m_BrightnessIsolatedImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                    Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BrightnessIsolatedImage->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    Utils::UpdateDescriptorSet(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BrightnessIsolatedImage->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 }
                 else
                 {
                     m_UpscalingSamplersSecond[i] = Utils::CreateSampler(m_BlurColorBuffers[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-                    Utils::WriteDescriptorSetWithSampler(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    Utils::UpdateDescriptorSet(m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 }
             }
             a--;
@@ -470,7 +470,7 @@ namespace OVK
     {
         // Brightness filter pipeline.
         Pipeline::Specs specs{};
-        specs.DescriptorLayout = m_OneSamplerLayout;
+        specs.DescriptorSetLayout = m_OneSamplerLayout;
         specs.pRenderPass = &m_BrightnessIsolationPass;
         specs.CullMode = VK_CULL_MODE_NONE;
         specs.DepthBiasClamp = 0.0f;
@@ -504,7 +504,7 @@ namespace OVK
         for (int i = 0; i < BLUR_PASS_COUNT; i++)
         {
             // Blur downscaling passes
-            specs.DescriptorLayout = m_OneSamplerLayout;
+            specs.DescriptorSetLayout = m_OneSamplerLayout;
             specs.pRenderPass = &m_BlurRenderPass;
             specs.CullMode = VK_CULL_MODE_NONE;
             specs.DepthBiasClamp = 0.0f;
@@ -535,7 +535,7 @@ namespace OVK
             m_BlurPipelines[i] = std::make_shared<Pipeline>(specs);
 
             // Blur upscaling passes.
-            specs.DescriptorLayout = m_TwoSamplerLayout;
+            specs.DescriptorSetLayout = m_TwoSamplerLayout;
             specs.pRenderPass = &m_BlurRenderPass;
             specs.VertexShaderPath = "shaders/quadRenderVERT.spv";
             specs.FragmentShaderPath = "shaders/upscaleShaderFRAG.spv";
@@ -547,7 +547,7 @@ namespace OVK
         }
 
         // Merge pipeline.
-        specs.DescriptorLayout = m_TwoSamplerLayout;
+        specs.DescriptorSetLayout = m_TwoSamplerLayout;
         specs.pRenderPass = &m_MergeRenderPass;
         specs.CullMode = VK_CULL_MODE_NONE;
         specs.DepthBiasClamp = 0.0f;
