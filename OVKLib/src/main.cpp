@@ -93,7 +93,6 @@ public:
 #pragma region Pools
     // Descriptor Pools
     Ref<DescriptorPool> pool;
-    Ref<DescriptorPool> pool2;
 #pragma endregion
 
 #pragma region Pipelines
@@ -1139,83 +1138,6 @@ public:
         ASSERT(vkCreateRenderPass(s_Device->GetVKDevice(), &renderPassInfo, nullptr, &pointShadowRenderPass) == VK_SUCCESS, "Failed to create a render pass.");
     }
 
-    // Shadow map generators
-    void DirectionalShadowPass()
-    {
-        glm::mat4 mat = model->GetTransform();
-        glm::mat4 mat2 = model2->GetTransform();
-
-        // Start shadow pass.---------------------------------------------
-        CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
-
-        // Render the objects you want to cast shadows.
-        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
-
-        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-        model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
-
-        CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
-        // End shadow pass.---------------------------------------------
-    }
-    void PointLightShadowPass()
-    {
-        glm::mat4 mat = model->GetTransform();
-        glm::mat4 mat2 = model2->GetTransform();
-
-        // Start point shadow pass.--------------------
-        for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
-        {
-            pointShadowPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            pointShadowPassBeginInfo.renderPass = pointShadowRenderPass;
-            pointShadowPassBeginInfo.framebuffer = pointShadowMapFramebuffers[i]->GetVKFramebuffer();
-            pointShadowPassBeginInfo.renderArea.offset = { 0, 0 };
-            pointShadowPassBeginInfo.renderArea.extent.width = pointShadowMapFramebuffers[i]->GetWidth();
-            pointShadowPassBeginInfo.renderArea.extent.height = pointShadowMapFramebuffers[i]->GetHeight();
-            pointShadowPassBeginInfo.clearValueCount = 1;
-            pointShadowPassBeginInfo.pClearValues = &depthPassClearValue;
-            
-            CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-            CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
-
-            glm::vec3 position = glm::vec3(globalParametersUBO.pointLightPositions[i].x, globalParametersUBO.pointLightPositions[i].y, globalParametersUBO.pointLightPositions[i].z);
-
-            globalParametersUBO.shadowMatrices[i][0] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
-            globalParametersUBO.shadowMatrices[i][1] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
-            globalParametersUBO.shadowMatrices[i][2] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
-            globalParametersUBO.shadowMatrices[i][3] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
-            globalParametersUBO.shadowMatrices[i][4] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0));
-            globalParametersUBO.shadowMatrices[i][5] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0));
-
-
-            struct PC
-            {
-                glm::vec4 lightPos;
-                glm::vec4 farPlane;
-            };
-
-            glm::vec4 pointLightIndex = glm::vec4(i);
-
-            PC pc;
-            pc.lightPos = glm::vec4(position, 1.0f);
-            pc.farPlane = glm::vec4(pointFarPlane);
-
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
-            model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
-
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
-            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
-            model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
-
-            CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
-            // End point shadow pass.----------------------
-        }
-    }
-
     // Connects the processed image that has bokeh depth of blur in it to the final render pass.
     void EnableDepthOfField()
     {
@@ -1259,69 +1181,61 @@ private:
         pointShadowMaps.resize(globalParametersUBO.pointLightCount.x);
         pointShadowMapFramebuffers.resize(globalParametersUBO.pointLightCount.x);
 
-        std::vector<DescriptorBindingSpecs> hdrLayout
+        std::vector<DescriptorSetBindingSpecs> hdrLayout
         {
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(GlobalParametersUBO),         1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,    0},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_NORMAL,             UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 2},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC,  UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 3},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_SHADOWMAP,          UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 4},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_POINTSHADOWMAP,     UINT64_MAX,                          5, VK_SHADER_STAGE_FRAGMENT_BIT , 5},
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(GlobalParametersUBO),         1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,    0},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_NORMAL,             UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 2},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC,  UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 3},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_SHADOWMAP,          UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 4},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_POINTSHADOWMAP,     UINT64_MAX,                          5, VK_SHADER_STAGE_FRAGMENT_BIT , 5},
         };
 
-        std::vector<DescriptorBindingSpecs> SkyboxLayout
+        std::vector<DescriptorSetBindingSpecs> SkyboxLayout
         {
-            DescriptorBindingSpecs {Type::UNIFORM_BUFFER,                      sizeof(glm::mat4),                   1, VK_SHADER_STAGE_VERTEX_BIT  ,  0},
-            DescriptorBindingSpecs {Type::TEXTURE_SAMPLER_CUBEMAP,             UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT,  1}
+            DescriptorSetBindingSpecs {Type::UNIFORM_BUFFER,                      sizeof(glm::mat4),                   1, VK_SHADER_STAGE_VERTEX_BIT  ,  0},
+            DescriptorSetBindingSpecs {Type::TEXTURE_SAMPLER_CUBEMAP,             UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT,  1}
         };
 
-        std::vector<DescriptorBindingSpecs> ParticleSystemLayout
+        std::vector<DescriptorSetBindingSpecs> ParticleSystemLayout
         {
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3),         1, VK_SHADER_STAGE_VERTEX_BIT   , 0}, // Index 0
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1}, // Index 3
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3),         1, VK_SHADER_STAGE_VERTEX_BIT   , 0}, // Index 0
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1}, // Index 3
         };
 
-        std::vector<DescriptorBindingSpecs> OneSamplerLayout
+        std::vector<DescriptorSetBindingSpecs> OneSamplerLayout
         {
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
         };
 
-        std::vector<DescriptorBindingSpecs> EmissiveLayout
+        std::vector<DescriptorSetBindingSpecs> EmissiveLayout
         {
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4) * 2,         1, VK_SHADER_STAGE_VERTEX_BIT,    0},
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4) * 2,         1, VK_SHADER_STAGE_VERTEX_BIT,    0},
         };
         
-        std::vector<DescriptorBindingSpecs> CubeLayout
+        std::vector<DescriptorSetBindingSpecs> CubeLayout
         {
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4) * 2,   1, VK_SHADER_STAGE_VERTEX_BIT,    0},
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4) * 2,   1, VK_SHADER_STAGE_VERTEX_BIT,    0},
         };
 
-        std::vector<DescriptorBindingSpecs> BokehPassLayout
+        std::vector<DescriptorSetBindingSpecs> BokehPassLayout
         {
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
-            DescriptorBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::vec4) * 7,               1, VK_SHADER_STAGE_FRAGMENT_BIT , 2},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::vec4) * 7,               1, VK_SHADER_STAGE_FRAGMENT_BIT , 2},
         };
 
-        // We are using only a single pool for all our descriptor sets. Set it up here.
-        std::vector<VkDescriptorType> types;
-        types.clear();
-        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        pool = std::make_shared<DescriptorPool>(500, types);
-
-        types.clear();
-        types.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        pool2 = std::make_shared<DescriptorPool>(500, types);
+        // Create the pool(s) that we need here.
+        pool = std::make_shared<DescriptorPool>(200, std::vector<VkDescriptorType> {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER});
 
         // Descriptor Set Layouts
-        particleSystemLayout = std::make_shared<DescriptorSetLayout>(ParticleSystemLayout);
-        skyboxLayout = std::make_shared<DescriptorSetLayout>(SkyboxLayout);
-        cubeLayout = std::make_shared<DescriptorSetLayout>(CubeLayout);
-        PBRLayout = std::make_shared<DescriptorSetLayout>(hdrLayout);
-        oneSamplerLayout = std::make_shared<DescriptorSetLayout>(OneSamplerLayout);
-        emissiveLayout = std::make_shared<DescriptorSetLayout>(EmissiveLayout);
-        bokehPassLayout = std::make_shared<DescriptorSetLayout>(BokehPassLayout);
+        particleSystemLayout    = std::make_shared<DescriptorSetLayout>(ParticleSystemLayout);
+        skyboxLayout            = std::make_shared<DescriptorSetLayout>(SkyboxLayout);
+        cubeLayout              = std::make_shared<DescriptorSetLayout>(CubeLayout);
+        PBRLayout               = std::make_shared<DescriptorSetLayout>(hdrLayout);
+        oneSamplerLayout        = std::make_shared<DescriptorSetLayout>(OneSamplerLayout);
+        emissiveLayout          = std::make_shared<DescriptorSetLayout>(EmissiveLayout);
+        bokehPassLayout         = std::make_shared<DescriptorSetLayout>(BokehPassLayout);
 
 
         // Following are the global Uniform Buffes shared by all shaders.
@@ -1539,7 +1453,7 @@ private:
         Utils::UpdateDescriptorSet(skybox->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, sizeof(glm::mat4), sizeof(glm::mat4), 0);
 
         // A cube model to depict/debug point lights.
-        cube = new Model(cubeVertices, vertexCount, nullptr, pool2, cubeLayout);
+        cube = new Model(cubeVertices, vertexCount, nullptr, pool, cubeLayout);
 
         Utils::UpdateDescriptorSet(cube->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
@@ -1674,8 +1588,74 @@ private:
         if (globalParametersUBO.enablePointLightShadows.x == 1.0f)
         {
             // Shadow passes ---------
-            DirectionalShadowPass();
-            PointLightShadowPass();
+            glm::mat4 mat = model->GetTransform();
+            glm::mat4 mat2 = model2->GetTransform();
+
+            // Start shadow pass.---------------------------------------------
+            CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+            CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
+
+            // Render the objects you want to cast shadows.
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+            model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
+
+            CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+            model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
+
+            CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+            // End shadow pass.---------------------------------------------
+            
+
+            // Start point shadow pass.--------------------
+            for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
+            {
+                pointShadowPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                pointShadowPassBeginInfo.renderPass = pointShadowRenderPass;
+                pointShadowPassBeginInfo.framebuffer = pointShadowMapFramebuffers[i]->GetVKFramebuffer();
+                pointShadowPassBeginInfo.renderArea.offset = { 0, 0 };
+                pointShadowPassBeginInfo.renderArea.extent.width = pointShadowMapFramebuffers[i]->GetWidth();
+                pointShadowPassBeginInfo.renderArea.extent.height = pointShadowMapFramebuffers[i]->GetHeight();
+                pointShadowPassBeginInfo.clearValueCount = 1;
+                pointShadowPassBeginInfo.pClearValues = &depthPassClearValue;
+
+                CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+                CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
+
+                glm::vec3 position = glm::vec3(globalParametersUBO.pointLightPositions[i].x, globalParametersUBO.pointLightPositions[i].y, globalParametersUBO.pointLightPositions[i].z);
+
+                globalParametersUBO.shadowMatrices[i][0] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
+                globalParametersUBO.shadowMatrices[i][1] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
+                globalParametersUBO.shadowMatrices[i][2] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
+                globalParametersUBO.shadowMatrices[i][3] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
+                globalParametersUBO.shadowMatrices[i][4] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0));
+                globalParametersUBO.shadowMatrices[i][5] = pointLightProjectionMatrix * glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0));
+
+
+                struct PC
+                {
+                    glm::vec4 lightPos;
+                    glm::vec4 farPlane;
+                };
+
+                glm::vec4 pointLightIndex = glm::vec4(i);
+
+                PC pc;
+                pc.lightPos = glm::vec4(position, 1.0f);
+                pc.farPlane = glm::vec4(pointFarPlane);
+
+                CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+                CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
+                CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
+                model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
+
+                CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+                CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4), &pointLightIndex);
+                CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) + sizeof(glm::vec4), &pc);
+                model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
+
+                CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+                // End point shadow pass.----------------------
+            }
             // Shadow passes end  ----
         }
 

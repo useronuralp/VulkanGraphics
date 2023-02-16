@@ -19,12 +19,12 @@ namespace OVK
 		UNIFORM_BUFFER,
 		TEXTURE_SAMPLER_POINTSHADOWMAP
 	};
-	struct DescriptorBindingSpecs
+	struct DescriptorSetBindingSpecs
 	{
 		Type					Type;
 		size_t					Size;
 		int						Count;
-		VkShaderStageFlags	ShaderStage;
+		VkShaderStageFlags	    ShaderStage;
 		uint32_t				Binding;
 	};
 	class Pipeline;
@@ -32,14 +32,14 @@ namespace OVK
 	{
 	public:
 		DescriptorSetLayout() = default;
-		DescriptorSetLayout(const std::vector<DescriptorBindingSpecs>& layout);
+		DescriptorSetLayout(const std::vector<DescriptorSetBindingSpecs>& layout);
 		DescriptorSetLayout(const VkDescriptorSetLayout& layout) { m_DescriptorSetLayout = layout; }
 		~DescriptorSetLayout();
-		const std::vector<DescriptorBindingSpecs>& GetBindingSpecs() { return m_SetLayout; }
+		const std::vector<DescriptorSetBindingSpecs>& GetBindingSpecs() { return m_SetLayout; }
 		const VkDescriptorSetLayout& GetDescriptorLayout() { return m_DescriptorSetLayout; }
 	private:
 		VkDescriptorSetLayout m_DescriptorSetLayout = VK_NULL_HANDLE;
-		std::vector<DescriptorBindingSpecs>    m_SetLayout;
+		std::vector<DescriptorSetBindingSpecs>    m_SetLayout;
 	};
 	class DescriptorPool
 	{

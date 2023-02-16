@@ -113,7 +113,7 @@ namespace OVK
 	{
 		vkDestroyDescriptorPool(VulkanApplication::s_Device->GetVKDevice(), m_DescriptorPool, nullptr);
 	}
-	DescriptorSetLayout::DescriptorSetLayout(const std::vector<DescriptorBindingSpecs>& layout)
+	DescriptorSetLayout::DescriptorSetLayout(const std::vector<DescriptorSetBindingSpecs>& layout)
 	{
 		m_SetLayout = layout;
 		std::vector<VkDescriptorSetLayoutBinding> bindings;

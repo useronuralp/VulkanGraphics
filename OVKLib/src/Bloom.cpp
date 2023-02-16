@@ -21,15 +21,15 @@ namespace OVK
 
         CreateFramebuffers();
 
-        std::vector<DescriptorBindingSpecs> layout
+        std::vector<DescriptorSetBindingSpecs> layout
         {
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
         };
 
-        std::vector<DescriptorBindingSpecs> layout2
+        std::vector<DescriptorSetBindingSpecs> layout2
         {
-            DescriptorBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
         };
 
         std::vector<VkDescriptorType> types;
