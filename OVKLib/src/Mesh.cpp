@@ -89,6 +89,14 @@ namespace OVK
 				Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				m_Samplers.push_back(sampler);
 			}
+			/*This constructor was only reserved for cubemap creations but I figured I'd support cubes with the same texture applied to all faces here as well. I am storing that single texture in m_CubemapTexture variable as well. It could cause confusion.
+			change the name of m_CubemapTexture later maybe?*/ 
+			else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE)
+			{
+				sampler = Utils::CreateSampler(m_CubemapTexture, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+				Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+				m_Samplers.push_back(sampler);
+			}
 		}
 	}
 

@@ -45,6 +45,14 @@ private:
         glm::vec4 focalLength;
         glm::vec4 fstop;
     };
+
+    struct CloudParametersUBO
+    {
+        glm::mat4 viewMatrix;
+        glm::mat4 projMatrix;
+        glm::vec4 BoundsMax;
+        glm::vec4 BoundsMin;
+    };
 public:
 #pragma region ClearValues
     VkClearValue                depthPassClearValue;
@@ -60,6 +68,7 @@ public:
     Ref<Image>       HDRColorImage;
     Ref<Image>       HDRDepthImage;
     Ref<Image>       particleTexture;
+    Ref<Image>       worleyNoiseTexture;
     Ref<Image>       dustTexture;
     Ref<Image>       fireTexture;
     std::vector<Ref<Image>> pointShadowMaps;
@@ -82,11 +91,12 @@ public:
 
 #pragma region Layouts
     // Descriptor Set Layouts
-    Ref<DescriptorSetLayout> oneSamplerLayout;
+    Ref<DescriptorSetLayout> swapchainLayout;
     Ref<DescriptorSetLayout> emissiveLayout;
     Ref<DescriptorSetLayout> PBRLayout;
     Ref<DescriptorSetLayout> skyboxLayout;
     Ref<DescriptorSetLayout> cubeLayout;
+    Ref<DescriptorSetLayout> cloudLayout;
     Ref<DescriptorSetLayout> particleSystemLayout;
 #pragma endregion
 
@@ -104,6 +114,7 @@ public:
     Ref<Pipeline> shadowPassPipeline;
     Ref<Pipeline> skyboxPipeline;
     Ref<Pipeline> cubePipeline;
+    Ref<Pipeline> cloudPipeline;
     Ref<Pipeline> particleSystemPipeline;
 #pragma endregion
 
@@ -115,6 +126,7 @@ public:
     Model* torch;
     Model* skybox;
     Model* cube;
+    Model* clouds;
 
     ParticleSystem* fireSparks;
     ParticleSystem* fireBase;
@@ -136,6 +148,11 @@ public:
     VkBuffer                    globalParametersUBOBuffer;
     VkDeviceMemory              globalParametersUBOBufferMemory;
     void*                       mappedGlobalParametersModelUBOBuffer;
+
+    CloudParametersUBO          cloudParametersUBO;
+    VkBuffer                    cloudParametersUBOBuffer;
+    VkDeviceMemory              cloudParametersUBOBufferMemory;
+    void*                       mappedCloudParametersUBOBuffer;
 #pragma endregion
 
     // Others
@@ -287,7 +304,7 @@ public:
     void SetupFinalPassPipeline()
     {
         Pipeline::Specs specs{};
-        specs.DescriptorSetLayout = oneSamplerLayout;
+        specs.DescriptorSetLayout = swapchainLayout;
         specs.pRenderPass = &s_Swapchain->GetSwapchainRenderPass();
         specs.CullMode = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp = 0.0f;
@@ -551,6 +568,65 @@ public:
         specs.pVertexInputAttributeDescriptons = attributeDescriptions3.data();
 
         cubePipeline = std::make_shared<Pipeline>(specs);
+    }
+
+    void SetupCloudPipeline()
+    {
+
+        worleyNoiseTexture = std::make_shared<Image>(std::vector{ (std::string(SOLUTION_DIR) + "OVKLib/textures/WorleyNoise.jpg") }, VK_FORMAT_R8G8B8A8_SRGB);
+
+        Pipeline::Specs specs{};
+        specs.DescriptorSetLayout = cloudLayout;
+        specs.pRenderPass = &HDRRenderPass;
+        specs.CullMode = VK_CULL_MODE_NONE;
+        specs.DepthBiasClamp = 0.0f;
+        specs.DepthBiasConstantFactor = 0.0f;
+        specs.DepthBiasSlopeFactor = 0.0f;
+        specs.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        specs.EnableDepthBias = false;
+        specs.EnableDepthTesting = VK_TRUE;
+        specs.EnableDepthWriting = VK_TRUE;
+        specs.FrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        specs.PolygonMode = VK_POLYGON_MODE_FILL;
+        specs.VertexShaderPath = "shaders/CloudsVERT.spv";
+        specs.FragmentShaderPath = "shaders/CloudsFRAG.spv";
+
+        VkPushConstantRange pcRange;
+        pcRange.offset = 0;
+        pcRange.size = sizeof(glm::mat4) + sizeof(glm::vec4);
+        pcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        specs.PushConstantRanges = { pcRange };
+
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_FALSE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+        specs.ColorBlendAttachmentState = colorBlendAttachment;
+
+        bindingDescription3.binding = 0;
+        bindingDescription3.stride = sizeof(glm::vec3);
+        bindingDescription3.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        attributeDescriptions3.resize(1);
+        // For position
+        attributeDescriptions3[0].binding = 0;
+        attributeDescriptions3[0].location = 0;
+        attributeDescriptions3[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions3[0].offset = 0;
+
+        specs.VertexInputBindingCount = 1;
+        specs.pVertexInputBindingDescriptions = &bindingDescription3;
+        specs.VertexInputAttributeCount = attributeDescriptions3.size();
+        specs.pVertexInputAttributeDescriptons = attributeDescriptions3.data();
+
+        cloudPipeline = std::make_shared<Pipeline>(specs);
     }
     void SetupParticleSystemPipeline()
     {
@@ -1203,7 +1279,7 @@ private:
             DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1}, // Index 3
         };
 
-        std::vector<DescriptorSetBindingSpecs> OneSamplerLayout
+        std::vector<DescriptorSetBindingSpecs> SwapchainLayout
         {
             DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
         };
@@ -1216,6 +1292,12 @@ private:
         std::vector<DescriptorSetBindingSpecs> CubeLayout
         {
             DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(glm::mat4) * 2,   1, VK_SHADER_STAGE_VERTEX_BIT,    0},
+        };
+
+        std::vector<DescriptorSetBindingSpecs> CloudLayout
+        {
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(CloudParametersUBO),   1, VK_SHADER_STAGE_VERTEX_BIT,    0},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,   1, VK_SHADER_STAGE_FRAGMENT_BIT,    1},
         };
 
         std::vector<DescriptorSetBindingSpecs> BokehPassLayout
@@ -1232,8 +1314,9 @@ private:
         particleSystemLayout    = std::make_shared<DescriptorSetLayout>(ParticleSystemLayout);
         skyboxLayout            = std::make_shared<DescriptorSetLayout>(SkyboxLayout);
         cubeLayout              = std::make_shared<DescriptorSetLayout>(CubeLayout);
+        cloudLayout             = std::make_shared<DescriptorSetLayout>(CloudLayout);
         PBRLayout               = std::make_shared<DescriptorSetLayout>(hdrLayout);
-        oneSamplerLayout        = std::make_shared<DescriptorSetLayout>(OneSamplerLayout);
+        swapchainLayout         = std::make_shared<DescriptorSetLayout>(SwapchainLayout);
         emissiveLayout          = std::make_shared<DescriptorSetLayout>(EmissiveLayout);
         bokehPassLayout         = std::make_shared<DescriptorSetLayout>(BokehPassLayout);
 
@@ -1241,6 +1324,9 @@ private:
         // Following are the global Uniform Buffes shared by all shaders.
         Utils::CreateVKBuffer(sizeof(GlobalParametersUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, globalParametersUBOBuffer, globalParametersUBOBufferMemory);
         vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBufferMemory, 0, sizeof(GlobalParametersUBO), 0, &mappedGlobalParametersModelUBOBuffer);
+
+        Utils::CreateVKBuffer(sizeof(CloudParametersUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, cloudParametersUBOBuffer, cloudParametersUBOBufferMemory);
+        vkMapMemory(VulkanApplication::s_Device->GetVKDevice(), cloudParametersUBOBufferMemory, 0, sizeof(CloudParametersUBO), 0, &mappedCloudParametersUBOBuffer);
         
         // Create an image for the shadowmap. We will render to this image when we are doing a shadow pass.
         directionalShadowMapImage = std::make_shared<Image>(SHADOW_DIM, SHADOW_DIM, VK_FORMAT_D32_SFLOAT, (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), ImageType::DEPTH);
@@ -1256,7 +1342,7 @@ private:
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = pool->GetDescriptorPool();
         allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &oneSamplerLayout->GetDescriptorLayout();
+        allocInfo.pSetLayouts = &swapchainLayout->GetDescriptorLayout();
 
         VkResult rslt = vkAllocateDescriptorSets(VulkanApplication::s_Device->GetVKDevice(), &allocInfo, &finalPassDescriptorSet);
         ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
@@ -1284,6 +1370,7 @@ private:
         SetupShadowPassPipeline();
         SetupSkyboxPipeline();
         SetupCubePipeline();
+        SetupCloudPipeline();
         SetupPointShadowPassPipeline();
         SetupEmissiveObjectPipeline();
         SetupParticleSystemPipeline();
@@ -1445,7 +1532,7 @@ private:
         
         // Set up the 6 sided texture for the skybox by using the above images.
         std::vector<std::string> skyboxTex { right, left, top, bottom, front, back};
-        Ref<OVK::Image> cubemap = std::make_shared<Image>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
+        Ref<Image> cubemap = std::make_shared<Image>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
         
 
         // Create the mesh for the skybox.
@@ -1457,6 +1544,10 @@ private:
 
         Utils::UpdateDescriptorSet(cube->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
+
+        clouds = new Model(cubeVertices, vertexCount, worleyNoiseTexture, pool, cloudLayout);
+
+        Utils::UpdateDescriptorSet(clouds->GetMeshes()[0]->GetDescriptorSet(), cloudParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4) + sizeof(glm::vec4) + sizeof(glm::vec4), 0);
 
         // Shadow pass begin Info.
         depthPassClearValue = { 1.0f, 0.0 };
@@ -1726,9 +1817,31 @@ private:
         lightCubeMat = glm::scale(lightCubeMat, glm::vec3(0.05f));
         lightCubePC.modelMat = lightCubeMat;
         lightCubePC.color = glm::vec4(4.5f, 1.0f, 1.0f, 1.0f);
-        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
-        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &lightCubePC);
-        cube->Draw(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout());
+        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], cubePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &lightCubePC);
+        cube->Draw(cmdBuffers[CurrentFrameIndex()], cubePipeline->GetPipelineLayout());
+
+
+        // Drawing the clouds.
+        pushConst cloudsPC;
+        glm::mat4 cloudsMat = glm::mat4(1.0f);
+        glm::vec4 position = glm::vec4(0, 10, 0, 0);
+        glm::vec4 scale = glm::vec4(0.5f, 0.5f, 0.5f, 0.5f);
+        cloudsMat = glm::translate(cloudsMat, glm::vec3(position.x, position.y, position.z));
+        cloudsMat = glm::scale(cloudsMat, glm::vec3(scale.x, scale.y, scale.z));
+        cloudsPC.modelMat = cloudsMat;
+        cloudsPC.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+
+        cloudParametersUBO.viewMatrix = cameraView;
+        cloudParametersUBO.projMatrix = cameraProj;
+        cloudParametersUBO.BoundsMax = (position - scale) / glm::vec4(2);
+        cloudParametersUBO.BoundsMin = (position + scale) / glm::vec4(2);
+
+        memcpy(mappedCloudParametersUBOBuffer, &cloudParametersUBO, sizeof(CloudParametersUBO));
+
+        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, cloudPipeline);
+        CommandBuffer::PushConstants(cmdBuffers[CurrentFrameIndex()], cloudPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &cloudsPC);
+        clouds->Draw(cmdBuffers[CurrentFrameIndex()], cloudPipeline->GetPipelineLayout());
 
         // Drawing the Sponza.
         CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -1890,9 +2003,9 @@ private:
             &globalParametersUBO.pointLightPositions[4].y,
             &globalParametersUBO.pointLightPositions[4].z
         };
-        
+
         ImGui::DragFloat3("point light", *p3, 0.01f, -10, 10);
-        
+
         if (ImGui::Checkbox("Point light shadows", &pointLightShadows))
         {
             pointLightShadows ? globalParametersUBO.enablePointLightShadows.x = 1.0f : globalParametersUBO.enablePointLightShadows.x = 0.0f;
@@ -1916,7 +2029,6 @@ private:
         ImGui::End();
         
         ImGui::Render();
-
 
         // Final scene pass begin Info.
         finalScenePassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1964,6 +2076,7 @@ private:
         delete fireSparks4;
         delete fireBase4;
         delete ambientParticles;
+        delete clouds;
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -1976,7 +2089,9 @@ private:
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), shadowMapRenderPass, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), bokehRenderPass, nullptr);
         vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
+        vkFreeMemory(VulkanApplication::s_Device->GetVKDevice(), cloudParametersUBOBufferMemory, nullptr);
         vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), globalParametersUBOBuffer, nullptr);
+        vkDestroyBuffer(VulkanApplication::s_Device->GetVKDevice(), cloudParametersUBOBuffer, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), HDRRenderPass, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), pointShadowRenderPass, nullptr);
 
@@ -1986,6 +2101,7 @@ private:
         pipeline->ReConstruct();
         shadowPassPipeline->ReConstruct();
         cubePipeline->ReConstruct();
+        cloudPipeline->ReConstruct();
         skyboxPipeline->ReConstruct();
         particleSystemPipeline->ReConstruct();
         finalPassPipeline->ReConstruct();
