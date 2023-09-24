@@ -52,6 +52,7 @@ private:
         glm::mat4 projMatrix;
         glm::vec4 BoundsMax;
         glm::vec4 BoundsMin;
+        glm::vec4 CameraPosition;
     };
 public:
 #pragma region ClearValues
@@ -160,6 +161,7 @@ public:
     VkCommandPool                       cmdPool;
     Ref<Bloom>                          bloomAgent;
     VkSampler                           finalPassSampler;
+    VkSampler                           finalPassWorleySampler;
     VkDescriptorSet                     finalPassDescriptorSet;
 
     float cameraFarPlane = 1500.0f;
@@ -1282,6 +1284,8 @@ private:
         std::vector<DescriptorSetBindingSpecs> SwapchainLayout
         {
             DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT , 0},
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(CloudParametersUBO),          1, VK_SHADER_STAGE_FRAGMENT_BIT , 1},
+            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,                          1, VK_SHADER_STAGE_FRAGMENT_BIT,  2},
         };
 
         std::vector<DescriptorSetBindingSpecs> EmissiveLayout
@@ -1296,8 +1300,7 @@ private:
 
         std::vector<DescriptorSetBindingSpecs> CloudLayout
         {
-            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                     sizeof(CloudParametersUBO),   1, VK_SHADER_STAGE_VERTEX_BIT,    0},
-            DescriptorSetBindingSpecs { Type::TEXTURE_SAMPLER_DIFFUSE,            UINT64_MAX,   1, VK_SHADER_STAGE_FRAGMENT_BIT,    1},
+            DescriptorSetBindingSpecs { Type::UNIFORM_BUFFER,                    sizeof(glm::mat4) * 2,   1, VK_SHADER_STAGE_VERTEX_BIT,    0},
         };
 
         std::vector<DescriptorSetBindingSpecs> BokehPassLayout
@@ -1544,10 +1547,9 @@ private:
 
         Utils::UpdateDescriptorSet(cube->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
+        clouds = new Model(cubeVertices, vertexCount, nullptr, pool, cloudLayout);
 
-        clouds = new Model(cubeVertices, vertexCount, worleyNoiseTexture, pool, cloudLayout);
-
-        Utils::UpdateDescriptorSet(clouds->GetMeshes()[0]->GetDescriptorSet(), cloudParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4) + sizeof(glm::vec4) + sizeof(glm::vec4), 0);
+        Utils::UpdateDescriptorSet(clouds->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
         // Shadow pass begin Info.
         depthPassClearValue = { 1.0f, 0.0 };
@@ -1587,7 +1589,10 @@ private:
         bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
         finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        finalPassWorleySampler = Utils::CreateSampler(worleyNoiseTexture, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        Utils::UpdateDescriptorSet(finalPassDescriptorSet, cloudParametersUBOBuffer, 0, sizeof(CloudParametersUBO), 1);
+        Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassWorleySampler, worleyNoiseTexture->GetImageView(), 2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         bokehPassSceneSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1836,6 +1841,7 @@ private:
         cloudParametersUBO.projMatrix = cameraProj;
         cloudParametersUBO.BoundsMax = (position - scale) / glm::vec4(2);
         cloudParametersUBO.BoundsMin = (position + scale) / glm::vec4(2);
+        cloudParametersUBO.CameraPosition = cameraPos;
 
         memcpy(mappedCloudParametersUBOBuffer, &cloudParametersUBO, sizeof(CloudParametersUBO));
 
@@ -2084,6 +2090,7 @@ private:
         }
         CommandBuffer::DestroyCommandPool(cmdPool);
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassWorleySampler, nullptr);
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassSceneSampler, nullptr);
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassDepthSampler, nullptr);
         vkDestroyRenderPass(VulkanApplication::s_Device->GetVKDevice(), shadowMapRenderPass, nullptr);
@@ -2118,11 +2125,15 @@ private:
         bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassSampler, nullptr);
+        vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), finalPassWorleySampler, nullptr);
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassDepthSampler, nullptr);
         vkDestroySampler(VulkanApplication::s_Device->GetVKDevice(), bokehPassSceneSampler, nullptr);
 
         finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        finalPassWorleySampler = Utils::CreateSampler(worleyNoiseTexture, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassWorleySampler, worleyNoiseTexture->GetImageView(), 2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         bokehPassSceneSampler = Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
         Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
