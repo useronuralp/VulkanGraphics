@@ -80,3 +80,8 @@ ipch/
 /Anorlib/bin-int
 
 !**/models/**
+
+!Engine/vendor/glfw-3.4/
+!Engine/vendor/glfw-3.4/**
+!Engine/vendor/Assimp/
+!Engine/vendor/Assimp/**
