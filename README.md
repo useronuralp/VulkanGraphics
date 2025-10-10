@@ -1,8 +1,10 @@
-# VulkanGraphics
-A graphics renderer powered with the Vulkan API. The engine is capable of rendering high quality images and is being developed as my dissertation project for my Masters' degree.
+# Toy Vulkan engine. 
+A tiny toy engine to try new rendering related things with. 
 
 Setup:
-- Grab latest Vulkan SDK and link against .lib
+- Grab latest Vulkan SDK and create a folder named Engine/vendor/VULKAN and paste it in there to get started.
+- GLFW and Assimp are distributed with precompiled binaries and project settings should already be setup accordingly.
+- Imgui and the rest of the dependencies are included in the project to be compiled when first run as they're very light-weight.
 
 ![Screenshot 2022-10-22 150437](https://user-images.githubusercontent.com/61450895/197343542-3e244c1e-50ea-4a0c-adef-8a9c50facd9f.png)
 ![Screenshot 2022-10-22 150513](https://user-images.githubusercontent.com/61450895/197343543-7ddf226b-5c0b-4798-85a8-f0d9ad4a969b.png)
