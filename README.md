@@ -1,5 +1,5 @@
 # Toy Vulkan engine. 
-A tiny toy engine to try new rendering related thing with. 
+A tiny toy engine to try new rendering related things with. 
 
 Setup:
 - Grab latest Vulkan SDK and create a folder named Engine/vendor/VULKAN and paste it in there to get started.
