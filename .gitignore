@@ -1,52 +1,37 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
+####################################
+# C/C++ Compiled Files / Build Artifacts
+####################################
+# Object files
 *.o
 *.obj
+*.lo
+*.slo
 
-# Precompiled Headers
-*.gch
+# Precompiled headers
 *.pch
+*.gch
 
-# Compiled Dynamic libraries
+# Static & dynamic libraries
+*.lib
+*.a
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
 
 # Executables
 *.exe
 *.out
 *.app
 
-# User-specific files
-*.suo
-*.user
-*.sln.docstates
-
-# Build results
+# Intermediate files / build results
 [Dd]ebug/
 [Rr]elease/
 x64/
-*_i.c
-*_p.c
+build/
+bin/
+obj/
 *.ilk
 *.meta
-*.obj
-*.pch
-*.pdb
 *.pgc
 *.pgd
 *.rsp
@@ -59,29 +44,47 @@ x64/
 *.tlog
 *.vspscc
 *.vssscc
-.builds
+*.builds
 
-# Visual C++ cache files
+####################################
+# Visual Studio / IDE specific
+####################################
+*.suo
+*.user
+*.sln.docstates
+*.vs
 ipch/
 *.aps
 *.ncb
 *.opensdf
 *.sdf
-
-# Visual Studio profiler
 *.psess
 *.vsp
 *.vspx
 
-# Visual Studio
-*.vs
+####################################
+# Fortran / other compiled files
+####################################
+*.d
+*.mod
+*.smod
+*.lai
+*_i.c
+*_p.c
 
-# Don't include intermediate files
-/Anorlib/bin-int
-
+####################################
+# Don't ignore models or assets
+####################################
 !**/models/**
 
+####################################
+# Vendor folders - always track these
+####################################
 !Engine/vendor/glfw-3.4/
 !Engine/vendor/glfw-3.4/**
 !Engine/vendor/Assimp/
 !Engine/vendor/Assimp/**
+
+# Explicitly track .lib files in vendor folders
+!Engine/vendor/glfw-3.4/**/*.lib
+!Engine/vendor/Assimp/**/*.lib
