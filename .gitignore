@@ -30,6 +30,8 @@ x64/
 build/
 bin/
 obj/
+*.pdb
+*.idb
 *.ilk
 *.meta
 *.pgc
