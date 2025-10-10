@@ -1,4 +1,4 @@
-# VulkanGraphics
+# Toy Vulkan engine. 
 A tiny toy engine to try new rendering related thing with. 
 
 Setup:
