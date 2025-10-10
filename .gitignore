@@ -86,6 +86,8 @@ ipch/
 !Engine/vendor/glfw-3.4/**
 !Engine/vendor/Assimp/
 !Engine/vendor/Assimp/**
+!Engine/vendor/VULKAN/
+!Engine/vendor/VULKAN/**
 
 # Explicitly track .lib files in vendor folders
 !Engine/vendor/glfw-3.4/**/*.lib
