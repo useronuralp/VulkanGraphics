@@ -1,74 +1,104 @@
-#include "Surface.h"
 #include "Instance.h"
-#include "Window.h"
 #include "PhysicalDevice.h"
-#include "VulkanApplication.h"
+#include "Surface.h"
+// #include "VulkanApplication.h"
+#include "Window.h"
+
 #include <algorithm>
-namespace OVK
+Surface::Surface(
+    std::shared_ptr<Instance>       InInstance,
+    std::shared_ptr<Window>         InWindow,
+    std::shared_ptr<PhysicalDevice> InPhysicalDevice)
+    : _Instance(InInstance), _Window(InWindow), _PhysicalDevice(InPhysicalDevice)
 {
-	Surface::Surface()
-	{
-		ASSERT(glfwCreateWindowSurface(VulkanApplication::s_Instance->GetVkInstance(), VulkanApplication::s_Window->GetNativeWindow(), nullptr, &m_Surface) == VK_SUCCESS, "Failed to create a window surface");
+    // 1. Create the Vulkan surface for the given window
+    auto result = glfwCreateWindowSurface(_Instance->GetVkInstance(), _Window->GetNativeWindow(), nullptr, &_Surface);
 
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
+    ASSERT(result == VK_SUCCESS, "Failed to create a window surface");
 
-		uint32_t formatCount;
-		vkGetPhysicalDeviceSurfaceFormatsKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, nullptr);
+    // 2. Query capabilities and surface format
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &_Capabilities);
 
-		std::vector<VkSurfaceFormatKHR> surfaceFormats;
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, nullptr);
 
-		if (formatCount != 0)
-		{
-			surfaceFormats.resize(formatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &formatCount, surfaceFormats.data());
-		}
+    std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
-		bool found = false;
-		for (const auto& availableFormat : surfaceFormats)
-		{
-			if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-			{
-				found = true;
-				m_SurfaceFormat = availableFormat;
-			}
-		}
+    ASSERT(formatCount != 0, "No surface formats found!");
 
-		if (!found)
-		{
-			m_SurfaceFormat = surfaceFormats[0];
-			found = true;
-		}
-	}
+    surfaceFormats.resize(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, surfaceFormats.data());
 
-	Surface::~Surface()
-	{
-		vkDestroySurfaceKHR(VulkanApplication::s_Instance->GetVkInstance(), m_Surface, nullptr);
-	}
+    bool found = false;
+    for (const auto& availableFormat : surfaceFormats) {
+        if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM &&
+            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            found          = true;
+            _SurfaceFormat = availableFormat;
+        }
+    }
 
-	VkExtent2D Surface::GetVKExtent()
-	{
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(VulkanApplication::s_PhysicalDevice->GetVKPhysicalDevice(), m_Surface, &m_Capabilities);
+    if (NOT found) {
+        _SurfaceFormat = surfaceFormats[0];
+        found          = true;
+    }
+}
+Surface::Surface()
+{
+    ASSERT(
+        glfwCreateWindowSurface(_Instance->GetVkInstance(), _Window->GetNativeWindow(), nullptr, &_Surface) == VK_SUCCESS,
+        "Failed to create a window surface");
 
-		if (m_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)())
-		{
-			return m_Capabilities.currentExtent;
-		}
-		else
-		{
-			int width, height;
-			glfwGetFramebufferSize(VulkanApplication::s_Window->GetNativeWindow(), &width, &height);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &_Capabilities);
 
-			VkExtent2D actualExtent =
-			{
-				static_cast<uint32_t>(width),
-				static_cast<uint32_t>(height)
-			};
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, nullptr);
 
-			actualExtent.width = std::clamp(actualExtent.width, m_Capabilities.minImageExtent.width, m_Capabilities.maxImageExtent.width);
-			actualExtent.height = std::clamp(actualExtent.height, m_Capabilities.minImageExtent.height, m_Capabilities.maxImageExtent.height);
+    std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
-			return actualExtent;
-		}
-	}
+    if (formatCount != 0) {
+        surfaceFormats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(
+            _PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, surfaceFormats.data());
+    }
 
+    bool found = false;
+    for (const auto& availableFormat : surfaceFormats) {
+        if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM &&
+            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            found          = true;
+            _SurfaceFormat = availableFormat;
+        }
+    }
+
+    if (!found) {
+        _SurfaceFormat = surfaceFormats[0];
+        found          = true;
+    }
+}
+
+Surface::~Surface()
+{
+    vkDestroySurfaceKHR(_Instance->GetVkInstance(), _Surface, nullptr);
+}
+
+VkExtent2D Surface::GetVKExtent()
+{
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &_Capabilities);
+
+    if (_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
+        return _Capabilities.currentExtent;
+    } else {
+        int width, height;
+        glfwGetFramebufferSize(_Window->GetNativeWindow(), &width, &height);
+
+        VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+
+        actualExtent.width =
+            std::clamp(actualExtent.width, _Capabilities.minImageExtent.width, _Capabilities.maxImageExtent.width);
+        actualExtent.height =
+            std::clamp(actualExtent.height, _Capabilities.minImageExtent.height, _Capabilities.maxImageExtent.height);
+
+        return actualExtent;
+    }
 }

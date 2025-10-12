@@ -1,23 +1,43 @@
 #pragma once
 #include "core.h"
-// External
-#include <vulkan/vulkan.h>
+
 #include <vector>
-namespace OVK
-{
-	class Surface
-	{
-	public:
-		Surface();
-		~Surface();
-	public:
-		VkExtent2D						 GetVKExtent();
-		const VkSurfaceKHR&				 GetVKSurface()				{ return m_Surface;		  }
-		const VkSurfaceFormatKHR&		 GetVKSurfaceFormat()		{ return m_SurfaceFormat; }
-		const VkSurfaceCapabilitiesKHR&  GetVKSurfaceCapabilities() { return m_Capabilities;  }
-	private:
-		VkSurfaceKHR			 m_Surface = VK_NULL_HANDLE;
-		VkSurfaceFormatKHR		 m_SurfaceFormat;
-		VkSurfaceCapabilitiesKHR m_Capabilities;
-	};
-}
+#include <vulkan/vulkan.h>
+
+class Instance;
+class Window;
+class PhysicalDevice;
+
+class Surface {
+   public:
+    Surface(
+        std::shared_ptr<Instance>       InInstance,
+        std::shared_ptr<Window>         InWindow,
+        std::shared_ptr<PhysicalDevice> InPhysicalDevice);
+    Surface();
+    ~Surface();
+
+   public:
+    VkExtent2D          GetVKExtent();
+    const VkSurfaceKHR& GetVKSurface()
+    {
+        return _Surface;
+    }
+    const VkSurfaceFormatKHR& GetVKSurfaceFormat()
+    {
+        return _SurfaceFormat;
+    }
+    const VkSurfaceCapabilitiesKHR& GetVKSurfaceCapabilities()
+    {
+        return _Capabilities;
+    }
+
+   private:
+    std::shared_ptr<Instance>       _Instance;
+    std::shared_ptr<Window>         _Window;
+    std::shared_ptr<PhysicalDevice> _PhysicalDevice;
+
+    VkSurfaceKHR             _Surface = VK_NULL_HANDLE;
+    VkSurfaceFormatKHR       _SurfaceFormat;
+    VkSurfaceCapabilitiesKHR _Capabilities;
+};
