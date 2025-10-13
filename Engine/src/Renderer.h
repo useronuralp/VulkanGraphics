@@ -34,13 +34,8 @@ class Renderer {
     std::vector<VkSemaphore> m_RenderingCompleteSemaphores;
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkFence>     m_InFlightFences;
-    VkCommandBuffer*         m_CommandBufferReference; // These cmd buffers come from the client /
-                                               // user side. Probably will change later.
     // ~Vulkan Application members
-    uint32_t CurrentFrameIndex()
-    {
-        return m_CurrentFrame;
-    }
+
     uint32_t m_ActiveImageIndex = -1;
 
     // std::shared_ptr<Camera>    s_Camera;
@@ -91,12 +86,9 @@ class Renderer {
         glm::vec4 CameraPosition;
     };
 
-#pragma region ClearValues
     VkClearValue                depthPassClearValue;
     std::array<VkClearValue, 2> clearValues;
-#pragma endregion
 
-#pragma region Images&Framebuffers
     Ref<Framebuffer>              directionalShadowMapFramebuffer;
     Ref<Framebuffer>              HDRFramebuffer;
     std::vector<Ref<Framebuffer>> pointShadowMapFramebuffers;
@@ -109,24 +101,18 @@ class Renderer {
     Ref<Image>              dustTexture;
     Ref<Image>              fireTexture;
     std::vector<Ref<Image>> pointShadowMaps;
-#pragma endregion
 
-#pragma region RenderPassBeginInfos
     // Render pass begin infos.
     VkRenderPassBeginInfo depthPassBeginInfo;
     VkRenderPassBeginInfo pointShadowPassBeginInfo;
     VkRenderPassBeginInfo finalScenePassBeginInfo;
     VkRenderPassBeginInfo HDRRenderPassBeginInfo;
-#pragma endregion
 
-#pragma region RenderPasses
     // Render passes
     VkRenderPass shadowMapRenderPass;
     VkRenderPass pointShadowRenderPass;
     VkRenderPass HDRRenderPass;
-#pragma endregion
 
-#pragma region Layouts
     // Descriptor Set Layouts
     Ref<DescriptorSetLayout> swapchainLayout;
     Ref<DescriptorSetLayout> emissiveLayout;
@@ -135,14 +121,10 @@ class Renderer {
     Ref<DescriptorSetLayout> cubeLayout;
     Ref<DescriptorSetLayout> cloudLayout;
     Ref<DescriptorSetLayout> particleSystemLayout;
-#pragma endregion
 
-#pragma region Pools
     // Descriptor Pools
     Ref<DescriptorPool> pool;
-#pragma endregion
 
-#pragma region Pipelines
     // Pipelines
     Ref<Pipeline> EmissiveObjectPipeline;
     Ref<Pipeline> finalPassPipeline;
@@ -153,9 +135,7 @@ class Renderer {
     Ref<Pipeline> cubePipeline;
     Ref<Pipeline> cloudPipeline;
     Ref<Pipeline> particleSystemPipeline;
-#pragma endregion
 
-#pragma region ModelsANDParticleSystems
     // Models
     Model* model;
     Model* model2;
@@ -178,9 +158,7 @@ class Renderer {
     ParticleSystem* fireBase4;
 
     ParticleSystem* ambientParticles;
-#pragma endregion
 
-#pragma region UBOs
     GlobalParametersUBO globalParametersUBO;
     VkBuffer            globalParametersUBOBuffer;
     VkDeviceMemory      globalParametersUBOBufferMemory;
@@ -190,7 +168,6 @@ class Renderer {
     VkBuffer           cloudParametersUBOBuffer;
     VkDeviceMemory     cloudParametersUBOBufferMemory;
     void*              mappedCloudParametersUBOBuffer;
-#pragma endregion
 
     // Others
     VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
@@ -243,10 +220,9 @@ class Renderer {
         glm::perspective(glm::radians(45.0f), 1.0f, directionalNearPlane, directionalFarPlane);
     glm::mat4 pointLightProjectionMatrix = glm::perspective(glm::radians(90.0f), 1.0f, pointNearPlane, pointFarPlane);
 
-    float GetRenderTime()
-    {
-        return glfwGetTime();
-    }
+    float    GetRenderTime();
+    uint32_t CurrentFrameIndex();
+
     float m_LastFrameRenderTime;
     float m_DeltaTimeLastFrame = GetRenderTime();
 
@@ -302,8 +278,6 @@ class Renderer {
 
     void Update();
     void RunGlobal();
-
-    void SubmitCommandBuffer(VkCommandBuffer& cmdBuffer);
 
     void Cleanup();
 

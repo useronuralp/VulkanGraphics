@@ -106,7 +106,7 @@ void Renderer::Init()
         globalParametersUBOBuffer,
         globalParametersUBOBufferMemory);
     vkMapMemory(
-        Engine::GetContext().GetDevice()->GetVKDevice(),
+        _Context.GetDevice()->GetVKDevice(),
         globalParametersUBOBufferMemory,
         0,
         sizeof(GlobalParametersUBO),
@@ -120,7 +120,7 @@ void Renderer::Init()
         cloudParametersUBOBuffer,
         cloudParametersUBOBufferMemory);
     vkMapMemory(
-        Engine::GetContext().GetDevice()->GetVKDevice(),
+        _Context.GetDevice()->GetVKDevice(),
         cloudParametersUBOBufferMemory,
         0,
         sizeof(CloudParametersUBO),
@@ -152,8 +152,7 @@ void Renderer::Init()
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &swapchainLayout->GetDescriptorLayout();
 
-    VkResult rslt =
-        vkAllocateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &finalPassDescriptorSet);
+    VkResult rslt = vkAllocateDescriptorSets(_Context.GetDevice()->GetVKDevice(), &allocInfo, &finalPassDescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     // Allocate bokeh pass descriptor Set.
@@ -162,7 +161,7 @@ void Renderer::Init()
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &bokehPassLayout->GetDescriptorLayout();
 
-    rslt = vkAllocateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &bokehDescriptorSet);
+    rslt                         = vkAllocateDescriptorSets(_Context.GetDevice()->GetVKDevice(), &allocInfo, &bokehDescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     // Setup resources.
@@ -372,7 +371,7 @@ void Renderer::Init()
     HDRRenderPassBeginInfo.renderArea.extent.height = HDRFramebuffer->GetHeight();
     HDRRenderPassBeginInfo.renderArea.extent.width  = HDRFramebuffer->GetWidth();
 
-    CommandBuffer::CreateCommandBufferPool(Engine::GetContext()._QueueFamilies.GraphicsFamily, cmdPool);
+    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, cmdPool);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         CommandBuffer::CreateCommandBuffer(cmdBuffers[i], cmdPool);
@@ -436,9 +435,9 @@ void Renderer::CreateSynchronizationPrimitives()
     // Create synchronization primitives
     if (m_RenderingCompleteSemaphores.size() > 0 || m_ImageAvailableSemaphores.size() > 0 || m_InFlightFences.size() > 0) {
         for (int i = 0; i < m_FramesInFlight; i++) {
-            vkDestroySemaphore(Engine::GetContext().GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
-            vkDestroySemaphore(Engine::GetContext().GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
-            vkDestroyFence(Engine::GetContext().GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
+            vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
+            vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
+            vkDestroyFence(_Context.GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
         }
     }
 
@@ -460,17 +459,14 @@ void Renderer::CreateSynchronizationPrimitives()
     // number.
     for (int i = 0; i < m_FramesInFlight; i++) {
         ASSERT(
-            vkCreateSemaphore(
-                Engine::GetContext().GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) ==
+            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) ==
                 VK_SUCCESS,
             "Failed to create rendering complete semaphore.");
         ASSERT(
-            vkCreateFence(Engine::GetContext().GetDevice()->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InFlightFences[i]) ==
-                VK_SUCCESS,
+            vkCreateFence(_Context.GetDevice()->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InFlightFences[i]) == VK_SUCCESS,
             "Failed to create is rendering fence.");
         ASSERT(
-            vkCreateSemaphore(
-                Engine::GetContext().GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) ==
+            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) ==
                 VK_SUCCESS,
             "Failed to create image available semaphore.");
     }
@@ -1302,8 +1298,7 @@ void Renderer::CreateHDRRenderPass()
     renderPassInfo.pDependencies   = &dependency;
 
     ASSERT(
-        vkCreateRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &HDRRenderPass) ==
-            VK_SUCCESS,
+        vkCreateRenderPass(_Context.GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &HDRRenderPass) == VK_SUCCESS,
         "Failed to create a render pass.");
 }
 void Renderer::CreateShadowRenderPass()
@@ -1350,8 +1345,7 @@ void Renderer::CreateShadowRenderPass()
     renderPassInfo.pDependencies   = &dependency;
 
     ASSERT(
-        vkCreateRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &shadowMapRenderPass) ==
-            VK_SUCCESS,
+        vkCreateRenderPass(_Context.GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &shadowMapRenderPass) == VK_SUCCESS,
         "Failed to create a render pass.");
 }
 void Renderer::CreatePointShadowRenderPass()
@@ -1397,15 +1391,14 @@ void Renderer::CreatePointShadowRenderPass()
     renderPassInfo.pDependencies   = &dependency;
 
     ASSERT(
-        vkCreateRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &pointShadowRenderPass) ==
-            VK_SUCCESS,
+        vkCreateRenderPass(_Context.GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &pointShadowRenderPass) == VK_SUCCESS,
         "Failed to create a render pass.");
 }
 
 void Renderer::EnableDepthOfField()
 {
-    vkDeviceWaitIdle(Engine::GetContext().GetDevice()->GetVKDevice());
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
+    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
 
     finalPassSampler = Utils::CreateSampler(
         bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
@@ -1415,8 +1408,8 @@ void Renderer::EnableDepthOfField()
 // Connects the bloom image to the final render pass.
 void Renderer::DisableDepthOfField()
 {
-    vkDeviceWaitIdle(Engine::GetContext().GetDevice()->GetVKDevice());
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
+    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
 
     finalPassSampler = Utils::CreateSampler(
         bloomAgent->GetPostProcessedImage(),
@@ -1517,8 +1510,7 @@ void Renderer::CreateBokehRenderPass()
     renderPassInfo.pDependencies   = &dependency;
 
     ASSERT(
-        vkCreateRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &bokehRenderPass) ==
-            VK_SUCCESS,
+        vkCreateRenderPass(_Context.GetDevice()->GetVKDevice(), &renderPassInfo, nullptr, &bokehRenderPass) == VK_SUCCESS,
         "Failed to create a render pass.");
 }
 float Renderer::DeltaTime()
@@ -1532,15 +1524,15 @@ float Renderer::DeltaTime()
 void Renderer::CreateHDRFramebuffer()
 {
     HDRColorImage = std::make_shared<Image>(
-        Engine::GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetContext().GetSurface()->GetVKExtent().height,
+        _Context.GetSurface()->GetVKExtent().width,
+        _Context.GetSurface()->GetVKExtent().height,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         ImageType::COLOR);
 
     HDRDepthImage = std::make_shared<Image>(
-        Engine::GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetContext().GetSurface()->GetVKExtent().height,
+        _Context.GetSurface()->GetVKExtent().width,
+        _Context.GetSurface()->GetVKExtent().height,
         Utils::FindDepthFormat(),
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         ImageType::DEPTH);
@@ -1548,16 +1540,13 @@ void Renderer::CreateHDRFramebuffer()
     std::vector<VkImageView> attachments = { HDRColorImage->GetImageView(), HDRDepthImage->GetImageView() };
 
     HDRFramebuffer                       = std::make_shared<Framebuffer>(
-        HDRRenderPass,
-        attachments,
-        Engine::GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetContext().GetSurface()->GetVKExtent().height);
+        HDRRenderPass, attachments, _Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
 }
 void Renderer::CreateBokehFramebuffer()
 {
     bokehPassImage = std::make_shared<Image>(
-        Engine::GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetContext().GetSurface()->GetVKExtent().height,
+        _Context.GetSurface()->GetVKExtent().width,
+        _Context.GetSurface()->GetVKExtent().height,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         ImageType::COLOR);
@@ -1565,18 +1554,15 @@ void Renderer::CreateBokehFramebuffer()
     std::vector<VkImageView> attachments = { bokehPassImage->GetImageView() };
 
     bokehPassFramebuffer                 = std::make_shared<Framebuffer>(
-        bokehRenderPass,
-        attachments,
-        Engine::GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetContext().GetSurface()->GetVKExtent().height);
+        bokehRenderPass, attachments, _Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
 }
 
 void Renderer::Cleanup()
 {
     for (int i = 0; i < m_FramesInFlight; i++) {
-        vkDestroySemaphore(Engine::GetContext().GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(Engine::GetContext().GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
-        vkDestroyFence(Engine::GetContext().GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
+        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
+        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
+        vkDestroyFence(_Context.GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
     }
 }
 
@@ -1602,10 +1588,10 @@ void Renderer::WindowResize()
     bloomAgent = std::make_shared<Bloom>();
     bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
 
     finalPassSampler = Utils::CreateSampler(
         bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
@@ -1667,7 +1653,7 @@ void Renderer::WindowResize()
     finalScenePassBeginInfo.renderPass              = _Swapchain->GetSwapchainRenderPass();
     finalScenePassBeginInfo.framebuffer             = _Swapchain->GetActiveFramebuffer();
     finalScenePassBeginInfo.renderArea.offset       = { 0, 0 };
-    finalScenePassBeginInfo.renderArea.extent       = Engine::GetContext().GetSurface()->GetVKExtent();
+    finalScenePassBeginInfo.renderArea.extent       = _Context.GetSurface()->GetVKExtent();
     finalScenePassBeginInfo.clearValueCount         = static_cast<uint32_t>(clearValues.size());
     finalScenePassBeginInfo.pClearValues            = clearValues.data();
     finalScenePassBeginInfo.framebuffer = _Swapchain->GetFramebuffers()[Engine::GetActiveImageIndex()]->GetVKFramebuffer();
@@ -1695,17 +1681,17 @@ void Renderer::InitImGui()
     pool_info.pPoolSizes                 = pool_sizes;
 
     ASSERT(
-        vkCreateDescriptorPool(Engine::GetContext().GetDevice()->GetVKDevice(), &pool_info, nullptr, &imguiPool) == VK_SUCCESS,
+        vkCreateDescriptorPool(_Context.GetDevice()->GetVKDevice(), &pool_info, nullptr, &imguiPool) == VK_SUCCESS,
         "Failed to initialize imgui pool");
 
     ImGui::CreateContext();
 
-    ImGui_ImplGlfw_InitForVulkan(Engine::GetContext().GetWindow()->GetNativeWindow(), true);
+    ImGui_ImplGlfw_InitForVulkan(_Context.GetWindow()->GetNativeWindow(), true);
 
-    init_info.Instance       = Engine::GetContext().GetInstance()->GetVkInstance();
-    init_info.PhysicalDevice = Engine::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice();
-    init_info.Device         = Engine::GetContext().GetDevice()->GetVKDevice();
-    init_info.Queue          = Engine::GetContext().GetDevice()->GetGraphicsQueue();
+    init_info.Instance       = _Context.GetInstance()->GetVkInstance();
+    init_info.PhysicalDevice = _Context.GetPhysicalDevice()->GetVKPhysicalDevice();
+    init_info.Device         = _Context.GetDevice()->GetVKDevice();
+    init_info.Queue          = _Context.GetDevice()->GetGraphicsQueue();
     init_info.DescriptorPool = imguiPool;
     init_info.MinImageCount  = 3;
     init_info.ImageCount     = 3;
@@ -1727,66 +1713,27 @@ void Renderer::InitImGui()
 
     VkCommandBuffer singleCmdBuffer;
     VkCommandPool   singleCmdPool;
-    CommandBuffer::CreateCommandBufferPool(Engine::GetContext()._QueueFamilies.TransferFamily, singleCmdPool);
+    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.TransferFamily, singleCmdPool);
     CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
     CommandBuffer::BeginRecording(singleCmdBuffer);
 
     ImGui_ImplVulkan_CreateFontsTexture(singleCmdBuffer);
 
     CommandBuffer::EndRecording(singleCmdBuffer);
-    CommandBuffer::Submit(singleCmdBuffer, Engine::GetContext().GetDevice()->GetTransferQueue());
-    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, Engine::GetContext().GetDevice()->GetTransferQueue());
+    CommandBuffer::Submit(singleCmdBuffer, _Context.GetDevice()->GetTransferQueue());
+    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, _Context.GetDevice()->GetTransferQueue());
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
-void Renderer::SubmitCommandBuffer(VkCommandBuffer& cmdBuffer)
+float Renderer::GetRenderTime()
 {
-    m_CommandBufferReference = &cmdBuffer;
+    return glfwGetTime();
 }
 
-// void Renderer::CreateSynchronizationPrimitives()
-//{
-//     if (m_RenderingCompleteSemaphores.size() > 0 || m_ImageAvailableSemaphores.size() > 0 || m_InFlightFences.size() > 0) {
-//         for (int i = 0; i < m_FramesInFlight; i++) {
-//             vkDestroySemaphore(Engine::GetContext().GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
-//             vkDestroySemaphore(Engine::GetContext().GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
-//             vkDestroyFence(Engine::GetContext().GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
-//         }
-//     }
-//
-//     // Initialize 2 sempahores and a single fence needed to synchronize
-//     // rendering and presentation.
-//     m_RenderingCompleteSemaphores.resize(m_FramesInFlight);
-//     m_ImageAvailableSemaphores.resize(m_FramesInFlight);
-//     m_InFlightFences.resize(m_FramesInFlight);
-//
-//     // Setup the fences and semaphores needed to synchronize the rendering.
-//     VkFenceCreateInfo fenceCreateInfo = {};
-//     fenceCreateInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-//     fenceCreateInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
-//
-//     VkSemaphoreCreateInfo semaphoreInfo{};
-//     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-//
-//     // Create the scynhronization objects as many times as the frames in flight
-//     // number.
-//     for (int i = 0; i < m_FramesInFlight; i++) {
-//         ASSERT(
-//             vkCreateSemaphore(
-//                 Engine::GetContext().GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) ==
-//                 VK_SUCCESS,
-//             "Failed to create rendering complete semaphore.");
-//         ASSERT(
-//             vkCreateFence(Engine::GetContext().GetDevice()->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InFlightFences[i]) ==
-//                 VK_SUCCESS,
-//             "Failed to create is rendering fence.");
-//         ASSERT(
-//             vkCreateSemaphore(
-//                 Engine::GetContext().GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) ==
-//                 VK_SUCCESS,
-//             "Failed to create image available semaphore.");
-//     }
-// }
+uint32_t Renderer::CurrentFrameIndex()
+{
+    return m_CurrentFrame;
+}
 void Renderer::Update()
 {
     // Begin command buffer recording.
@@ -1830,11 +1777,8 @@ void Renderer::Update()
     globalParametersUBO.cameraPosition      = cameraPos;
     globalParametersUBO.dirLightPos         = directionalLightPosition;
     globalParametersUBO.directionalLightMVP = directionalLightMVP;
-    globalParametersUBO.viewportDimension   = glm::vec4(
-        Engine::GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetContext().GetSurface()->GetVKExtent().height,
-        0.0f,
-        0.0f);
+    globalParametersUBO.viewportDimension =
+        glm::vec4(_Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height, 0.0f, 0.0f);
     globalParametersUBO.DOFFramebufferSize.x = bokehPassFramebuffer->GetWidth();
     globalParametersUBO.DOFFramebufferSize.y = bokehPassFramebuffer->GetHeight();
 
@@ -2243,7 +2187,7 @@ void Renderer::Update()
         bokehPassBeginInfo.renderPass        = bokehRenderPass;
         bokehPassBeginInfo.framebuffer       = bokehPassFramebuffer->GetVKFramebuffer();
         bokehPassBeginInfo.renderArea.offset = { 0, 0 };
-        bokehPassBeginInfo.renderArea.extent = Engine::GetContext().GetSurface()->GetVKExtent();
+        bokehPassBeginInfo.renderArea.extent = _Context.GetSurface()->GetVKExtent();
         bokehPassBeginInfo.clearValueCount   = static_cast<uint32_t>(clearValues.size());
         bokehPassBeginInfo.pClearValues      = clearValues.data();
 
@@ -2354,7 +2298,7 @@ void Renderer::Update()
     finalScenePassBeginInfo.renderPass        = _Swapchain->GetSwapchainRenderPass();
     finalScenePassBeginInfo.framebuffer       = _Swapchain->GetActiveFramebuffer();
     finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
-    finalScenePassBeginInfo.renderArea.extent = Engine::GetContext().GetSurface()->GetVKExtent();
+    finalScenePassBeginInfo.renderArea.extent = _Context.GetSurface()->GetVKExtent();
     finalScenePassBeginInfo.clearValueCount   = static_cast<uint32_t>(clearValues.size());
     finalScenePassBeginInfo.pClearValues      = clearValues.data();
     finalScenePassBeginInfo.framebuffer       = _Swapchain->GetFramebuffers()[Engine::GetActiveImageIndex()]->GetVKFramebuffer();
@@ -2383,7 +2327,6 @@ void Renderer::Update()
     // phase(swapchain).-------------------------------.
 
     CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
-    SubmitCommandBuffer(cmdBuffers[CurrentFrameIndex()]);
 }
 void Renderer::RunGlobal()
 {
@@ -2391,7 +2334,7 @@ void Renderer::RunGlobal()
     //_Renderer->RenderScene();
     //_Renderer->EndFrame();
 
-    while (!glfwWindowShouldClose(Engine::GetContext().GetWindow()->GetNativeWindow())) {
+    while (!glfwWindowShouldClose(_Context.GetWindow()->GetNativeWindow())) {
         // Checks events like button presses.
         glfwPollEvents();
 
@@ -2403,28 +2346,26 @@ void Renderer::RunGlobal()
         // Find delta time.
         float deltaTime = DeltaTime();
 
-        vkWaitForFences(
-            Engine::GetContext().GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+        vkWaitForFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
         VkResult result;
 
         if (m_ActiveImageIndex == READY_TO_ACQUIRE) {
             result = vkAcquireNextImageKHR(
-                Engine::GetContext().GetDevice()->GetVKDevice(),
+                _Context.GetDevice()->GetVKDevice(),
                 _Swapchain->GetVKSwapchain(),
                 UINT64_MAX,
                 m_ImageAvailableSemaphores[m_CurrentFrame],
                 VK_NULL_HANDLE,
                 &m_ActiveImageIndex);
-            if (result == VK_ERROR_OUT_OF_DATE_KHR || Engine::GetContext().GetWindow()->IsWindowResized() ||
-                result == VK_SUBOPTIMAL_KHR) {
-                vkDeviceWaitIdle(Engine::GetContext().GetDevice()->GetVKDevice());
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || result == VK_SUBOPTIMAL_KHR) {
+                vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
 
                 // Wait if the window is minimized.
                 int width = 0, height = 0;
-                glfwGetFramebufferSize(Engine::GetContext().GetWindow()->GetNativeWindow(), &width, &height);
+                glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
                 while (width == 0 || height == 0) {
-                    glfwGetFramebufferSize(Engine::GetContext().GetWindow()->GetNativeWindow(), &width, &height);
+                    glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
                     glfwWaitEvents();
                 }
 
@@ -2432,10 +2373,8 @@ void Renderer::RunGlobal()
                 WindowResize(); // Calls client code here, usually contains
                                 // pipeline recreations and similar stuff that
                                 // are related with screen size.
-                Engine::GetContext().GetWindow()->OnResize();
-                _Camera->SetViewportSize(
-                    Engine::GetContext().GetSurface()->GetVKExtent().width,
-                    Engine::GetContext().GetSurface()->GetVKExtent().height);
+                _Context.GetWindow()->OnResize();
+                _Camera->SetViewportSize(_Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
                 ImGui::EndFrame();
                 m_ActiveImageIndex = READY_TO_ACQUIRE;
                 CreateSynchronizationPrimitives();
@@ -2489,7 +2428,7 @@ void Renderer::RunGlobal()
         }
 
         if (breakFrame) {
-            vkDeviceWaitIdle(Engine::GetContext().GetDevice()->GetVKDevice());
+            vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
             WindowResize(); // Make a specialized function instead of this
                             // one.
             continue;
@@ -2497,7 +2436,7 @@ void Renderer::RunGlobal()
 
         ImGui::End();
 
-        vkResetFences(Engine::GetContext().GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
+        vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
         // Call client OnUpdate() code here. This function usually contains
         // command buffer calls and a SubmitCommandBuffer() call.
@@ -2516,12 +2455,12 @@ void Renderer::RunGlobal()
         submitInfo.pWaitSemaphores            = waitSemaphores;
         submitInfo.pWaitDstStageMask          = waitStages;
         submitInfo.commandBufferCount         = 1;
-        submitInfo.pCommandBuffers            = m_CommandBufferReference;
+        submitInfo.pCommandBuffers            = &cmdBuffers[CurrentFrameIndex()];
         VkSemaphore signalSemaphores[]        = { m_RenderingCompleteSemaphores[m_CurrentFrame] };
         submitInfo.signalSemaphoreCount       = 1;
         submitInfo.pSignalSemaphores          = signalSemaphores;
 
-        VkQueue graphicsQueue                 = Engine::GetContext().GetDevice()->GetGraphicsQueue();
+        VkQueue graphicsQueue                 = _Context.GetDevice()->GetGraphicsQueue();
         ASSERT(
             vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) == VK_SUCCESS,
             "Failed to submit draw command buffer!");
@@ -2541,13 +2480,11 @@ void Renderer::RunGlobal()
         result                         = vkQueuePresentKHR(graphicsQueue, &presentInfo);
         ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
 
-        // CommandBuffer::Reset(*m_CommandBufferReference);
-
         m_CurrentFrame     = ++m_CurrentFrame % m_FramesInFlight;
         m_ActiveImageIndex = READY_TO_ACQUIRE; // Reset the active image index
                                                // back to an invalid number.
     }
-    vkDeviceWaitIdle(Engine::GetContext().GetDevice()->GetVKDevice());
+    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
 
     delete model;
     delete model2;
@@ -2567,24 +2504,24 @@ void Renderer::RunGlobal()
     delete clouds;
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, Engine::GetContext().GetDevice()->GetGraphicsQueue());
+        CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, _Context.GetDevice()->GetGraphicsQueue());
     }
     CommandBuffer::DestroyCommandPool(cmdPool);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
-    vkDestroyRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), shadowMapRenderPass, nullptr);
-    vkDestroyRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), bokehRenderPass, nullptr);
-    vkFreeMemory(Engine::GetContext().GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
-    vkFreeMemory(Engine::GetContext().GetDevice()->GetVKDevice(), cloudParametersUBOBufferMemory, nullptr);
-    vkDestroyBuffer(Engine::GetContext().GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
-    vkDestroyBuffer(Engine::GetContext().GetDevice()->GetVKDevice(), cloudParametersUBOBuffer, nullptr);
-    vkDestroyRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), HDRRenderPass, nullptr);
-    vkDestroyRenderPass(Engine::GetContext().GetDevice()->GetVKDevice(), pointShadowRenderPass, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), shadowMapRenderPass, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), bokehRenderPass, nullptr);
+    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
+    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBufferMemory, nullptr);
+    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
+    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBuffer, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), HDRRenderPass, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), pointShadowRenderPass, nullptr);
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-    vkDestroyDescriptorPool(Engine::GetContext().GetDevice()->GetVKDevice(), imguiPool, nullptr);
+    vkDestroyDescriptorPool(_Context.GetDevice()->GetVKDevice(), imguiPool, nullptr);
     ImGui_ImplVulkan_Shutdown();
 }

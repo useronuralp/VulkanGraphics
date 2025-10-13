@@ -1,11 +1,11 @@
 #pragma once
 #include <memory>
 
-class MyApplication;
 class VulkanContext;
 class Swapchain;
 class Camera;
 class Renderer;
+
 class Engine {
    public:
     void Init();
