@@ -8,27 +8,17 @@ class Window {
     ~Window();
 
    public:
-    GLFWwindow* GetNativeWindow()
-    {
-        return m_Window;
-    }
-    uint32_t GetHeight();
-    uint32_t GetWidth();
-    bool     IsWindowResized()
-    {
-        return m_WindowResized;
-    }
-    bool IsMouseScrolled()
-    {
-        return m_MouseScrolled;
-    }
-    void OnUpdate();
-    void OnResize()
-    {
-        m_WindowResized = false;
-    };
+    GLFWwindow*             GetNativeWindow();
+    uint32_t                GetHeight();
+    uint32_t                GetWidth();
+    bool                    IsWindowResized();
+    bool                    IsMouseScrolled();
+    void                    OnResize();
+    void                    OnUpdate();
     void                    ResetVariables();
     std::pair<float, float> GetMouseScrollOffset();
+
+    bool ShouldClose();
 
    private:
     // GLFW callbacks.
@@ -37,13 +27,13 @@ class Window {
     static void glfw_mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
    private:
-    GLFWwindow* m_Window = nullptr;
-    uint32_t    m_Height;
-    uint32_t    m_Width;
-    const char* m_WindowName;
-    double      m_MouseXScrollOffset = 0.0f;
-    double      m_MouseYScrollOffset = 0.0f;
+    GLFWwindow* _Window = nullptr;
+    uint32_t    _Height;
+    uint32_t    _Width;
+    const char* _WindowName;
+    double      _MouseXScrollOffset = 0.0f;
+    double      _MouseYScrollOffset = 0.0f;
 
-    bool m_WindowResized             = false;
-    bool m_MouseScrolled             = false;
+    bool _WindowResized             = false;
+    bool _MouseScrolled             = false;
 };

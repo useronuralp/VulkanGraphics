@@ -25,12 +25,22 @@ void Engine::Init()
 
 void Engine::Shutdown()
 {
-    _Renderer->Cleanup();
 }
 
 void Engine::Run()
 {
-    _Renderer->RunGlobal();
+    while (!_Context->GetWindow()->ShouldClose()) {
+        _Renderer->PollEvents();
+        if (!_Renderer->BeginFrame()) {
+            continue;
+        }
+
+        _Renderer->RenderImGui();
+
+        _Renderer->EndFrame();
+    }
+
+    _Renderer->Cleanup();
     Shutdown();
 }
 

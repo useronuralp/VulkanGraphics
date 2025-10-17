@@ -268,7 +268,6 @@ class Renderer {
     // static Renderer* Get();
 
     void Init();
-    void BeginFrame();
     void RenderScene();
     void EndFrame();
     void RecreateSwapchain();
@@ -277,11 +276,10 @@ class Renderer {
     void InitImGui();
 
     void Update();
-    void RunGlobal();
 
     void Cleanup();
 
-   private:
+   public:
     void CreateSynchronizationPrimitives();
 
     void CreateRenderPasses();
@@ -289,6 +287,12 @@ class Renderer {
     void CreatePipelines();
     void CreateDescriptorLayouts();
     void CreateSyncObjects();
+
+    void PollEvents();
+    void RenderImGui();
+    bool BeginFrame();
+
+    void HandleWindowResize(VkResult InResult);
 
    private:
     VulkanContext&             _Context;

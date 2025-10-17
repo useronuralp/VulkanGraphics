@@ -472,15 +472,7 @@ void Renderer::CreateSynchronizationPrimitives()
     }
 }
 
-void Renderer::BeginFrame()
-{
-}
-
 void Renderer::RenderScene()
-{
-}
-
-void Renderer::EndFrame()
 {
 }
 
@@ -1564,6 +1556,47 @@ void Renderer::Cleanup()
         vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
         vkDestroyFence(_Context.GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
     }
+
+    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+
+    delete model;
+    delete model2;
+    delete model3;
+    delete skybox;
+    delete cube;
+    delete torch;
+    delete fireSparks;
+    delete fireBase;
+    delete fireSparks2;
+    delete fireBase2;
+    delete fireSparks3;
+    delete fireBase3;
+    delete fireSparks4;
+    delete fireBase4;
+    delete ambientParticles;
+    delete clouds;
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, _Context.GetDevice()->GetGraphicsQueue());
+    }
+    CommandBuffer::DestroyCommandPool(cmdPool);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), shadowMapRenderPass, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), bokehRenderPass, nullptr);
+    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
+    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBufferMemory, nullptr);
+    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
+    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBuffer, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), HDRRenderPass, nullptr);
+    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), pointShadowRenderPass, nullptr);
+
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+    vkDestroyDescriptorPool(_Context.GetDevice()->GetVKDevice(), imguiPool, nullptr);
+    ImGui_ImplVulkan_Shutdown();
 }
 
 void Renderer::WindowResize()
@@ -2328,200 +2361,169 @@ void Renderer::Update()
 
     CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
 }
-void Renderer::RunGlobal()
+
+void Renderer::RenderImGui()
 {
-    //_Renderer->BeginFrame();
-    //_Renderer->RenderScene();
-    //_Renderer->EndFrame();
-
-    while (!glfwWindowShouldClose(_Context.GetWindow()->GetNativeWindow())) {
-        // Checks events like button presses.
-        glfwPollEvents();
-
-        // Update the time it took to render the previous scene.
-        m_Time                = glfwGetTime();
-
-        m_LastFrameRenderTime = GetRenderTime();
-
-        // Find delta time.
-        float deltaTime = DeltaTime();
-
-        vkWaitForFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
-
-        VkResult result;
-
-        if (m_ActiveImageIndex == READY_TO_ACQUIRE) {
-            result = vkAcquireNextImageKHR(
-                _Context.GetDevice()->GetVKDevice(),
-                _Swapchain->GetVKSwapchain(),
-                UINT64_MAX,
-                m_ImageAvailableSemaphores[m_CurrentFrame],
-                VK_NULL_HANDLE,
-                &m_ActiveImageIndex);
-            if (result == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || result == VK_SUBOPTIMAL_KHR) {
-                vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
-
-                // Wait if the window is minimized.
-                int width = 0, height = 0;
-                glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
-                while (width == 0 || height == 0) {
-                    glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
-                    glfwWaitEvents();
-                }
-
-                _Swapchain->Recreate();
-                WindowResize(); // Calls client code here, usually contains
-                                // pipeline recreations and similar stuff that
-                                // are related with screen size.
-                _Context.GetWindow()->OnResize();
-                _Camera->SetViewportSize(_Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
-                ImGui::EndFrame();
-                m_ActiveImageIndex = READY_TO_ACQUIRE;
-                CreateSynchronizationPrimitives();
-                continue;
-            }
-
-            ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
+    // ImGui
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::Begin("Shaders:");
+    bool breakFrame = false;
+    for (const auto& entry :
+         std::filesystem::directory_iterator((std::string(SOLUTION_DIR) + "/Engine/assets/shaders").c_str())) {
+        int         fullstopIndex  = entry.path().string().find_last_of('.');
+        int         lastSlashIndex = entry.path().string().find_last_of('\\');
+        std::string path           = entry.path().string();
+        std::string extension;
+        std::string shadersFolder = std::string(SOLUTION_DIR) + "Engine/assets/shaders/";
+        if (fullstopIndex != std::string::npos) {
+            extension = path.substr(fullstopIndex, path.length() - fullstopIndex);
         }
-
-        // ImGui
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        ImGui::Begin("Shaders:");
-        bool breakFrame = false;
-        for (const auto& entry :
-             std::filesystem::directory_iterator((std::string(SOLUTION_DIR) + "/Engine/assets/shaders").c_str())) {
-            int         fullstopIndex  = entry.path().string().find_last_of('.');
-            int         lastSlashIndex = entry.path().string().find_last_of('\\');
-            std::string path           = entry.path().string();
-            std::string extension;
-            std::string shadersFolder = std::string(SOLUTION_DIR) + "Engine/assets/shaders/";
-            if (fullstopIndex != std::string::npos) {
-                extension = path.substr(fullstopIndex, path.length() - fullstopIndex);
-            }
-            if (extension == ".frag" || extension == ".vert") {
-                std::string shaderPath = path.substr(lastSlashIndex + 1, path.length() - lastSlashIndex);
-                std::string shaderName = path.substr(lastSlashIndex + 1, fullstopIndex - (lastSlashIndex + 1));
-                ImGui::PushID(shaderPath.c_str());
-                if (ImGui::Button("Compile")) {
-                    std::string extensionWithoutDot = extension.substr(1, extension.length() - 1);
-                    for (int i = 0; i < extensionWithoutDot.length(); i++) {
-                        extensionWithoutDot[i] = toupper(extensionWithoutDot[i]);
-                    }
-
-                    std::string outputName = shaderName + extensionWithoutDot + ".spv";
-                    std::string command    = std::string(SOLUTION_DIR) + "Engine/vendor/VULKAN/1.3.239.0/bin/glslc.exe " +
-                        shadersFolder + shaderPath + " -o " + "shaders/" + outputName;
-                    int success = system(command.c_str());
-
-                    ImGui::PopID();
-                    ImGui::End();
-                    ImGui::EndFrame();
-                    breakFrame = true;
-                    break;
+        if (extension == ".frag" || extension == ".vert") {
+            std::string shaderPath = path.substr(lastSlashIndex + 1, path.length() - lastSlashIndex);
+            std::string shaderName = path.substr(lastSlashIndex + 1, fullstopIndex - (lastSlashIndex + 1));
+            ImGui::PushID(shaderPath.c_str());
+            if (ImGui::Button("Compile")) {
+                std::string extensionWithoutDot = extension.substr(1, extension.length() - 1);
+                for (int i = 0; i < extensionWithoutDot.length(); i++) {
+                    extensionWithoutDot[i] = toupper(extensionWithoutDot[i]);
                 }
+
+                std::string outputName = shaderName + extensionWithoutDot + ".spv";
+                std::string command    = std::string(SOLUTION_DIR) + "Engine/vendor/VULKAN/1.3.239.0/bin/glslc.exe " +
+                    shadersFolder + shaderPath + " -o " + "shaders/" + outputName;
+                int success = system(command.c_str());
+
                 ImGui::PopID();
-                ImGui::SameLine();
-                ImGui::Text(shaderPath.c_str());
+                ImGui::End();
+                ImGui::EndFrame();
+                breakFrame = true;
+                break;
             }
+            ImGui::PopID();
+            ImGui::SameLine();
+            ImGui::Text(shaderPath.c_str());
+        }
+    }
+
+    if (breakFrame) {
+        vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+        WindowResize(); // Make a specialized function instead of this
+                        // one.
+    }
+
+    ImGui::End();
+}
+
+bool Renderer::BeginFrame()
+{
+    vkWaitForFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+
+    VkResult result;
+
+    if (m_ActiveImageIndex == READY_TO_ACQUIRE) {
+        result = vkAcquireNextImageKHR(
+            _Context.GetDevice()->GetVKDevice(),
+            _Swapchain->GetVKSwapchain(),
+            UINT64_MAX,
+            m_ImageAvailableSemaphores[m_CurrentFrame],
+            VK_NULL_HANDLE,
+            &m_ActiveImageIndex);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _Context.GetWindow()->IsWindowResized()) {
+            HandleWindowResize(result);
+            return false;
         }
 
-        if (breakFrame) {
-            vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
-            WindowResize(); // Make a specialized function instead of this
-                            // one.
-            continue;
+        ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
+    }
+    return true;
+}
+
+void Renderer::HandleWindowResize(VkResult InResult)
+{
+    if (InResult == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || InResult == VK_SUBOPTIMAL_KHR) {
+        vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+
+        // Wait if the window is minimized.
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
+            glfwWaitEvents();
         }
 
-        ImGui::End();
-
-        vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
-
-        // Call client OnUpdate() code here. This function usually contains
-        // command buffer calls and a SubmitCommandBuffer() call.
-        Update();
-
-        // Update camera movement using delta time.
-        if (!ImGui::GetIO().WantCaptureMouse)
-            _Camera->OnUpdate(deltaTime);
-
-        // Submit the command buffer that we got frome the OnUpdate() function.
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType                      = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        VkSemaphore          waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
-        VkPipelineStageFlags waitStages[]     = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        submitInfo.waitSemaphoreCount         = 1;
-        submitInfo.pWaitSemaphores            = waitSemaphores;
-        submitInfo.pWaitDstStageMask          = waitStages;
-        submitInfo.commandBufferCount         = 1;
-        submitInfo.pCommandBuffers            = &cmdBuffers[CurrentFrameIndex()];
-        VkSemaphore signalSemaphores[]        = { m_RenderingCompleteSemaphores[m_CurrentFrame] };
-        submitInfo.signalSemaphoreCount       = 1;
-        submitInfo.pSignalSemaphores          = signalSemaphores;
-
-        VkQueue graphicsQueue                 = _Context.GetDevice()->GetGraphicsQueue();
-        ASSERT(
-            vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) == VK_SUCCESS,
-            "Failed to submit draw command buffer!");
-
-        // Present the drawn image to the swapchain when the drawing is
-        // completed. This check is done via a semaphore.
-        VkPresentInfoKHR presentInfo{};
-        presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores    = signalSemaphores;
-        VkSwapchainKHR swapChains[]    = { _Swapchain->GetVKSwapchain() };
-        presentInfo.swapchainCount     = 1;
-        presentInfo.pSwapchains        = swapChains;
-        presentInfo.pImageIndices      = &m_ActiveImageIndex;
-        presentInfo.pResults           = nullptr; // Optional
-
-        result                         = vkQueuePresentKHR(graphicsQueue, &presentInfo);
-        ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
-
-        m_CurrentFrame     = ++m_CurrentFrame % m_FramesInFlight;
-        m_ActiveImageIndex = READY_TO_ACQUIRE; // Reset the active image index
-                                               // back to an invalid number.
+        _Swapchain->Recreate();
+        WindowResize(); // Calls client code here, usually contains
+                        // pipeline recreations and similar stuff that
+                        // are related with screen size.
+        _Context.GetWindow()->OnResize();
+        _Camera->SetViewportSize(_Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
+        ImGui::EndFrame();
+        m_ActiveImageIndex = READY_TO_ACQUIRE;
+        CreateSynchronizationPrimitives();
     }
-    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+}
 
-    delete model;
-    delete model2;
-    delete model3;
-    delete skybox;
-    delete cube;
-    delete torch;
-    delete fireSparks;
-    delete fireBase;
-    delete fireSparks2;
-    delete fireBase2;
-    delete fireSparks3;
-    delete fireBase3;
-    delete fireSparks4;
-    delete fireBase4;
-    delete ambientParticles;
-    delete clouds;
+void Renderer::EndFrame()
+{
+    vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, _Context.GetDevice()->GetGraphicsQueue());
-    }
-    CommandBuffer::DestroyCommandPool(cmdPool);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
-    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), shadowMapRenderPass, nullptr);
-    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), bokehRenderPass, nullptr);
-    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
-    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBufferMemory, nullptr);
-    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
-    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBuffer, nullptr);
-    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), HDRRenderPass, nullptr);
-    vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), pointShadowRenderPass, nullptr);
+    // Call client OnUpdate() code here. This function usually contains
+    // command buffer calls and a SubmitCommandBuffer() call.
+    Update();
+    VkResult result;
+    // Find delta time.
+    float deltaTime = DeltaTime();
 
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
+    // Update camera movement using delta time.
+    if (!ImGui::GetIO().WantCaptureMouse)
+        _Camera->OnUpdate(deltaTime);
 
-    vkDestroyDescriptorPool(_Context.GetDevice()->GetVKDevice(), imguiPool, nullptr);
-    ImGui_ImplVulkan_Shutdown();
+    // Submit the command buffer that we got frome the OnUpdate() function.
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType                      = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSemaphore          waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
+    VkPipelineStageFlags waitStages[]     = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo.waitSemaphoreCount         = 1;
+    submitInfo.pWaitSemaphores            = waitSemaphores;
+    submitInfo.pWaitDstStageMask          = waitStages;
+    submitInfo.commandBufferCount         = 1;
+    submitInfo.pCommandBuffers            = &cmdBuffers[CurrentFrameIndex()];
+    VkSemaphore signalSemaphores[]        = { m_RenderingCompleteSemaphores[m_CurrentFrame] };
+    submitInfo.signalSemaphoreCount       = 1;
+    submitInfo.pSignalSemaphores          = signalSemaphores;
+
+    VkQueue graphicsQueue                 = _Context.GetDevice()->GetGraphicsQueue();
+    ASSERT(
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) == VK_SUCCESS,
+        "Failed to submit draw command buffer!");
+
+    // Present the drawn image to the swapchain when the drawing is
+    // completed. This check is done via a semaphore.
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores    = signalSemaphores;
+    VkSwapchainKHR swapChains[]    = { _Swapchain->GetVKSwapchain() };
+    presentInfo.swapchainCount     = 1;
+    presentInfo.pSwapchains        = swapChains;
+    presentInfo.pImageIndices      = &m_ActiveImageIndex;
+    presentInfo.pResults           = nullptr; // Optional
+
+    result                         = vkQueuePresentKHR(graphicsQueue, &presentInfo);
+    ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+
+    m_CurrentFrame     = ++m_CurrentFrame % m_FramesInFlight;
+    m_ActiveImageIndex = READY_TO_ACQUIRE; // Reset the active image index
+                                           // back to an invalid number.
+}
+
+void Renderer::PollEvents()
+{
+    glfwPollEvents();
+    m_Time                = glfwGetTime();
+    m_LastFrameRenderTime = GetRenderTime();
+    DeltaTime(); // updates internal delta time
 }
