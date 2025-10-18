@@ -23,7 +23,7 @@ Framebuffer::Framebuffer(
     framebufferInfo.layers          = InLayerCount;
 
     ASSERT(
-        vkCreateFramebuffer(Engine::GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) ==
+        vkCreateFramebuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) ==
             VK_SUCCESS,
         "Failed to create framebuffer!");
 }
@@ -43,5 +43,5 @@ const VkFramebuffer& Framebuffer::GetHandle()
 
 Framebuffer::~Framebuffer()
 {
-    vkDestroyFramebuffer(Engine::GetContext().GetDevice()->GetVKDevice(), _Framebuffer, nullptr);
+    vkDestroyFramebuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), _Framebuffer, nullptr);
 }

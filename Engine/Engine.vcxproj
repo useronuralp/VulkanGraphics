@@ -165,12 +165,12 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="include\core.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="src\Bloom.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\CommandBuffer.h" />
-    <ClInclude Include="src\core.h" />
     <ClInclude Include="src\DescriptorSet.h" />
     <ClInclude Include="src\Framebuffer.h" />
     <ClInclude Include="src\Image.h" />
@@ -184,6 +184,7 @@
     <ClInclude Include="src\Pipeline.h" />
     <ClInclude Include="src\Renderer\Renderer.h" />
     <ClInclude Include="src\Renderer\RenderPass.h" />
+    <ClInclude Include="src\Scene.h" />
     <ClInclude Include="src\Surface.h" />
     <ClInclude Include="src\Swapchain.h" />
     <ClInclude Include="src\Utils.h" />
@@ -219,6 +220,7 @@
     <ClCompile Include="src\Pipeline.cpp" />
     <ClCompile Include="src\Renderer\Renderer.cpp" />
     <ClCompile Include="src\Renderer\RenderPass.cpp" />
+    <ClCompile Include="src\Scene.cpp" />
     <ClCompile Include="src\Surface.cpp" />
     <ClCompile Include="src\Swapchain.cpp" />
     <ClCompile Include="src\Utils.cpp" />

@@ -1,10 +1,13 @@
 #pragma once
+#include "core.h"
+
 #include <memory>
 
 class VulkanContext;
 class Swapchain;
 class Camera;
 class Renderer;
+class Scene;
 
 class Engine
 {
@@ -12,21 +15,31 @@ class Engine
     void Init();
     void Run();
 
-   public:
-    static VulkanContext& GetContext();
+    static Engine& GetEngine();
+    VulkanContext& GetContext();
+
+    // Scene API
+    Ref<Scene> CreateScene() {};
+    Ref<Scene> GetActiveScene() const {};
+    void       SetActiveScene(Ref<Scene> InScene) {};
+
+    Engine(const Engine&)            = delete;
+    Engine& operator=(const Engine&) = delete;
 
    private:
+    Unique<Renderer>      _Renderer  = nullptr;
+    Ref<Swapchain>        _Swapchain = nullptr;
+    Ref<Camera>           _Camera    = nullptr;
+    Unique<VulkanContext> _Context   = nullptr;
+
+    Ref<Scene> _ActiveScene          = nullptr;
+
+   private:
+    Engine() = default;
     void Shutdown();
 
+    float CalculateDeltaTime();
+
    private:
-    static std::unique_ptr<VulkanContext> _Context;
-
-   public:
-    static std::unique_ptr<Renderer> _Renderer;
-    std::shared_ptr<Swapchain>       _Swapchain = nullptr;
-    std::shared_ptr<Camera>          _Camera    = nullptr;
-
-   public:
-    // FIX: Swapchain depends on this;.
-    static uint32_t GetActiveImageIndex();
+    float _LastFrameTime = 0.0f;
 };

@@ -8,7 +8,7 @@
 LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExtensions(extensions)
 {
     // Fetch queue families.
-    std::vector<QueueFamily>             queueFamilies = Engine::GetContext().GetPhysicalDevice()->GetQueueFamilies();
+    std::vector<QueueFamily>             queueFamilies = Engine::GetEngine().GetContext().GetPhysicalDevice()->GetQueueFamilies();
     VkBool32                             supported     = false;
     std::vector<VkDeviceQueueCreateInfo> deviceQueueCreateInfos;
 
@@ -16,9 +16,9 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
     std::vector<float>      priorities;
     VkDeviceQueueCreateInfo QCI{};
     QCI.sType                     = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    QCI.queueFamilyIndex          = Engine::GetContext()._QueueFamilies.GraphicsFamily;
+    QCI.queueFamilyIndex          = Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily;
 
-    VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.GraphicsFamily);
+    VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily);
     priorities.assign(props.queueCount, 1.0f);
 
     QCI.queueCount       = props.queueCount;
@@ -31,15 +31,15 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
 
     // If the indices of graphics & transfer queues are not the same, we need to
     // create a separate queue for present operations.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.TransferFamily)
+    if (Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily != Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily)
     {
         // Create a present queue.
         std::vector<float>      priorities;
         VkDeviceQueueCreateInfo QCI{};
         QCI.sType                     = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        QCI.queueFamilyIndex          = Engine::GetContext()._QueueFamilies.TransferFamily;
+        QCI.queueFamilyIndex          = Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily;
 
-        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.TransferFamily);
+        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily);
         priorities.assign(props.queueCount, 1.0f);
 
         QCI.queueCount       = props.queueCount;
@@ -50,15 +50,15 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
 
     // If the indices of graphics & compute queues are not the same, we need to
     // create a separate queue for present operations.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.ComputeFamily)
+    if (Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily != Engine::GetEngine().GetContext()._QueueFamilies.ComputeFamily)
     {
         // Create a present queue.
         std::vector<float>      priorities;
         VkDeviceQueueCreateInfo QCI{};
         QCI.sType                     = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        QCI.queueFamilyIndex          = Engine::GetContext()._QueueFamilies.ComputeFamily;
+        QCI.queueFamilyIndex          = Engine::GetEngine().GetContext()._QueueFamilies.ComputeFamily;
 
-        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.ComputeFamily);
+        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetEngine().GetContext()._QueueFamilies.ComputeFamily);
         priorities.assign(props.queueCount, 1.0f);
 
         QCI.queueCount       = props.queueCount;
@@ -69,7 +69,7 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
 
     // Check Anisotrophy support.
     ASSERT(
-        Engine::GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
+        Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
 
     // Enable Anisotropy.
     VkPhysicalDeviceFeatures deviceFeatures{};
@@ -104,45 +104,45 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
     }
 
     ASSERT(
-        vkCreateDevice(Engine::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS,
+        vkCreateDevice(Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS,
         "Failed to create logical device!");
 
     int queueIndex = 0;
 
     // Get a graphics queue from the device. We'll need this while using command
     // buffers.
-    vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_GraphicsQueue);
+    vkGetDeviceQueue(m_Device, Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_GraphicsQueue);
     queueIndex++;
     // Index is Unique.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.TransferFamily)
+    if (Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily != Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily)
     {
-        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.TransferFamily);
+        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
-        vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.TransferFamily, 0, &m_TransferQueue);
+        vkGetDeviceQueue(m_Device, Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily, 0, &m_TransferQueue);
     }
     // Index is the same with the graphics queue.
     else
     {
-        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.GraphicsFamily);
+        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
-        vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_TransferQueue);
+        vkGetDeviceQueue(m_Device, Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_TransferQueue);
         queueIndex++;
     }
 
     // Grab a compute queue.
     // Index is unqiue.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.ComputeFamily)
+    if (Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily != Engine::GetEngine().GetContext()._QueueFamilies.ComputeFamily)
     {
-        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.ComputeFamily);
+        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetEngine().GetContext()._QueueFamilies.ComputeFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
-        vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.ComputeFamily, 0, &m_ComputeQueue);
+        vkGetDeviceQueue(m_Device, Engine::GetEngine().GetContext()._QueueFamilies.ComputeFamily, 0, &m_ComputeQueue);
     }
     // Index is the same with the graphics queue.
     else
     {
-        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.GraphicsFamily);
+        VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
-        vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_ComputeQueue);
+        vkGetDeviceQueue(m_Device, Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_ComputeQueue);
         queueIndex++;
     }
     std::cout << "Logical device has been created." << std::endl;
@@ -157,11 +157,11 @@ VkQueueFamilyProperties LogicalDevice::GetQueueFamilyProps(uint64_t queueFamilyI
     std::vector<VkQueueFamilyProperties> props;
     uint32_t                             propertyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(
-        Engine::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, nullptr);
+        Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, nullptr);
 
     props.resize(propertyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(
-        Engine::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, props.data());
+        Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, props.data());
 
     return props[queueFamilyIndex];
 }

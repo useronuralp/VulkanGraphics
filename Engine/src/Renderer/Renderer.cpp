@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-Renderer::Renderer(VulkanContext& InContext, std::shared_ptr<Swapchain> InSwapchain, std::shared_ptr<Camera> InCamera)
+Renderer::Renderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
     : _Context(InContext), _Swapchain(InSwapchain), _Camera(InCamera)
 {
 }
@@ -80,18 +80,18 @@ void Renderer::Init()
     };
 
     // Create the pool(s) that we need here.
-    pool = std::make_shared<DescriptorPool>(
+    pool = make_s<DescriptorPool>(
         200, std::vector<VkDescriptorType>{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER });
 
     // Descriptor Set Layouts
-    particleSystemLayout = std::make_shared<DescriptorSetLayout>(ParticleSystemLayout);
-    skyboxLayout         = std::make_shared<DescriptorSetLayout>(SkyboxLayout);
-    cubeLayout           = std::make_shared<DescriptorSetLayout>(CubeLayout);
-    cloudLayout          = std::make_shared<DescriptorSetLayout>(CloudLayout);
-    PBRLayout            = std::make_shared<DescriptorSetLayout>(hdrLayout);
-    swapchainLayout      = std::make_shared<DescriptorSetLayout>(SwapchainLayout);
-    emissiveLayout       = std::make_shared<DescriptorSetLayout>(EmissiveLayout);
-    bokehPassLayout      = std::make_shared<DescriptorSetLayout>(BokehPassLayout);
+    particleSystemLayout = make_s<DescriptorSetLayout>(ParticleSystemLayout);
+    skyboxLayout         = make_s<DescriptorSetLayout>(SkyboxLayout);
+    cubeLayout           = make_s<DescriptorSetLayout>(CubeLayout);
+    cloudLayout          = make_s<DescriptorSetLayout>(CloudLayout);
+    PBRLayout            = make_s<DescriptorSetLayout>(hdrLayout);
+    swapchainLayout      = make_s<DescriptorSetLayout>(SwapchainLayout);
+    emissiveLayout       = make_s<DescriptorSetLayout>(EmissiveLayout);
+    bokehPassLayout      = make_s<DescriptorSetLayout>(BokehPassLayout);
 
     // Following are the global Uniform Buffes shared by all shaders.
     Utils::CreateVKBuffer(
@@ -124,15 +124,16 @@ void Renderer::Init()
 
     // Create an image for the shadowmap. We will render to this image when
     // we are doing a shadow pass.
-    directionalShadowMapImage = std::make_shared<Image>(
+    directionalShadowMapImage = make_s<Image>(
         SHADOW_DIM,
         SHADOW_DIM,
         VK_FORMAT_D32_SFLOAT,
         (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
         ImageType::DEPTH);
 
-    for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++) {
-        pointShadowMaps[i] = std::make_shared<Image>(
+    for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
+    {
+        pointShadowMaps[i] = make_s<Image>(
             POUNT_SHADOW_DIM,
             POUNT_SHADOW_DIM,
             VK_FORMAT_D32_SFLOAT,
@@ -184,20 +185,20 @@ void Renderer::Init()
     // Directional light shadowmap framebuffer.
     std::vector<VkImageView> attachments = { directionalShadowMapImage->GetImageView() };
 
-    directionalShadowMapFramebuffer =
-        std::make_shared<Framebuffer>(shadowMapRenderPass->GetHandle(), attachments, SHADOW_DIM, SHADOW_DIM);
+    directionalShadowMapFramebuffer = make_s<Framebuffer>(shadowMapRenderPass->GetHandle(), attachments, SHADOW_DIM, SHADOW_DIM);
 
     // Framebuffers need for point light shadows. (Dependent on the number
     // of point lights in the scene)
-    for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++) {
+    for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
+    {
         attachments = { pointShadowMaps[i]->GetImageView() };
 
         pointShadowMapFramebuffers[i] =
-            std::make_shared<Framebuffer>(pointShadowRenderPass->GetHandle(), attachments, POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, 6);
+            make_s<Framebuffer>(pointShadowRenderPass->GetHandle(), attachments, POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, 6);
     }
 
     // Loading the model Sponza
-    model = new Model(
+    model = make_s<Model>(
         std::string(SOLUTION_DIR) + "Engine/assets/models/Sponza/scene.gltf",
         LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
         pool,
@@ -206,13 +207,14 @@ void Renderer::Init()
         pointShadowMaps);
     model->Scale(0.005f, 0.005f, 0.005f);
 
-    for (int i = 0; i < model->GetMeshCount(); i++) {
+    for (int i = 0; i < model->GetMeshCount(); i++)
+    {
         Utils::UpdateDescriptorSet(
             model->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
     }
 
     // Loading the model Malenia's Helmet.
-    model2 = new Model(
+    model2 = make_s<Model>(
         std::string(SOLUTION_DIR) + "Engine/assets/models/MaleniaHelmet/scene.gltf",
         LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
         pool,
@@ -223,12 +225,13 @@ void Renderer::Init()
     model2->Rotate(90, 0, 1, 0);
     model2->Scale(0.7f, 0.7f, 0.7f);
 
-    for (int i = 0; i < model2->GetMeshCount(); i++) {
+    for (int i = 0; i < model2->GetMeshCount(); i++)
+    {
         Utils::UpdateDescriptorSet(
             model2->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
     }
 
-    torch = new Model(
+    torch = make_s<Model>(
         std::string(SOLUTION_DIR) + "Engine/assets/models/torch/scene.gltf",
         LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
         pool,
@@ -252,7 +255,8 @@ void Renderer::Init()
     torch4modelMatrix = glm::scale(torch4modelMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
     torch4modelMatrix = glm::rotate(torch4modelMatrix, glm::radians(-90.0f), glm::vec3(0, 1, 0));
 
-    for (int i = 0; i < torch->GetMeshCount(); i++) {
+    for (int i = 0; i < torch->GetMeshCount(); i++)
+    {
         Utils::UpdateDescriptorSet(
             torch->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
     }
@@ -278,7 +282,7 @@ void Renderer::Init()
     globalParametersUBO.directionalLightIntensity = glm::vec4(10.0);
     globalParametersUBO.pointFarPlane             = glm::vec4(pointFarPlane);
 
-    model3                                        = new Model(
+    model3                                        = make_s<Model>(
         Utils::NormalizePath(std::string(SOLUTION_DIR) + "Engine/assets/models/sword/scene.gltf"),
         LOAD_VERTEX_POSITIONS,
         pool,
@@ -288,7 +292,8 @@ void Renderer::Init()
     model3->Rotate(90, 0, 1, 0);
     model3->Scale(0.7f, 0.7f, 0.7f);
 
-    for (int i = 0; i < model3->GetMeshCount(); i++) {
+    for (int i = 0; i < model3->GetMeshCount(); i++)
+    {
         Utils::UpdateDescriptorSet(
             model3->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) * 2, 0);
     }
@@ -325,38 +330,32 @@ void Renderer::Init()
 
     // Set up the 6 sided texture for the skybox by using the above images.
     std::vector<std::string> skyboxTex{ right, left, top, bottom, front, back };
-    Ref<Image>               cubemap = std::make_shared<Image>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
+    Ref<Image>               cubemap = make_s<Image>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
 
     // Create the mesh for the skybox.
-    skybox = new Model(cubeVertices, vertexCount, cubemap, pool, skyboxLayout);
+    skybox = make_s<Model>(cubeVertices, vertexCount, cubemap, pool, skyboxLayout);
     Utils::UpdateDescriptorSet(
         skybox->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, sizeof(glm::mat4), sizeof(glm::mat4), 0);
 
     // A cube model to depict/debug point lights.
-    cube = new Model(cubeVertices, vertexCount, nullptr, pool, cubeLayout);
+    cube = make_s<Model>(cubeVertices, vertexCount, nullptr, pool, cubeLayout);
 
     Utils::UpdateDescriptorSet(
         cube->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
-    clouds = new Model(cubeVertices, vertexCount, nullptr, pool, cloudLayout);
+    clouds = make_s<Model>(cubeVertices, vertexCount, nullptr, pool, cloudLayout);
 
     Utils::UpdateDescriptorSet(
         clouds->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
-    // Shadow pass begin Info.
-    depthPassClearValue = { 1.0f, 0.0 };
-
-    // HDR pass begin Info.
-    clearValues[0].color        = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-    clearValues[1].depthStencil = { 1.0f, 0 };
-
     CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, cmdPool);
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
         CommandBuffer::CreateCommandBuffer(cmdBuffers[i], cmdPool);
     }
 
-    bloomAgent = std::make_shared<Bloom>();
+    bloomAgent = make_s<Bloom>();
     bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
     finalPassSampler = Utils::CreateSampler(
@@ -412,8 +411,10 @@ void Renderer::Init()
 void Renderer::CreateSynchronizationPrimitives()
 {
     // Create synchronization primitives
-    if (m_RenderingCompleteSemaphores.size() > 0 || m_ImageAvailableSemaphores.size() > 0 || m_InFlightFences.size() > 0) {
-        for (int i = 0; i < m_FramesInFlight; i++) {
+    if (m_RenderingCompleteSemaphores.size() > 0 || m_ImageAvailableSemaphores.size() > 0 || m_InFlightFences.size() > 0)
+    {
+        for (int i = 0; i < m_FramesInFlight; i++)
+        {
             vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
             vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
             vkDestroyFence(_Context.GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
@@ -436,7 +437,8 @@ void Renderer::CreateSynchronizationPrimitives()
 
     // Create the scynhronization objects as many times as the frames in flight
     // number.
-    for (int i = 0; i < m_FramesInFlight; i++) {
+    for (int i = 0; i < m_FramesInFlight; i++)
+    {
         ASSERT(
             vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) ==
                 VK_SUCCESS,
@@ -449,30 +451,6 @@ void Renderer::CreateSynchronizationPrimitives()
                 VK_SUCCESS,
             "Failed to create image available semaphore.");
     }
-}
-
-void Renderer::RenderScene()
-{
-}
-
-void Renderer::RecreateSwapchain()
-{
-}
-
-void Renderer::CreateRenderPasses()
-{
-}
-void Renderer::CreateFramebuffers()
-{
-}
-void Renderer::CreateDescriptorLayouts()
-{
-}
-void Renderer::CreatePipelines()
-{
-}
-void Renderer::CreateSyncObjects()
-{
 }
 
 void Renderer::SetupPBRPipeline()
@@ -548,7 +526,7 @@ void Renderer::SetupPBRPipeline()
     specs.VertexInputAttributeCount        = attributeDescriptions.size();
     specs.pVertexInputAttributeDescriptons = attributeDescriptions.data();
 
-    pipeline                               = std::make_shared<Pipeline>(specs);
+    pipeline                               = make_s<Pipeline>(specs);
 }
 void Renderer::SetupFinalPassPipeline()
 {
@@ -581,7 +559,7 @@ void Renderer::SetupFinalPassPipeline()
 
     specs.ColorBlendAttachmentState          = colorBlendAttachment;
 
-    finalPassPipeline                        = std::make_shared<Pipeline>(specs);
+    finalPassPipeline                        = make_s<Pipeline>(specs);
 }
 void Renderer::SetupShadowPassPipeline()
 {
@@ -639,7 +617,7 @@ void Renderer::SetupShadowPassPipeline()
     specs.VertexInputAttributeCount        = attributeDescriptions2.size();
     specs.pVertexInputAttributeDescriptons = attributeDescriptions2.data();
 
-    shadowPassPipeline                     = std::make_shared<Pipeline>(specs);
+    shadowPassPipeline                     = make_s<Pipeline>(specs);
 }
 void Renderer::SetupPointShadowPassPipeline()
 {
@@ -709,7 +687,7 @@ void Renderer::SetupPointShadowPassPipeline()
     specs.VertexInputAttributeCount        = attributeDescriptions2.size();
     specs.pVertexInputAttributeDescriptons = attributeDescriptions2.data();
 
-    pointShadowPassPipeline                = std::make_shared<Pipeline>(specs);
+    pointShadowPassPipeline                = make_s<Pipeline>(specs);
 }
 void Renderer::SetupSkyboxPipeline()
 {
@@ -765,7 +743,7 @@ void Renderer::SetupSkyboxPipeline()
     specs.VertexInputAttributeCount        = attributeDescriptions3.size();
     specs.pVertexInputAttributeDescriptons = attributeDescriptions3.data();
 
-    skyboxPipeline                         = std::make_shared<Pipeline>(specs);
+    skyboxPipeline                         = make_s<Pipeline>(specs);
 }
 void Renderer::SetupCubePipeline()
 {
@@ -821,12 +799,12 @@ void Renderer::SetupCubePipeline()
     specs.VertexInputAttributeCount        = attributeDescriptions3.size();
     specs.pVertexInputAttributeDescriptons = attributeDescriptions3.data();
 
-    cubePipeline                           = std::make_shared<Pipeline>(specs);
+    cubePipeline                           = make_s<Pipeline>(specs);
 }
 
 void Renderer::SetupCloudPipeline()
 {
-    worleyNoiseTexture = std::make_shared<Image>(
+    worleyNoiseTexture = make_s<Image>(
         std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/WorleyNoise.jpg") }, VK_FORMAT_R8G8B8A8_SRGB);
 
     Pipeline::Specs specs{};
@@ -881,7 +859,7 @@ void Renderer::SetupCloudPipeline()
     specs.VertexInputAttributeCount        = attributeDescriptions3.size();
     specs.pVertexInputAttributeDescriptons = attributeDescriptions3.data();
 
-    cloudPipeline                          = std::make_shared<Pipeline>(specs);
+    cloudPipeline                          = make_s<Pipeline>(specs);
 }
 void Renderer::SetupParticleSystemPipeline()
 {
@@ -978,7 +956,7 @@ void Renderer::SetupParticleSystemPipeline()
     particleSpecs.VertexInputAttributeCount        = attributeDescriptions4.size();
     particleSpecs.pVertexInputAttributeDescriptons = attributeDescriptions4.data();
 
-    particleSystemPipeline                         = std::make_shared<Pipeline>(particleSpecs);
+    particleSystemPipeline                         = make_s<Pipeline>(particleSpecs);
 }
 void Renderer::SetupEmissiveObjectPipeline()
 {
@@ -1035,17 +1013,17 @@ void Renderer::SetupEmissiveObjectPipeline()
     specs.VertexInputAttributeCount        = attributeDescriptions5.size();
     specs.pVertexInputAttributeDescriptons = attributeDescriptions5.data();
 
-    EmissiveObjectPipeline                 = std::make_shared<Pipeline>(specs);
+    EmissiveObjectPipeline                 = make_s<Pipeline>(specs);
 }
 
 void Renderer::SetupParticleSystems()
 {
-    particleTexture = std::make_shared<Image>(
-        std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
-    fireTexture = std::make_shared<Image>(
+    particleTexture =
+        make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+    fireTexture = make_s<Image>(
         std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/fire_sprite_sheet.png") }, VK_FORMAT_R8G8B8A8_SRGB);
-    dustTexture = std::make_shared<Image>(
-        std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/dust.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+    dustTexture =
+        make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/dust.png") }, VK_FORMAT_R8G8B8A8_SRGB);
 
     ParticleSpecs specs{};
     specs.ParticleCount       = 10;
@@ -1060,7 +1038,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
     specs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
 
-    fireSparks                = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
+    fireSparks                = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
     fireSparks->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 
     specs.ParticleMinLifetime = 0.1f;
@@ -1075,7 +1053,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec4(0.0f);
     specs.MaxVel              = glm::vec4(0.0f);
 
-    fireBase                  = new ParticleSystem(specs, fireTexture, particleSystemLayout, pool);
+    fireBase                  = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
     fireBase->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
     fireBase->RowOffset       = 0.0f;
     fireBase->RowCellSize     = 0.0833333333333333333333f;
@@ -1094,7 +1072,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
     specs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
 
-    fireSparks2               = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
+    fireSparks2               = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
     fireSparks2->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 
     specs.ParticleMinLifetime = 0.1f;
@@ -1109,7 +1087,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec4(0.0f);
     specs.MaxVel              = glm::vec4(0.0f);
 
-    fireBase2                 = new ParticleSystem(specs, fireTexture, particleSystemLayout, pool);
+    fireBase2                 = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
     fireBase2->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
     fireBase2->RowOffset      = 0.0f;
     fireBase2->RowCellSize    = 0.0833333333333333333333f;
@@ -1129,7 +1107,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
     specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
 
-    fireSparks3  = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
+    fireSparks3  = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
     fireSparks3->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 
     specs.ParticleMinLifetime = 0.1f;
@@ -1144,7 +1122,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec4(0.0f);
     specs.MaxVel              = glm::vec4(0.0f);
 
-    fireBase3                 = new ParticleSystem(specs, fireTexture, particleSystemLayout, pool);
+    fireBase3                 = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
     fireBase3->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
     fireBase3->RowOffset      = 0.0f;
     fireBase3->RowCellSize    = 0.0833333333333333333333f;
@@ -1163,7 +1141,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
     specs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
 
-    fireSparks4               = new ParticleSystem(specs, particleTexture, particleSystemLayout, pool);
+    fireSparks4               = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
     fireSparks4->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 
     specs.ParticleMinLifetime = 0.1f;
@@ -1178,7 +1156,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec4(0.0f);
     specs.MaxVel              = glm::vec4(0.0f);
 
-    fireBase4                 = new ParticleSystem(specs, fireTexture, particleSystemLayout, pool);
+    fireBase4                 = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
     fireBase4->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
     fireBase4->RowOffset      = 0.0f;
     fireBase4->RowCellSize    = 0.0833333333333333333333f;
@@ -1197,7 +1175,7 @@ void Renderer::SetupParticleSystems()
     specs.MinVel              = glm::vec3(-0.3f, -0.3f, -0.3f);
     specs.MaxVel              = glm::vec3(0.3f, 0.3f, 0.3f);
 
-    ambientParticles          = new ParticleSystem(specs, dustTexture, particleSystemLayout, pool);
+    ambientParticles          = make_s<ParticleSystem>(specs, dustTexture, particleSystemLayout, pool);
     ambientParticles->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 }
 
@@ -1356,7 +1334,7 @@ void Renderer::SetupBokehPassPipeline()
 
     specs.ColorBlendAttachmentState          = colorBlendAttachment;
 
-    bokehPassPipeline                        = std::make_shared<Pipeline>(specs);
+    bokehPassPipeline                        = make_s<Pipeline>(specs);
 }
 void Renderer::CreateBokehRenderPass()
 {
@@ -1378,28 +1356,22 @@ void Renderer::CreateBokehRenderPass()
 
     bokehRenderPass = std::make_unique<RenderPass>(_Context, createInfo);
 }
-float Renderer::DeltaTime()
-{
-    float currentFrameRenderTime, deltaTime;
-    currentFrameRenderTime = GetRenderTime();
-    deltaTime              = currentFrameRenderTime - m_DeltaTimeLastFrame;
-    m_DeltaTimeLastFrame   = currentFrameRenderTime;
-    return deltaTime;
-}
 
 void Renderer::CreateSwapchainFramebuffers()
 {
-    if (swapchainFramebuffers.size() > 0) {
+    if (swapchainFramebuffers.size() > 0)
+    {
         swapchainFramebuffers.clear();
     }
 
-    for (auto imageView : _Swapchain->GetImageViews()) {
+    for (auto imageView : _Swapchain->GetImageViews())
+    {
         // Creating a framebuffer for each swapchain image. The depth image is
         // shared across the images.
         std::vector<VkImageView> attachments = {
             imageView,
         };
-        swapchainFramebuffers.push_back(std::make_shared<Framebuffer>(
+        swapchainFramebuffers.push_back(make_s<Framebuffer>(
             swapchainRenderPass->GetHandle(),
             attachments,
             _Context.GetSurface()->GetVKExtent().width,
@@ -1409,14 +1381,14 @@ void Renderer::CreateSwapchainFramebuffers()
 
 void Renderer::CreateHDRFramebuffer()
 {
-    HDRColorImage = std::make_shared<Image>(
+    HDRColorImage = make_s<Image>(
         _Context.GetSurface()->GetVKExtent().width,
         _Context.GetSurface()->GetVKExtent().height,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         ImageType::COLOR);
 
-    HDRDepthImage = std::make_shared<Image>(
+    HDRDepthImage = make_s<Image>(
         _Context.GetSurface()->GetVKExtent().width,
         _Context.GetSurface()->GetVKExtent().height,
         Utils::FindDepthFormat(),
@@ -1425,7 +1397,7 @@ void Renderer::CreateHDRFramebuffer()
 
     std::vector<VkImageView> attachments = { HDRColorImage->GetImageView(), HDRDepthImage->GetImageView() };
 
-    HDRFramebuffer                       = std::make_shared<Framebuffer>(
+    HDRFramebuffer                       = make_s<Framebuffer>(
         HDRRenderPass->GetHandle(),
         attachments,
         _Context.GetSurface()->GetVKExtent().width,
@@ -1434,7 +1406,7 @@ void Renderer::CreateHDRFramebuffer()
 
 void Renderer::CreateBokehFramebuffer()
 {
-    bokehPassImage = std::make_shared<Image>(
+    bokehPassImage = make_s<Image>(
         _Context.GetSurface()->GetVKExtent().width,
         _Context.GetSurface()->GetVKExtent().height,
         VK_FORMAT_R16G16B16A16_SFLOAT,
@@ -1443,7 +1415,7 @@ void Renderer::CreateBokehFramebuffer()
 
     std::vector<VkImageView> attachments = { bokehPassImage->GetImageView() };
 
-    bokehPassFramebuffer                 = std::make_shared<Framebuffer>(
+    bokehPassFramebuffer                 = make_s<Framebuffer>(
         bokehRenderPass->GetHandle(),
         attachments,
         _Context.GetSurface()->GetVKExtent().width,
@@ -1452,7 +1424,8 @@ void Renderer::CreateBokehFramebuffer()
 
 void Renderer::Cleanup()
 {
-    for (int i = 0; i < m_FramesInFlight; i++) {
+    for (int i = 0; i < m_FramesInFlight; i++)
+    {
         vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
         vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
         vkDestroyFence(_Context.GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
@@ -1460,24 +1433,8 @@ void Renderer::Cleanup()
 
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
 
-    delete model;
-    delete model2;
-    delete model3;
-    delete skybox;
-    delete cube;
-    delete torch;
-    delete fireSparks;
-    delete fireBase;
-    delete fireSparks2;
-    delete fireBase2;
-    delete fireSparks3;
-    delete fireBase3;
-    delete fireSparks4;
-    delete fireBase4;
-    delete ambientParticles;
-    delete clouds;
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
         CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, _Context.GetDevice()->GetGraphicsQueue());
     }
     CommandBuffer::DestroyCommandPool(cmdPool);
@@ -1485,14 +1442,10 @@ void Renderer::Cleanup()
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
-    // vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), shadowMapRenderPass, nullptr);
-    // vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), bokehRenderPass, nullptr);
     vkFreeMemory(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
     vkFreeMemory(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBufferMemory, nullptr);
     vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
     vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBuffer, nullptr);
-    // vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), HDRRenderPass, nullptr);
-    // vkDestroyRenderPass(_Context.GetDevice()->GetVKDevice(), pointShadowRenderPass, nullptr);
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
@@ -1520,7 +1473,7 @@ void Renderer::WindowResize()
     CreateBokehFramebuffer();
     SetupBokehPassPipeline();
 
-    bloomAgent = std::make_shared<Bloom>();
+    bloomAgent = make_s<Bloom>();
     bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
@@ -1569,9 +1522,6 @@ void Renderer::WindowResize()
         HDRDepthImage->GetImageView(),
         1,
         VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
-
-    clearValues[0].color        = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-    clearValues[1].depthStencil = { 1.0f, 0 };
 }
 
 void Renderer::InitImGui()
@@ -1640,38 +1590,28 @@ void Renderer::InitImGui()
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
-float Renderer::GetRenderTime()
+void Renderer::RenderFrame(const float InDeltaTime)
 {
-    return glfwGetTime();
-}
-
-uint32_t Renderer::CurrentFrameIndex()
-{
-    return m_CurrentFrame;
-}
-void Renderer::Update()
-{
+    _DeltaTime = InDeltaTime;
     // Begin command buffer recording.
-    CommandBuffer::BeginRecording(cmdBuffers[CurrentFrameIndex()]);
+    CommandBuffer::BeginRecording(cmdBuffers[m_CurrentFrame]);
 
     // Timer.
-    float deltaTime;
-    deltaTime = DeltaTime();
-    timer += 7.0f * deltaTime;
+    timer += 7.0f * _DeltaTime;
 
     // Update model matrices here.
-    model2->Rotate(2.0f * deltaTime, 0, 1, 0);
+    model2->Rotate(2.0f * _DeltaTime, 0, 1, 0);
 
     // Update the particle systems.
-    fireSparks->UpdateParticles(deltaTime);
-    fireSparks2->UpdateParticles(deltaTime);
-    fireSparks3->UpdateParticles(deltaTime);
-    fireSparks4->UpdateParticles(deltaTime);
-    fireBase->UpdateParticles(deltaTime);
-    fireBase2->UpdateParticles(deltaTime);
-    fireBase3->UpdateParticles(deltaTime);
-    fireBase4->UpdateParticles(deltaTime);
-    ambientParticles->UpdateParticles(deltaTime);
+    fireSparks->UpdateParticles(_DeltaTime);
+    fireSparks2->UpdateParticles(_DeltaTime);
+    fireSparks3->UpdateParticles(_DeltaTime);
+    fireSparks4->UpdateParticles(_DeltaTime);
+    fireBase->UpdateParticles(_DeltaTime);
+    fireBase2->UpdateParticles(_DeltaTime);
+    fireBase3->UpdateParticles(_DeltaTime);
+    fireBase4->UpdateParticles(_DeltaTime);
+    ambientParticles->UpdateParticles(_DeltaTime);
 
     // Animating the directional light
     glm::mat4 directionalLightMVP = directionalLightProjectionMatrix *
@@ -1726,9 +1666,10 @@ void Renderer::Update()
     fireBase4->SetEmitterPosition(
         glm::vec3(torch4modelMatrix[3].x, torch4modelMatrix[3].y + 0.28f, torch4modelMatrix[3].z + 0.03f));
 
-    lightFlickerRate -= deltaTime * 1.0f;
+    lightFlickerRate -= _DeltaTime * 1.0f;
 
-    if (lightFlickerRate <= 0.0f) {
+    if (lightFlickerRate <= 0.0f)
+    {
         lightFlickerRate = 0.1f;
         std::random_device               rd;
         std::mt19937                     gen(rd());
@@ -1743,55 +1684,43 @@ void Renderer::Update()
         globalParametersUBO.pointLightIntensities[4] = glm::vec4(500.0f);
     }
 
-    if (globalParametersUBO.enablePointLightShadows.x == 1.0f) {
+    if (globalParametersUBO.enablePointLightShadows.x == 1.0f)
+    {
         // Shadow passes ---------
         glm::mat4 mat  = model->GetTransform();
         glm::mat4 mat2 = model2->GetTransform();
 
         // Start shadow pass.---------------------------------------------
-        shadowMapRenderPass->Begin(cmdBuffers[CurrentFrameIndex()], *directionalShadowMapFramebuffer);
-        // CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], depthPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
+        shadowMapRenderPass->Begin(cmdBuffers[m_CurrentFrame], *directionalShadowMapFramebuffer);
+        CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
 
         // Render the objects you want to cast shadows.
         CommandBuffer::PushConstants(
-            cmdBuffers[CurrentFrameIndex()],
+            cmdBuffers[m_CurrentFrame],
             shadowPassPipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &mat);
-        model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
+        model->DrawIndexed(cmdBuffers[m_CurrentFrame], shadowPassPipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[CurrentFrameIndex()],
+            cmdBuffers[m_CurrentFrame],
             shadowPassPipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &mat2);
-        model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], shadowPassPipeline->GetPipelineLayout());
+        model2->DrawIndexed(cmdBuffers[m_CurrentFrame], shadowPassPipeline->GetPipelineLayout());
 
-        shadowMapRenderPass->End(cmdBuffers[CurrentFrameIndex()]);
-        // CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+        shadowMapRenderPass->End(cmdBuffers[m_CurrentFrame]);
         //   End shadow pass.---------------------------------------------
 
         // Start point shadow pass.--------------------
-        for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++) {
-            // pointShadowPassBeginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            // pointShadowPassBeginInfo.renderPass               = pointShadowRenderPass;
-            // pointShadowPassBeginInfo.framebuffer              = pointShadowMapFramebuffers[i]->GetVKFramebuffer();
-            // pointShadowPassBeginInfo.renderArea.offset        = { 0, 0 };
-            // pointShadowPassBeginInfo.renderArea.extent.width  = pointShadowMapFramebuffers[i]->GetWidth();
-            // pointShadowPassBeginInfo.renderArea.extent.height = pointShadowMapFramebuffers[i]->GetHeight();
-            // pointShadowPassBeginInfo.clearValueCount          = 1;
-            // pointShadowPassBeginInfo.pClearValues             = &depthPassClearValue;
-
-            pointShadowRenderPass->Begin(cmdBuffers[CurrentFrameIndex()], *pointShadowMapFramebuffers[i]);
-            // CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], pointShadowPassBeginInfo,
-            // VK_SUBPASS_CONTENTS_INLINE);
-            CommandBuffer::BindPipeline(
-                cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
+        for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
+        {
+            pointShadowRenderPass->Begin(cmdBuffers[m_CurrentFrame], *pointShadowMapFramebuffers[i]);
+            CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
 
             glm::vec3 position = glm::vec3(
                 globalParametersUBO.pointLightPositions[i].x,
@@ -1811,7 +1740,8 @@ void Renderer::Update()
             globalParametersUBO.shadowMatrices[i][5] = pointLightProjectionMatrix *
                 glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0));
 
-            struct PC {
+            struct PC
+            {
                 glm::vec4 lightPos;
                 glm::vec4 farPlane;
             };
@@ -1823,53 +1753,53 @@ void Renderer::Update()
             pc.farPlane = glm::vec4(pointFarPlane);
 
             CommandBuffer::PushConstants(
-                cmdBuffers[CurrentFrameIndex()],
+                cmdBuffers[m_CurrentFrame],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 sizeof(glm::mat4),
                 &mat);
             CommandBuffer::PushConstants(
-                cmdBuffers[CurrentFrameIndex()],
+                cmdBuffers[m_CurrentFrame],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_GEOMETRY_BIT,
                 sizeof(glm::mat4),
                 sizeof(glm::vec4),
                 &pointLightIndex);
             CommandBuffer::PushConstants(
-                cmdBuffers[CurrentFrameIndex()],
+                cmdBuffers[m_CurrentFrame],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 sizeof(glm::mat4) + sizeof(glm::vec4),
                 sizeof(glm::vec4) + sizeof(glm::vec4),
                 &pc);
-            model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
+            model->DrawIndexed(cmdBuffers[m_CurrentFrame], pointShadowPassPipeline->GetPipelineLayout());
 
             CommandBuffer::PushConstants(
-                cmdBuffers[CurrentFrameIndex()],
+                cmdBuffers[m_CurrentFrame],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 sizeof(glm::mat4),
                 &mat2);
             CommandBuffer::PushConstants(
-                cmdBuffers[CurrentFrameIndex()],
+                cmdBuffers[m_CurrentFrame],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_GEOMETRY_BIT,
                 sizeof(glm::mat4),
                 sizeof(glm::vec4),
                 &pointLightIndex);
             CommandBuffer::PushConstants(
-                cmdBuffers[CurrentFrameIndex()],
+                cmdBuffers[m_CurrentFrame],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 sizeof(glm::mat4) + sizeof(glm::vec4),
                 sizeof(glm::vec4) + sizeof(glm::vec4),
                 &pc);
-            model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pointShadowPassPipeline->GetPipelineLayout());
+            model2->DrawIndexed(cmdBuffers[m_CurrentFrame], pointShadowPassPipeline->GetPipelineLayout());
 
-            pointShadowRenderPass->End(cmdBuffers[CurrentFrameIndex()]);
-            // CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+            pointShadowRenderPass->End(cmdBuffers[m_CurrentFrame]);
+            // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
             //   End point shadow pass.----------------------
         }
         // Shadow passes end  ----
@@ -1880,23 +1810,28 @@ void Renderer::Update()
 
     // TO DO: The animation sprite sheet offsets are hardcoded here. We
     // could use a better system to automatically calculate these variables.
-    aniamtionRate -= deltaTime * 1.0f;
-    if (aniamtionRate <= 0) {
+    aniamtionRate -= _DeltaTime * 1.0f;
+    if (aniamtionRate <= 0)
+    {
         aniamtionRate = 0.01388888f;
         currentAnimationFrame++;
-        if (currentAnimationFrame > 72) {
+        if (currentAnimationFrame > 72)
+        {
             currentAnimationFrame = 0;
         }
     }
 
     int  ct   = 0;
     bool done = false;
-    for (int i = 1; i <= 6; i++) {
+    for (int i = 1; i <= 6; i++)
+    {
         if (done)
             break;
 
-        for (int j = 1; j <= 12; j++) {
-            if (ct >= currentAnimationFrame) {
+        for (int j = 1; j <= 12; j++)
+        {
+            if (ct >= currentAnimationFrame)
+            {
                 fireBase->RowOffset     = 0.0833333333333333333333f * j;
                 fireBase->ColumnOffset  = 0.166666666666666f * i;
 
@@ -1916,21 +1851,22 @@ void Renderer::Update()
         ct++;
     }
     // Begin HDR rendering------------------------------------------
-    // CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    HDRRenderPass->Begin(cmdBuffers[CurrentFrameIndex()], *HDRFramebuffer);
+    // CommandBuffer::BeginRenderPass(cmdBuffers[m_CurrentFrame], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    HDRRenderPass->Begin(cmdBuffers[m_CurrentFrame], *HDRFramebuffer);
     //  Drawing the skybox.
     glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
-    CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
+    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         skyboxPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(glm::mat4),
         &skyBoxView);
-    skybox->Draw(cmdBuffers[CurrentFrameIndex()], skyboxPipeline->GetPipelineLayout());
+    skybox->Draw(cmdBuffers[m_CurrentFrame], skyboxPipeline->GetPipelineLayout());
 
-    struct pushConst {
+    struct pushConst
+    {
         glm::mat4 modelMat;
         glm::vec4 color;
     };
@@ -1947,15 +1883,15 @@ void Renderer::Update()
     lightCubeMat         = glm::scale(lightCubeMat, glm::vec3(0.05f));
     lightCubePC.modelMat = lightCubeMat;
     lightCubePC.color    = glm::vec4(4.5f, 1.0f, 1.0f, 1.0f);
-    CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
+    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         cubePipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(glm::mat4) + sizeof(glm::vec4),
         &lightCubePC);
-    cube->Draw(cmdBuffers[CurrentFrameIndex()], cubePipeline->GetPipelineLayout());
+    cube->Draw(cmdBuffers[m_CurrentFrame], cubePipeline->GetPipelineLayout());
 
     // Drawing the clouds.
     pushConst cloudsPC;
@@ -1975,82 +1911,83 @@ void Renderer::Update()
 
     memcpy(mappedCloudParametersUBOBuffer, &cloudParametersUBO, sizeof(CloudParametersUBO));
 
-    CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, cloudPipeline);
+    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, cloudPipeline);
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         cloudPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(glm::mat4) + sizeof(glm::vec4),
         &cloudsPC);
-    clouds->Draw(cmdBuffers[CurrentFrameIndex()], cloudPipeline->GetPipelineLayout());
+    clouds->Draw(cmdBuffers[m_CurrentFrame], cloudPipeline->GetPipelineLayout());
 
     // Drawing the Sponza.
-    CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-    model->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
+        cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+    model->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
 
     // Drawing the helmet.
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-    model2->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
+        cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+    model2->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
 
     // Drawing 4 torches.
-    for (int i = 0; i < torch->GetMeshCount(); i++) {
+    for (int i = 0; i < torch->GetMeshCount(); i++)
+    {
         CommandBuffer::PushConstants(
-            cmdBuffers[CurrentFrameIndex()],
+            cmdBuffers[m_CurrentFrame],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch1modelMatrix);
-        torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[CurrentFrameIndex()],
+            cmdBuffers[m_CurrentFrame],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch2modelMatrix);
-        torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[CurrentFrameIndex()],
+            cmdBuffers[m_CurrentFrame],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch3modelMatrix);
-        torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[CurrentFrameIndex()],
+            cmdBuffers[m_CurrentFrame],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch4modelMatrix);
-        torch->DrawIndexed(cmdBuffers[CurrentFrameIndex()], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
     }
 
     pushConst swordPC;
     // Draw the emissive sword.
     swordPC.modelMat = model3->GetTransform();
     swordPC.color    = glm::vec4(0.1f, 3.0f, 0.1f, 1.0f);
-    CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
+    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         EmissiveObjectPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(glm::mat4) + sizeof(glm::vec4),
         &swordPC);
-    model3->DrawIndexed(cmdBuffers[CurrentFrameIndex()], EmissiveObjectPipeline->GetPipelineLayout());
+    model3->DrawIndexed(cmdBuffers[m_CurrentFrame], EmissiveObjectPipeline->GetPipelineLayout());
 
     // Draw the particles systems.
-    CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline);
+    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline);
 
     glm::vec4 sparkBrigtness;
     sparkBrigtness.x = 5.0f;
@@ -2060,57 +1997,58 @@ void Renderer::Update()
     dustBrigthness.x = 1.0f;
 
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         particleSystemPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_FRAGMENT_BIT,
         0,
         sizeof(glm::vec4),
         &sparkBrigtness);
-    fireSparks->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
-    fireSparks2->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
-    fireSparks3->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
-    fireSparks4->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
+    fireSparks->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireSparks2->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireSparks3->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireSparks4->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
 
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         particleSystemPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_FRAGMENT_BIT,
         0,
         sizeof(glm::vec4),
         &flameBrigthness);
-    fireBase->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
-    fireBase2->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
-    fireBase3->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
-    fireBase4->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
+    fireBase->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireBase2->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireBase3->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireBase4->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
 
     CommandBuffer::PushConstants(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         particleSystemPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_FRAGMENT_BIT,
         0,
         sizeof(glm::vec4),
         &dustBrigthness);
-    ambientParticles->Draw(cmdBuffers[CurrentFrameIndex()], particleSystemPipeline->GetPipelineLayout());
+    ambientParticles->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
 
-    // vkCmdEndRenderingKHR(cmdBuffers[CurrentFrameIndex()]);
+    // vkCmdEndRenderingKHR(cmdBuffers[m_CurrentFrame]);
 
-    HDRRenderPass->End(cmdBuffers[CurrentFrameIndex()]);
-    // CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+    HDRRenderPass->End(cmdBuffers[m_CurrentFrame]);
+    // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
     //   End HDR Rendering ------------------------------------------
 
     // Post processing begin ---------------------------
 
-    bloomAgent->ApplyBloom(cmdBuffers[CurrentFrameIndex()]);
+    bloomAgent->ApplyBloom(cmdBuffers[m_CurrentFrame]);
 
-    if (enableDepthOfField) {
+    if (enableDepthOfField)
+    {
         //// Bokeh Pass start---------------------
 
-        bokehRenderPass->Begin(cmdBuffers[CurrentFrameIndex()], *bokehPassFramebuffer);
-        // CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], bokehPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, bokehPassPipeline);
+        bokehRenderPass->Begin(cmdBuffers[m_CurrentFrame], *bokehPassFramebuffer);
+        // CommandBuffer::BeginRenderPass(cmdBuffers[m_CurrentFrame], bokehPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, bokehPassPipeline);
 
         vkCmdBindDescriptorSets(
-            cmdBuffers[CurrentFrameIndex()],
+            cmdBuffers[m_CurrentFrame],
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             bokehPassPipeline->GetPipelineLayout(),
             0,
@@ -2118,10 +2056,10 @@ void Renderer::Update()
             &bokehDescriptorSet,
             0,
             nullptr);
-        vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
+        vkCmdDraw(cmdBuffers[m_CurrentFrame], 3, 1, 0, 0);
 
-        bokehRenderPass->End(cmdBuffers[CurrentFrameIndex()]);
-        // CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+        bokehRenderPass->End(cmdBuffers[m_CurrentFrame]);
+        // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
     }
     // Bokeh pass end----------------------
     // Post processing end ---------------------------
@@ -2187,16 +2125,19 @@ void Renderer::Update()
 
     ImGui::DragFloat3("point light", *p3, 0.01f, -10, 10);
 
-    if (ImGui::Checkbox("Point light shadows", &pointLightShadows)) {
+    if (ImGui::Checkbox("Point light shadows", &pointLightShadows))
+    {
         pointLightShadows ? globalParametersUBO.enablePointLightShadows.x = 1.0f :
                             globalParametersUBO.enablePointLightShadows.x = 0.0f;
     }
 
-    if (ImGui::Checkbox("Enable Depth of Field", &enableDepthOfField)) {
+    if (ImGui::Checkbox("Enable Depth of Field", &enableDepthOfField))
+    {
         enableDepthOfField ? EnableDepthOfField() : DisableDepthOfField();
     }
 
-    if (ImGui::Checkbox("Show DOF focus", &showDOFFocus)) {
+    if (ImGui::Checkbox("Show DOF focus", &showDOFFocus))
+    {
         showDOFFocus ? globalParametersUBO.showDOFFocus.x = 1.0f : globalParametersUBO.showDOFFocus.x = 0.0f;
     }
 
@@ -2209,23 +2150,13 @@ void Renderer::Update()
 
     ImGui::Render();
 
-    // Final scene pass begin Info.
-    // finalScenePassBeginInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    // finalScenePassBeginInfo.renderPass        = _Swapchain->GetSwapchainRenderPass();
-    // finalScenePassBeginInfo.framebuffer       = _Swapchain->GetActiveFramebuffer();
-    // finalScenePassBeginInfo.renderArea.offset = { 0, 0 };
-    // finalScenePassBeginInfo.renderArea.extent = _Context.GetSurface()->GetVKExtent();
-    // finalScenePassBeginInfo.clearValueCount   = static_cast<uint32_t>(clearValues.size());
-    // finalScenePassBeginInfo.pClearValues      = clearValues.data();
-
     // Start final scene render pass (to
     // swapchain).-------------------------------
-    swapchainRenderPass->Begin(cmdBuffers[CurrentFrameIndex()], *swapchainFramebuffers[Engine::GetActiveImageIndex()]);
-    // CommandBuffer::BeginRenderPass(cmdBuffers[CurrentFrameIndex()], finalScenePassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    swapchainRenderPass->Begin(cmdBuffers[m_CurrentFrame], *swapchainFramebuffers[m_ActiveImageIndex]);
 
-    CommandBuffer::BindPipeline(cmdBuffers[CurrentFrameIndex()], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
+    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
     vkCmdBindDescriptorSets(
-        cmdBuffers[CurrentFrameIndex()],
+        cmdBuffers[m_CurrentFrame],
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         finalPassPipeline->GetPipelineLayout(),
         0,
@@ -2233,17 +2164,16 @@ void Renderer::Update()
         &finalPassDescriptorSet,
         0,
         nullptr);
-    vkCmdDraw(cmdBuffers[CurrentFrameIndex()], 3, 1, 0, 0);
+    vkCmdDraw(cmdBuffers[m_CurrentFrame], 3, 1, 0, 0);
 
     ImDrawData* draw_data = ImGui::GetDrawData();
-    ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[CurrentFrameIndex()]);
+    ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[m_CurrentFrame]);
 
-    swapchainRenderPass->End(cmdBuffers[CurrentFrameIndex()]);
-    // CommandBuffer::EndRenderPass(cmdBuffers[CurrentFrameIndex()]);
+    swapchainRenderPass->End(cmdBuffers[m_CurrentFrame]);
     //  End the command buffer recording
     //  phase(swapchain).-------------------------------.
 
-    CommandBuffer::EndRecording(cmdBuffers[CurrentFrameIndex()]);
+    CommandBuffer::EndRecording(cmdBuffers[m_CurrentFrame]);
 }
 
 void Renderer::RenderImGui()
@@ -2254,23 +2184,27 @@ void Renderer::RenderImGui()
     ImGui::NewFrame();
     ImGui::Begin("Shaders:");
     bool breakFrame = false;
-    for (const auto& entry :
-         std::filesystem::directory_iterator((std::string(SOLUTION_DIR) + "/Engine/assets/shaders").c_str())) {
+    for (const auto& entry : std::filesystem::directory_iterator((std::string(SOLUTION_DIR) + "/Engine/assets/shaders").c_str()))
+    {
         int         fullstopIndex  = entry.path().string().find_last_of('.');
         int         lastSlashIndex = entry.path().string().find_last_of('\\');
         std::string path           = entry.path().string();
         std::string extension;
         std::string shadersFolder = std::string(SOLUTION_DIR) + "Engine/assets/shaders/";
-        if (fullstopIndex != std::string::npos) {
+        if (fullstopIndex != std::string::npos)
+        {
             extension = path.substr(fullstopIndex, path.length() - fullstopIndex);
         }
-        if (extension == ".frag" || extension == ".vert") {
+        if (extension == ".frag" || extension == ".vert")
+        {
             std::string shaderPath = path.substr(lastSlashIndex + 1, path.length() - lastSlashIndex);
             std::string shaderName = path.substr(lastSlashIndex + 1, fullstopIndex - (lastSlashIndex + 1));
             ImGui::PushID(shaderPath.c_str());
-            if (ImGui::Button("Compile")) {
+            if (ImGui::Button("Compile"))
+            {
                 std::string extensionWithoutDot = extension.substr(1, extension.length() - 1);
-                for (int i = 0; i < extensionWithoutDot.length(); i++) {
+                for (int i = 0; i < extensionWithoutDot.length(); i++)
+                {
                     extensionWithoutDot[i] = toupper(extensionWithoutDot[i]);
                 }
 
@@ -2291,7 +2225,8 @@ void Renderer::RenderImGui()
         }
     }
 
-    if (breakFrame) {
+    if (breakFrame)
+    {
         vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
         WindowResize(); // TODO: THis crashes due to swapchain.
     }
@@ -2305,7 +2240,8 @@ bool Renderer::BeginFrame()
 
     VkResult result;
 
-    if (m_ActiveImageIndex == READY_TO_ACQUIRE) {
+    if (m_ActiveImageIndex == READY_TO_ACQUIRE)
+    {
         result = vkAcquireNextImageKHR(
             _Context.GetDevice()->GetVKDevice(),
             _Swapchain->GetHandle(),
@@ -2314,7 +2250,8 @@ bool Renderer::BeginFrame()
             VK_NULL_HANDLE,
             &m_ActiveImageIndex);
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _Context.GetWindow()->IsWindowResized()) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _Context.GetWindow()->IsWindowResized())
+        {
             HandleWindowResize(result);
             return false;
         }
@@ -2326,13 +2263,15 @@ bool Renderer::BeginFrame()
 
 void Renderer::HandleWindowResize(VkResult InResult)
 {
-    if (InResult == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || InResult == VK_SUBOPTIMAL_KHR) {
+    if (InResult == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || InResult == VK_SUBOPTIMAL_KHR)
+    {
         vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
 
         // Wait if the window is minimized.
         int width = 0, height = 0;
         glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
-        while (width == 0 || height == 0) {
+        while (width == 0 || height == 0)
+        {
             glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
             glfwWaitEvents();
         }
@@ -2353,18 +2292,12 @@ void Renderer::EndFrame()
 {
     vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
-    // Call client OnUpdate() code here. This function usually contains
-    // command buffer calls and a SubmitCommandBuffer() call.
-    Update();
     VkResult result;
-    // Find delta time.
-    float deltaTime = DeltaTime();
-
-    // Update camera movement using delta time.
     if (!ImGui::GetIO().WantCaptureMouse)
-        _Camera->OnUpdate(deltaTime);
+    {
+        _Camera->OnUpdate(_DeltaTime);
+    }
 
-    // Submit the command buffer that we got frome the OnUpdate() function.
     VkSubmitInfo submitInfo{};
     submitInfo.sType                      = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     VkSemaphore          waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
@@ -2373,7 +2306,7 @@ void Renderer::EndFrame()
     submitInfo.pWaitSemaphores            = waitSemaphores;
     submitInfo.pWaitDstStageMask          = waitStages;
     submitInfo.commandBufferCount         = 1;
-    submitInfo.pCommandBuffers            = &cmdBuffers[CurrentFrameIndex()];
+    submitInfo.pCommandBuffers            = &cmdBuffers[m_CurrentFrame];
     VkSemaphore signalSemaphores[]        = { m_RenderingCompleteSemaphores[m_CurrentFrame] };
     submitInfo.signalSemaphoreCount       = 1;
     submitInfo.pSignalSemaphores          = signalSemaphores;
@@ -2383,8 +2316,6 @@ void Renderer::EndFrame()
         vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) == VK_SUCCESS,
         "Failed to submit draw command buffer!");
 
-    // Present the drawn image to the swapchain when the drawing is
-    // completed. This check is done via a semaphore.
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
@@ -2393,20 +2324,16 @@ void Renderer::EndFrame()
     presentInfo.swapchainCount     = 1;
     presentInfo.pSwapchains        = swapChains;
     presentInfo.pImageIndices      = &m_ActiveImageIndex;
-    presentInfo.pResults           = nullptr; // Optional
+    presentInfo.pResults           = nullptr;
 
     result                         = vkQueuePresentKHR(graphicsQueue, &presentInfo);
     ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
 
     m_CurrentFrame     = ++m_CurrentFrame % m_FramesInFlight;
-    m_ActiveImageIndex = READY_TO_ACQUIRE; // Reset the active image index
-                                           // back to an invalid number.
+    m_ActiveImageIndex = READY_TO_ACQUIRE;
 }
 
 void Renderer::PollEvents()
 {
     glfwPollEvents();
-    m_Time                = glfwGetTime();
-    m_LastFrameRenderTime = GetRenderTime();
-    DeltaTime(); // updates internal delta time
 }

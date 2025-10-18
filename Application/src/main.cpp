@@ -2,8 +2,14 @@
 
 int main()
 {
-    Engine engine;
-    engine.Init();
-    engine.Run();
+    Engine::GetEngine().Init();
+    Engine::GetEngine().Run();
+    // TODO: Implement Scene interface
+    // auto scene = engine.CreateScene();
+    //
+    // scene->SetCamera(make_s<Camera>(...));
+    // scene->AddModel(ResourceSystem::LoadModel("assets/sponza.obj"));
+    // scene->AddLight({ { 0, 10, 0 }, { 1, 1, 1 }, 3.0f });
+
     return 0;
 }

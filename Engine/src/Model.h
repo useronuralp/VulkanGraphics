@@ -126,13 +126,13 @@ class Model
     std::vector<Ref<Image>> m_DefaultPointShadowMaps;
     Ref<Image>              m_DefaultShadowMap = nullptr;
     Ref<Image>              m_DefaultCubeMap   = nullptr;
-    Ref<Image>              m_DefaultAlbedo    = std::make_shared<Image>(
+    Ref<Image>              m_DefaultAlbedo    = make_s<Image>(
         std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/Magenta_ERROR.png") },
         VK_FORMAT_R8G8B8A8_SRGB);
-    Ref<Image> m_DefaultNormal = std::make_shared<Image>(
+    Ref<Image> m_DefaultNormal = make_s<Image>(
         std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/NormalMAP_ERROR.png") },
         VK_FORMAT_R8G8B8A8_UNORM);
-    Ref<Image> m_DefaultRoughnessMetallic = std::make_shared<Image>(
+    Ref<Image> m_DefaultRoughnessMetallic = make_s<Image>(
         std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/White_Texture.png") },
         VK_FORMAT_R8G8B8A8_SRGB);
 };

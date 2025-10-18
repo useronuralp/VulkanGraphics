@@ -239,7 +239,7 @@ Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std:
     {
         if (!textureName.empty())
         {
-            Ref<Image> texture = std::make_shared<Image>(
+            Ref<Image> texture = make_s<Image>(
                 std::vector{ (m_Directory + "\\" + textureName) },
                 type == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
             textureOUT = texture;

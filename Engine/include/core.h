@@ -33,3 +33,17 @@ using Ref = std::shared_ptr<T>;
 
 template <typename T>
 using Unique = std::unique_ptr<T>;
+
+// Shared pointer helper
+template <typename T, typename... Args>
+std::shared_ptr<T> make_s(Args&&... args)
+{
+    return std::make_shared<T>(std::forward<Args>(args)...);
+}
+
+// Unique pointer helper
+template <typename T, typename... Args>
+std::unique_ptr<T> make_u(Args&&... args)
+{
+    return std::make_unique<T>(std::forward<Args>(args)...);
+}

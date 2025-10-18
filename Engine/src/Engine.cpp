@@ -4,35 +4,28 @@
 #include "Surface.h"
 #include "VulkanContext.h"
 
-std::unique_ptr<VulkanContext> Engine::_Context  = nullptr;
-std::unique_ptr<Renderer>      Engine::_Renderer = nullptr;
-
 void Engine::Init()
 {
     _Context = std::make_unique<VulkanContext>();
     _Context->Init();
 
-    _Swapchain = std::make_shared<Swapchain>(*_Context);
+    _Swapchain = make_s<Swapchain>(*_Context);
 
-    auto test  = _Context->GetSurface()->GetVKExtent().width;
-    auto test2 = _Context->GetSurface()->GetVKExtent().height;
-    _Camera    = std::make_shared<Camera>(
-        45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
+    _Camera =
+        make_s<Camera>(45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
 
     _Renderer = std::make_unique<Renderer>(*_Context, _Swapchain, _Camera);
     _Renderer->Init();
-    // TO DO: Move out of renderer into UI layer.
+    // TODO: Move out of renderer into UI layer.
     _Renderer->InitImGui();
-}
-
-void Engine::Shutdown()
-{
 }
 
 void Engine::Run()
 {
     while (!_Context->GetWindow()->ShouldClose())
     {
+        float deltaTime = CalculateDeltaTime();
+
         _Renderer->PollEvents();
         if (!_Renderer->BeginFrame())
         {
@@ -41,19 +34,56 @@ void Engine::Run()
 
         _Renderer->RenderImGui();
 
+        _Renderer->RenderFrame(deltaTime);
+
         _Renderer->EndFrame();
     }
 
-    _Renderer->Cleanup();
     Shutdown();
-}
-
-uint32_t Engine::GetActiveImageIndex()
-{
-    return _Renderer->m_ActiveImageIndex;
 }
 
 VulkanContext& Engine::GetContext()
 {
     return *_Context;
+}
+
+Engine& Engine::GetEngine()
+{
+    static Engine instance;
+    return instance;
+}
+
+void Engine::Shutdown()
+{
+    // Order matters here
+    if (_Renderer)
+    {
+        _Renderer->Cleanup();
+        _Renderer.reset();
+    }
+
+    if (_Swapchain)
+    {
+        _Swapchain->Cleanup();
+        _Swapchain.reset();
+    }
+
+    if (_Camera)
+    {
+        _Camera.reset();
+    }
+
+    if (_Context)
+    {
+        _Context->Shutdown();
+        _Context.reset();
+    }
+}
+
+float Engine::CalculateDeltaTime()
+{
+    const float currentTime = static_cast<float>(glfwGetTime());
+    const float deltaTime   = currentTime - _LastFrameTime;
+    _LastFrameTime          = currentTime;
+    return deltaTime;
 }

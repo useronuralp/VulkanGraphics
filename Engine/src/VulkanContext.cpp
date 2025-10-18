@@ -15,11 +15,11 @@ VulkanContext::~VulkanContext()
 void VulkanContext::Init()
 {
     // 1. Create window
-    auto test = std::make_shared<Window>("Vulkan Engine", 1920, 1080);
+    auto test = make_s<Window>("Vulkan Engine", 1920, 1080);
     _Window   = test;
 
     // 2. Create instance
-    _Instance = std::make_shared<Instance>();
+    _Instance = make_s<Instance>();
 
     // 3. Enumerate and pick physical device
     PickPhysicalDevice();
@@ -28,7 +28,7 @@ void VulkanContext::Init()
     _MSAASamples = GetMaxUsableSampleCount(_PhysicalDevice);
 
     // 5. Create surface (depends on instance + window)
-    _Surface = std::make_shared<Surface>(_Instance, _Window, _PhysicalDevice);
+    _Surface = make_s<Surface>(_Instance, _Window, _PhysicalDevice);
 
     // 6. Setup queue families
     SetupQueueFamilies();
@@ -53,7 +53,7 @@ void VulkanContext::PickPhysicalDevice()
     {
         if (device.GetVKProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         {
-            _PhysicalDevice = std::make_shared<PhysicalDevice>(device);
+            _PhysicalDevice = make_s<PhysicalDevice>(device);
             found           = true;
             std::cout << "Found a suitable DISCREETE graphics card. \n\t Card "
                          "Name ---> "
@@ -69,7 +69,7 @@ void VulkanContext::PickPhysicalDevice()
         std::cout << "Searching for an INTEGRATED graphics card... " << std::endl;
         for (auto& device : devices)
         {
-            _PhysicalDevice = std::make_shared<PhysicalDevice>(device);
+            _PhysicalDevice = make_s<PhysicalDevice>(device);
             found           = true;
             std::cout << "Found a suitable INTEGRATED graphics card. \n\t Card "
                          "Name ---> "
@@ -83,7 +83,7 @@ void VulkanContext::PickPhysicalDevice()
 
 void VulkanContext::CreateLogicalDevice()
 {
-    _Device = std::make_shared<LogicalDevice>(_RequiredExtensions);
+    _Device = make_s<LogicalDevice>(_RequiredExtensions);
 }
 
 void VulkanContext::SetupQueueFamilies()
@@ -116,32 +116,32 @@ void VulkanContext::SetupQueueFamilies()
     _QueueFamilies.TransferFamily = index;
 }
 
-std::shared_ptr<Instance> VulkanContext::GetInstance() const
+Ref<Instance> VulkanContext::GetInstance() const
 {
     return _Instance;
 }
 
-std::shared_ptr<LogicalDevice> VulkanContext::GetDevice() const
+Ref<LogicalDevice> VulkanContext::GetDevice() const
 {
     return _Device;
 }
 
-std::shared_ptr<PhysicalDevice> VulkanContext::GetPhysicalDevice() const
+Ref<PhysicalDevice> VulkanContext::GetPhysicalDevice() const
 {
     return _PhysicalDevice;
 }
 
-std::shared_ptr<Surface> VulkanContext::GetSurface() const
+Ref<Surface> VulkanContext::GetSurface() const
 {
     return _Surface;
 }
 
-std::shared_ptr<Window> VulkanContext::GetWindow() const
+Ref<Window> VulkanContext::GetWindow() const
 {
     return _Window;
 }
 
-VkSampleCountFlagBits VulkanContext::GetMaxUsableSampleCount(const std::shared_ptr<PhysicalDevice>& physDevice)
+VkSampleCountFlagBits VulkanContext::GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice)
 {
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(physDevice->GetVKPhysicalDevice(), &physicalDeviceProperties);
@@ -178,9 +178,17 @@ VkSampleCountFlagBits VulkanContext::GetMaxUsableSampleCount(const std::shared_p
 
 void VulkanContext::Shutdown()
 {
-    // device.reset();
-    // surface.reset();
-    // physicalDevice.reset();
-    // instance.reset();
-    // window.reset();
+    if (_Device)
+    {
+        vkDeviceWaitIdle(_Device->GetVKDevice()); // Wait for all GPU work to finish
+    }
+
+    // 2. Reset objects in reverse creation order
+    _Device.reset(); // LogicalDevice first (frees queues, semaphores, command pools)
+    _Surface.reset(); // Surface next (depends on instance + window)
+    _PhysicalDevice.reset(); // Usually safe to reset next
+    _Instance.reset(); // Vulkan instance
+    _Window.reset(); // Destroy the window last
+
+    std::cout << "VulkanContext shutdown complete." << std::endl;
 }

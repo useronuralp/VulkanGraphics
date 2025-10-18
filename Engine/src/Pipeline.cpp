@@ -24,8 +24,8 @@ void Pipeline::ReConstruct()
 }
 void Pipeline::Cleanup()
 {
-    vkDestroyPipelineLayout(Engine::GetContext().GetDevice()->GetVKDevice(), m_PipelineLayout, nullptr);
-    vkDestroyPipeline(Engine::GetContext().GetDevice()->GetVKDevice(), m_Pipeline, nullptr);
+    vkDestroyPipelineLayout(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_PipelineLayout, nullptr);
+    vkDestroyPipeline(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_Pipeline, nullptr);
 }
 void Pipeline::Init()
 {
@@ -112,9 +112,9 @@ void Pipeline::Init()
     if (m_CI.ViewportWidth == UINT32_MAX && m_CI.ViewportHeight == UINT32_MAX)
     {
         viewport.x        = 0.0f;
-        viewport.y        = (float)Engine::GetContext().GetSurface()->GetVKExtent().height;
-        viewport.width    = (float)Engine::GetContext().GetSurface()->GetVKExtent().width;
-        viewport.height   = -(float)Engine::GetContext().GetSurface()->GetVKExtent().height;
+        viewport.y        = (float)Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height;
+        viewport.width    = (float)Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().width;
+        viewport.height   = -(float)Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
     }
@@ -135,9 +135,9 @@ void Pipeline::Init()
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
     scissor.extent.width =
-        m_CI.ViewportWidth == UINT32_MAX ? Engine::GetContext().GetSurface()->GetVKExtent().width : m_CI.ViewportWidth;
+        m_CI.ViewportWidth == UINT32_MAX ? Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().width : m_CI.ViewportWidth;
     scissor.extent.height =
-        m_CI.ViewportHeight == UINT32_MAX ? Engine::GetContext().GetSurface()->GetVKExtent().height : m_CI.ViewportHeight;
+        m_CI.ViewportHeight == UINT32_MAX ? Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height : m_CI.ViewportHeight;
 
     // The above two states "VkRect2D" and "VkViewport" need to be combined into
     // a single struct called "VkPipelineViewportStateCreateInfo". That is
@@ -228,7 +228,7 @@ void Pipeline::Init()
 
     ASSERT(
         vkCreatePipelineLayout(
-            Engine::GetContext().GetDevice()->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS,
+            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS,
         "Failed to create pipeline layout");
 
     // This struct binds together all the other structs we have created so far
@@ -254,21 +254,21 @@ void Pipeline::Init()
 
     ASSERT(
         vkCreateGraphicsPipelines(
-            Engine::GetContext().GetDevice()->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) ==
+            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) ==
             VK_SUCCESS,
         "Failed to create graphics pipeline!");
 
     if (m_CI.FragmentShaderPath != "None")
     {
-        vkDestroyShaderModule(Engine::GetContext().GetDevice()->GetVKDevice(), fragShaderModule, nullptr);
+        vkDestroyShaderModule(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), fragShaderModule, nullptr);
     }
     if (m_CI.VertexShaderPath != "None")
     {
-        vkDestroyShaderModule(Engine::GetContext().GetDevice()->GetVKDevice(), vertShaderModule, nullptr);
+        vkDestroyShaderModule(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), vertShaderModule, nullptr);
     }
     if (m_CI.GeometryShaderPath != "None")
     {
-        vkDestroyShaderModule(Engine::GetContext().GetDevice()->GetVKDevice(), geomShaderModule, nullptr);
+        vkDestroyShaderModule(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), geomShaderModule, nullptr);
     }
 }
 VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& shaderCode)
@@ -281,7 +281,7 @@ VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& shaderCode)
 
     VkShaderModule shaderModule;
     ASSERT(
-        vkCreateShaderModule(Engine::GetContext().GetDevice()->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS,
+        vkCreateShaderModule(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS,
         "Failed to create shader module!");
 
     return shaderModule;

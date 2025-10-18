@@ -32,12 +32,12 @@ class VulkanContext
     void Init();
     void Shutdown();
 
-    std::shared_ptr<Instance>       GetInstance() const;
-    std::shared_ptr<LogicalDevice>  GetDevice() const;
-    std::shared_ptr<PhysicalDevice> GetPhysicalDevice() const;
-    std::shared_ptr<Surface>        GetSurface() const;
+    Ref<Instance>       GetInstance() const;
+    Ref<LogicalDevice>  GetDevice() const;
+    Ref<PhysicalDevice> GetPhysicalDevice() const;
+    Ref<Surface>        GetSurface() const;
     // TO DO: Move this out of here;
-    std::shared_ptr<Window> GetWindow() const;
+    Ref<Window> GetWindow() const;
 
     QueueFamilyIndices _QueueFamilies;
 
@@ -46,13 +46,13 @@ class VulkanContext
     void SetupQueueFamilies();
     void CreateLogicalDevice();
 
-    VkSampleCountFlagBits GetMaxUsableSampleCount(const std::shared_ptr<PhysicalDevice>& physDevice);
+    VkSampleCountFlagBits GetMaxUsableSampleCount(const Ref<PhysicalDevice>& physDevice);
 
-    std::shared_ptr<Window>         _Window;
-    std::shared_ptr<Instance>       _Instance;
-    std::shared_ptr<PhysicalDevice> _PhysicalDevice;
-    std::shared_ptr<Surface>        _Surface;
-    std::shared_ptr<LogicalDevice>  _Device;
+    Ref<Window>         _Window;
+    Ref<Instance>       _Instance;
+    Ref<PhysicalDevice> _PhysicalDevice;
+    Ref<Surface>        _Surface;
+    Ref<LogicalDevice>  _Device;
 
     VkSampleCountFlagBits _MSAASamples           = VK_SAMPLE_COUNT_1_BIT;
 

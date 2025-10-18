@@ -10,7 +10,7 @@ Camera::Camera(float fov, float aspectRatio) : m_FOV(fov), m_AspectRatio(aspectR
 
 void Camera::OnUpdate(float deltaTime)
 {
-    auto window = Engine::GetContext().GetWindow()->GetNativeWindow();
+    auto window = Engine::GetEngine().GetContext().GetWindow()->GetNativeWindow();
 
     const glm::vec2& mouse{ GetMouseXOffset(), GetMouseYOffset() };
     glm::vec2        delta = (mouse - m_InitialMousePosition) * 0.003f;
@@ -20,11 +20,11 @@ void Camera::OnUpdate(float deltaTime)
         MousePan(delta);
     else if (IsMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT))
         MouseRotate(delta);
-    else if (Engine::GetContext().GetWindow()->IsMouseScrolled())
+    else if (Engine::GetEngine().GetContext().GetWindow()->IsMouseScrolled())
     {
-        auto [x, y] = Engine::GetContext().GetWindow()->GetMouseScrollOffset();
+        auto [x, y] = Engine::GetEngine().GetContext().GetWindow()->GetMouseScrollOffset();
         OnMouseScroll(x, y);
-        Engine::GetContext().GetWindow()->ResetVariables(); // Resets mouse scroll variables for now.
+        Engine::GetEngine().GetContext().GetWindow()->ResetVariables(); // Resets mouse scroll variables for now.
     }
     UpdateView();
 }
@@ -120,26 +120,26 @@ void Camera::OnMouseScroll(float X, float Y)
 bool Camera::IsKeyDown(int keyCode)
 {
     return glfwGetKey(
-        Engine::GetContext().GetWindow()->GetNativeWindow(),
+        Engine::GetEngine().GetContext().GetWindow()->GetNativeWindow(),
         keyCode); // GLFW_RELEASE equals to 0 thats why this works.
 }
 
 bool Camera::IsMouseButtonDown(int keyCode)
 {
-    return glfwGetMouseButton(Engine::GetContext().GetWindow()->GetNativeWindow(), keyCode);
+    return glfwGetMouseButton(Engine::GetEngine().GetContext().GetWindow()->GetNativeWindow(), keyCode);
 }
 
 double Camera::GetMouseXOffset()
 {
     double xpos, ypos;
-    glfwGetCursorPos(Engine::GetContext().GetWindow()->GetNativeWindow(), &xpos, &ypos);
+    glfwGetCursorPos(Engine::GetEngine().GetContext().GetWindow()->GetNativeWindow(), &xpos, &ypos);
     return xpos;
 }
 
 double Camera::GetMouseYOffset()
 {
     double xpos, ypos;
-    glfwGetCursorPos(Engine::GetContext().GetWindow()->GetNativeWindow(), &xpos, &ypos);
+    glfwGetCursorPos(Engine::GetEngine().GetContext().GetWindow()->GetNativeWindow(), &xpos, &ypos);
     return ypos;
 }
 const glm::vec3& Camera::GetUpDirection() const

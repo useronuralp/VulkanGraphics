@@ -22,7 +22,7 @@ ParticleSystem::ParticleSystem(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt = vkAllocateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt = vkAllocateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     m_ParticleCount       = specs.ParticleCount;
@@ -40,16 +40,16 @@ ParticleSystem::ParticleSystem(
 }
 ParticleSystem::~ParticleSystem()
 {
-    vkUnmapMemory(Engine::GetContext().GetDevice()->GetVKDevice(), m_ParticleBufferMemory);
+    vkUnmapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_ParticleBufferMemory);
     if (m_TrailLength > 0)
-        vkUnmapMemory(Engine::GetContext().GetDevice()->GetVKDevice(), m_TrailBufferMemory);
-    vkDestroyBuffer(Engine::GetContext().GetDevice()->GetVKDevice(), m_ParticleBuffer, nullptr);
-    vkFreeMemory(Engine::GetContext().GetDevice()->GetVKDevice(), m_ParticleBufferMemory, nullptr);
+        vkUnmapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_TrailBufferMemory);
+    vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_ParticleBuffer, nullptr);
+    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_ParticleBufferMemory, nullptr);
     if (m_TrailLength > 0)
-        vkDestroyBuffer(Engine::GetContext().GetDevice()->GetVKDevice(), m_TrailBuffer, nullptr);
+        vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_TrailBuffer, nullptr);
     if (m_TrailLength > 0)
-        vkFreeMemory(Engine::GetContext().GetDevice()->GetVKDevice(), m_TrailBufferMemory, nullptr);
-    vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), m_ParticleSampler, nullptr);
+        vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_TrailBufferMemory, nullptr);
+    vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_ParticleSampler, nullptr);
 }
 float ParticleSystem::rnd(float min, float max)
 {
@@ -125,7 +125,7 @@ void ParticleSystem::SetupParticles()
         m_ParticleBufferMemory);
     ASSERT(
         vkMapMemory(
-            Engine::GetContext().GetDevice()->GetVKDevice(),
+            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
             m_ParticleBufferMemory,
             0,
             m_ParticleBufferSize,
@@ -147,7 +147,7 @@ void ParticleSystem::SetupParticles()
             m_TrailBufferMemory);
         ASSERT(
             vkMapMemory(
-                Engine::GetContext().GetDevice()->GetVKDevice(),
+                Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
                 m_TrailBufferMemory,
                 0,
                 m_TrailBufferSize,
@@ -180,7 +180,7 @@ void ParticleSystem::SetupParticles()
     samplerInfo.maxLod                  = 0.0f;
 
     ASSERT(
-        vkCreateSampler(Engine::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &m_ParticleSampler) == VK_SUCCESS,
+        vkCreateSampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &m_ParticleSampler) == VK_SUCCESS,
         "Failed to create particle sampler!");
 
     // Write the desriptor set with the above sampler.
@@ -197,7 +197,7 @@ void ParticleSystem::SetupParticles()
     descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrite.descriptorCount = 1;
     descriptorWrite.pImageInfo      = &imageInfo;
-    vkUpdateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+    vkUpdateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 
 void ParticleSystem::SetUBO(VkBuffer& buffer, size_t writeRange, size_t offset)
@@ -221,7 +221,7 @@ void ParticleSystem::SetUBO(VkBuffer& buffer, size_t writeRange, size_t offset)
     descriptorWrite.pImageInfo       = nullptr; // Optional
     descriptorWrite.pTexelBufferView = nullptr; // Optional
 
-    vkUpdateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+    vkUpdateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 
 void ParticleSystem::UpdateParticles(float deltaTime)

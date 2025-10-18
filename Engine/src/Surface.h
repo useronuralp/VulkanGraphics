@@ -12,9 +12,9 @@ class Surface
 {
    public:
     Surface(
-        std::shared_ptr<Instance>       InInstance,
-        std::shared_ptr<Window>         InWindow,
-        std::shared_ptr<PhysicalDevice> InPhysicalDevice);
+        Ref<Instance>       InInstance,
+        Ref<Window>         InWindow,
+        Ref<PhysicalDevice> InPhysicalDevice);
     Surface();
     ~Surface();
 
@@ -34,9 +34,9 @@ class Surface
     }
 
    private:
-    std::shared_ptr<Instance>       _Instance;
-    std::shared_ptr<Window>         _Window;
-    std::shared_ptr<PhysicalDevice> _PhysicalDevice;
+    Ref<Instance>       _Instance;
+    Ref<Window>         _Window;
+    Ref<PhysicalDevice> _PhysicalDevice;
 
     VkSurfaceKHR             _Surface = VK_NULL_HANDLE;
     VkSurfaceFormatKHR       _SurfaceFormat;

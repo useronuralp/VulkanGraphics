@@ -6,9 +6,9 @@
 
 #include <algorithm>
 Surface::Surface(
-    std::shared_ptr<Instance>       InInstance,
-    std::shared_ptr<Window>         InWindow,
-    std::shared_ptr<PhysicalDevice> InPhysicalDevice)
+    Ref<Instance>       InInstance,
+    Ref<Window>         InWindow,
+    Ref<PhysicalDevice> InPhysicalDevice)
     : _Instance(InInstance), _Window(InWindow), _PhysicalDevice(InPhysicalDevice)
 {
     // 1. Create the Vulkan surface for the given window
