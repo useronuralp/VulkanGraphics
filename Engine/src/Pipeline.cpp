@@ -238,7 +238,7 @@ void Pipeline::Init()
     pipelineInfo.pDynamicState       = nullptr; // Optional
     pipelineInfo.pDepthStencilState  = &depthStencil;
     pipelineInfo.layout              = m_PipelineLayout;
-    pipelineInfo.renderPass          = *m_CI.pRenderPass;
+    pipelineInfo.renderPass          = m_CI.pRenderPass;
     pipelineInfo.subpass             = 0;
     pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE; // Optional
     pipelineInfo.basePipelineIndex   = -1; // Optional

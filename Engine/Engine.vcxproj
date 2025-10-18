@@ -119,7 +119,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\include;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\src;$(SolutionDir)Engine\include;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -147,7 +147,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\include;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\src;$(SolutionDir)Engine\include;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -182,7 +182,8 @@
     <ClInclude Include="src\ParticleSystem.h" />
     <ClInclude Include="src\PhysicalDevice.h" />
     <ClInclude Include="src\Pipeline.h" />
-    <ClInclude Include="src\Renderer.h" />
+    <ClInclude Include="src\Renderer\Renderer.h" />
+    <ClInclude Include="src\Renderer\RenderPass.h" />
     <ClInclude Include="src\Surface.h" />
     <ClInclude Include="src\Swapchain.h" />
     <ClInclude Include="src\Utils.h" />
@@ -216,7 +217,8 @@
     <ClCompile Include="src\ParticleSystem.cpp" />
     <ClCompile Include="src\PhysicalDevice.cpp" />
     <ClCompile Include="src\Pipeline.cpp" />
-    <ClCompile Include="src\Renderer.cpp" />
+    <ClCompile Include="src\Renderer\Renderer.cpp" />
+    <ClCompile Include="src\Renderer\RenderPass.cpp" />
     <ClCompile Include="src\Surface.cpp" />
     <ClCompile Include="src\Swapchain.cpp" />
     <ClCompile Include="src\Utils.cpp" />

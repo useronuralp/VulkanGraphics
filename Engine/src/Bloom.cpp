@@ -595,7 +595,7 @@ void Bloom::SetupPipelines()
     // Brightness filter pipeline.
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = m_OneSamplerLayout;
-    specs.pRenderPass             = &m_BrightnessIsolationPass;
+    specs.pRenderPass             = m_BrightnessIsolationPass;
     specs.CullMode                = VK_CULL_MODE_NONE;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
@@ -629,7 +629,7 @@ void Bloom::SetupPipelines()
     for (int i = 0; i < BLUR_PASS_COUNT; i++) {
         // Blur downscaling passes
         specs.DescriptorSetLayout     = m_OneSamplerLayout;
-        specs.pRenderPass             = &m_BlurRenderPass;
+        specs.pRenderPass             = m_BlurRenderPass;
         specs.CullMode                = VK_CULL_MODE_NONE;
         specs.DepthBiasClamp          = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
@@ -661,7 +661,7 @@ void Bloom::SetupPipelines()
 
         // Blur upscaling passes.
         specs.DescriptorSetLayout = m_TwoSamplerLayout;
-        specs.pRenderPass         = &m_BlurRenderPass;
+        specs.pRenderPass         = m_BlurRenderPass;
         specs.VertexShaderPath    = "assets/shaders/quadRenderVERT.spv";
         specs.FragmentShaderPath  = "assets/shaders/upscaleShaderFRAG.spv";
         specs.ViewportHeight      = m_UpscalingFramebuffers[i]->GetHeight();
@@ -672,7 +672,7 @@ void Bloom::SetupPipelines()
 
     // Merge pipeline.
     specs.DescriptorSetLayout     = m_TwoSamplerLayout;
-    specs.pRenderPass             = &m_MergeRenderPass;
+    specs.pRenderPass             = m_MergeRenderPass;
     specs.CullMode                = VK_CULL_MODE_NONE;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;

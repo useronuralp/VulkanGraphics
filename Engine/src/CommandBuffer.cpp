@@ -51,7 +51,7 @@ void CommandBuffer::EndRecording(const VkCommandBuffer& cmdBuffer)
     ASSERT(vkEndCommandBuffer(cmdBuffer) == VK_SUCCESS, "Failed to record command buffer");
 }
 void CommandBuffer::BeginRenderPass(
-    const VkCommandBuffer&       cmdBuffer,
+    VkCommandBuffer              cmdBuffer,
     const VkRenderPassBeginInfo& renderPassBeginInfo,
     VkSubpassContents            contents)
 {

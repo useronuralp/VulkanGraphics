@@ -1,6 +1,6 @@
 #pragma once
 #include "OVKLib.h"
-
+#include "Renderer/RenderPass.h"
 class VulkanContext;
 class Swapchain;
 class Pipeline;
@@ -109,9 +109,12 @@ class Renderer {
     VkRenderPassBeginInfo HDRRenderPassBeginInfo;
 
     // Render passes
-    VkRenderPass shadowMapRenderPass;
-    VkRenderPass pointShadowRenderPass;
-    VkRenderPass HDRRenderPass;
+    // VkRenderPass shadowMapRenderPass;
+    // VkRenderPass pointShadowRenderPass;
+    // VkRenderPass                HDRRenderPass;
+    std::unique_ptr<RenderPass> pointShadowRenderPassTest;
+    std::unique_ptr<RenderPass> HDRRenderPassTest;
+    std::unique_ptr<RenderPass> shadowMapRenderPassTest;
 
     // Descriptor Set Layouts
     Ref<DescriptorSetLayout> swapchainLayout;

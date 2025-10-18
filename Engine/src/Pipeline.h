@@ -9,7 +9,7 @@ class Pipeline {
    public:
     struct Specs {
         // TO DO: Check these references here. Can you make them Unique<> ?
-        VkRenderPass*                       pRenderPass;
+        VkRenderPass                        pRenderPass;
         Ref<DescriptorSetLayout>            DescriptorSetLayout;
         std::string                         VertexShaderPath   = "None";
         std::string                         FragmentShaderPath = "None";

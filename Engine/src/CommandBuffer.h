@@ -17,7 +17,7 @@ class CommandBuffer {
     static void BeginRecording(const VkCommandBuffer& cmdBuffer);
     static void EndRecording(const VkCommandBuffer& cmdBuffer);
     static void BeginRenderPass(
-        const VkCommandBuffer&       cmdBuffer,
+        VkCommandBuffer              cmdBuffer,
         const VkRenderPassBeginInfo& renderPassBeginInfo,
         VkSubpassContents            contents);
     static void EndRenderPass(const VkCommandBuffer& cmdBuffer);

@@ -1,6 +1,6 @@
 #include "Camera.h"
 #include "Engine.h"
-#include "Renderer.h"
+#include "Renderer/Renderer.h"
 #include "Surface.h"
 #include "VulkanContext.h"
 
@@ -14,6 +14,8 @@ void Engine::Init()
 
     _Swapchain = std::make_shared<Swapchain>(*_Context);
 
+    auto test  = _Context->GetSurface()->GetVKExtent().width;
+    auto test2 = _Context->GetSurface()->GetVKExtent().height;
     _Camera    = std::make_shared<Camera>(
         45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
 
