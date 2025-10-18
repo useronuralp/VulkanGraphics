@@ -16,7 +16,6 @@ AlwaysBreakBeforeMultilineStrings: 'true'
 BinPackArguments: 'false'
 BinPackParameters: 'false'
 BreakBeforeBinaryOperators: None
-BreakBeforeBraces: WebKit
 BreakBeforeTernaryOperators: 'false'
 ColumnLimit: '130'
 CommentPragmas: '^\\sa'
@@ -76,3 +75,4 @@ AlignConsecutiveAssignments:
   AcrossComments: false
 AlignConsecutiveDeclarations:
   Enabled: true
+BreakBeforeBraces: Allman

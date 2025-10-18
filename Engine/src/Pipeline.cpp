@@ -41,7 +41,8 @@ void Pipeline::Init()
     VkShaderModule fragShaderModule = VK_NULL_HANDLE;
     VkShaderModule geomShaderModule = VK_NULL_HANDLE;
     // Read shaders from file.
-    if (m_CI.VertexShaderPath != "None") {
+    if (m_CI.VertexShaderPath != "None")
+    {
         vertShaderCode   = Utils::ReadFile(m_CI.VertexShaderPath);
         vertShaderModule = CreateShaderModule(vertShaderCode);
 
@@ -55,7 +56,8 @@ void Pipeline::Init()
 
         shaderStages.push_back(vertShaderStageInfo);
     }
-    if (m_CI.FragmentShaderPath != "None") {
+    if (m_CI.FragmentShaderPath != "None")
+    {
         fragShaderCode   = Utils::ReadFile(m_CI.FragmentShaderPath);
         fragShaderModule = CreateShaderModule(fragShaderCode);
 
@@ -69,7 +71,8 @@ void Pipeline::Init()
         shaderStages.push_back(fragShaderStageInfo);
     }
 
-    if (m_CI.GeometryShaderPath != "None") {
+    if (m_CI.GeometryShaderPath != "None")
+    {
         geomShaderCode   = Utils::ReadFile(m_CI.GeometryShaderPath);
         geomShaderModule = CreateShaderModule(geomShaderCode);
 
@@ -106,14 +109,17 @@ void Pipeline::Init()
     // Viewport specifies the dimensions of the framebuffer that we want to draw
     // to. This usually spans the entirety of a framebuffer.
     VkViewport viewport{};
-    if (m_CI.ViewportWidth == UINT32_MAX && m_CI.ViewportHeight == UINT32_MAX) {
+    if (m_CI.ViewportWidth == UINT32_MAX && m_CI.ViewportHeight == UINT32_MAX)
+    {
         viewport.x        = 0.0f;
         viewport.y        = (float)Engine::GetContext().GetSurface()->GetVKExtent().height;
         viewport.width    = (float)Engine::GetContext().GetSurface()->GetVKExtent().width;
         viewport.height   = -(float)Engine::GetContext().GetSurface()->GetVKExtent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-    } else {
+    }
+    else
+    {
         viewport.x        = 0.0f;
         viewport.y        = 0.0f;
         viewport.width    = (float)m_CI.ViewportWidth;
@@ -206,13 +212,16 @@ void Pipeline::Init()
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts    = &m_CI.DescriptorSetLayout->GetDescriptorLayout();
 
-    if (m_CI.PushConstantRanges.size() > 0) {
+    if (m_CI.PushConstantRanges.size() > 0)
+    {
         // pushConstantRange.offset = m_CI.PushConstantOffset;
         // pushConstantRange.size = m_CI.PushConstantSize;
         // pushConstantRange.stageFlags = m_CI.PushConstantShaderStage;
         pipelineLayoutInfo.pushConstantRangeCount = m_CI.PushConstantRanges.size(); // Optional
         pipelineLayoutInfo.pPushConstantRanges    = m_CI.PushConstantRanges.data(); // Optional
-    } else {
+    }
+    else
+    {
         pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
         pipelineLayoutInfo.pPushConstantRanges    = nullptr; // Optional
     }
@@ -249,13 +258,16 @@ void Pipeline::Init()
             VK_SUCCESS,
         "Failed to create graphics pipeline!");
 
-    if (m_CI.FragmentShaderPath != "None") {
+    if (m_CI.FragmentShaderPath != "None")
+    {
         vkDestroyShaderModule(Engine::GetContext().GetDevice()->GetVKDevice(), fragShaderModule, nullptr);
     }
-    if (m_CI.VertexShaderPath != "None") {
+    if (m_CI.VertexShaderPath != "None")
+    {
         vkDestroyShaderModule(Engine::GetContext().GetDevice()->GetVKDevice(), vertShaderModule, nullptr);
     }
-    if (m_CI.GeometryShaderPath != "None") {
+    if (m_CI.GeometryShaderPath != "None")
+    {
         vkDestroyShaderModule(Engine::GetContext().GetDevice()->GetVKDevice(), geomShaderModule, nullptr);
     }
 }

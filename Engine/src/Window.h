@@ -1,7 +1,8 @@
 #pragma once
 #include <GLFW/glfw3.h>
 #include <utility>
-class Window {
+class Window
+{
    public:
     // Constructors / Destructors
     Window(const char* windowName, uint32_t width, uint32_t height);

@@ -11,7 +11,8 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-enum LoadingFlags {
+enum LoadingFlags
+{
     NONE                  = -1,
     LOAD_VERTEX_POSITIONS = (uint32_t(1) << 0),
     LOAD_NORMALS          = (uint32_t(1) << 1),
@@ -45,7 +46,8 @@ class Pipeline;
 class Framebuffer;
 class CommandBuffer;
 enum class DescriptorPrimitive;
-class Model {
+class Model
+{
    public:
     Model() = default;
     ~Model();

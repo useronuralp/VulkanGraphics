@@ -4,7 +4,8 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-class LogicalDevice {
+class LogicalDevice
+{
    public:
     LogicalDevice(std::vector<const char*> extensions);
     ~LogicalDevice();

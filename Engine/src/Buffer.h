@@ -7,7 +7,8 @@
 #include <array>
 #include <vector>
 class DescriptorSet;
-class VertexBuffer {
+class VertexBuffer
+{
    public:
     VertexBuffer(const std::vector<float>& vertices);
     VertexBuffer(const float* vertices, size_t bufferSize);
@@ -27,7 +28,8 @@ class VertexBuffer {
     std::vector<float> m_Vertices;
 };
 
-class IndexBuffer {
+class IndexBuffer
+{
    public:
     IndexBuffer(const std::vector<uint32_t>& indices);
     ~IndexBuffer();

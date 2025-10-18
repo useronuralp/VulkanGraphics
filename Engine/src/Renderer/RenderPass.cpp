@@ -97,7 +97,7 @@ void RenderPass::Begin(VkCommandBuffer InCmdBuffer, Framebuffer& InFramebuffer)
     VkRenderPassBeginInfo beginInfo{};
     beginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     beginInfo.renderPass               = _RenderPass;
-    beginInfo.framebuffer              = InFramebuffer.GetVKFramebuffer();
+    beginInfo.framebuffer              = InFramebuffer.GetHandle();
     beginInfo.renderArea.extent.height = InFramebuffer.GetHeight();
     beginInfo.renderArea.extent.width  = InFramebuffer.GetWidth();
     beginInfo.clearValueCount          = static_cast<uint32_t>(clearValues.size());

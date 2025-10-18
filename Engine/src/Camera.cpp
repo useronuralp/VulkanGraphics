@@ -20,7 +20,8 @@ void Camera::OnUpdate(float deltaTime)
         MousePan(delta);
     else if (IsMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT))
         MouseRotate(delta);
-    else if (Engine::GetContext().GetWindow()->IsMouseScrolled()) {
+    else if (Engine::GetContext().GetWindow()->IsMouseScrolled())
+    {
         auto [x, y] = Engine::GetContext().GetWindow()->GetMouseScrollOffset();
         OnMouseScroll(x, y);
         Engine::GetContext().GetWindow()->ResetVariables(); // Resets mouse scroll variables for now.
@@ -48,7 +49,8 @@ void Camera::UpdateView()
 void Camera::MousePan(const glm::vec2& delta)
 {
     auto [xSpeed, ySpeed] = PanSpeed();
-    if (IsKeyDown(GLFW_KEY_LEFT_CONTROL)) {
+    if (IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+    {
         xSpeed *= 10.0f;
         ySpeed *= 10.0f;
     }

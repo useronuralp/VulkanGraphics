@@ -4,7 +4,8 @@
 
 #include <string>
 #include <vector>
-struct Utils {
+struct Utils
+{
     static void PopulateDebugMessengerCreateInfo(
         VkDebugUtilsMessengerCreateInfoEXT&  createInfo,
         PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC);

@@ -5,9 +5,11 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 class DescriptorSetLayout;
-class Pipeline {
+class Pipeline
+{
    public:
-    struct Specs {
+    struct Specs
+    {
         // TO DO: Check these references here. Can you make them Unique<> ?
         VkRenderPass                        pRenderPass;
         Ref<DescriptorSetLayout>            DescriptorSetLayout;

@@ -10,7 +10,8 @@ class Pipeline;
 class VertexBuffer;
 class IndexBuffer;
 class DescriptorSet;
-class CommandBuffer {
+class CommandBuffer
+{
    public:
     static void CreateCommandBuffer(VkCommandBuffer& outCmdBuffer, const VkCommandPool& poolToAllocateFrom);
     static void CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool);

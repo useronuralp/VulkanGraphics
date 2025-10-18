@@ -7,8 +7,10 @@
 
 #define NOT !
 #define VERIFY_EXPR(EXPRESSION, ERR_MESSAGE) \
-    do { \
-        if (EXPRESSION) { \
+    do \
+    { \
+        if (EXPRESSION) \
+        { \
             std::cout << ERR_MESSAGE << std::endl; \
             __debugbreak(); \
         } \
@@ -16,8 +18,10 @@
 #define ASSERT_ABORT(EXPR, MESSAGE) assert(EXPR&& MESSAGE)
 
 #define ASSERT(condition, message) \
-    do { \
-        if (!(condition)) { \
+    do \
+    { \
+        if (!(condition)) \
+        { \
             std::cerr << "Assertion `" #condition "` failed in " << __FILE__ << " line " << __LINE__ << ": " << message \
                       << std::endl; \
             __debugbreak(); \

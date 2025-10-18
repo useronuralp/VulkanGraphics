@@ -30,15 +30,17 @@ Surface::Surface(
     vkGetPhysicalDeviceSurfaceFormatsKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, surfaceFormats.data());
 
     bool found = false;
-    for (const auto& availableFormat : surfaceFormats) {
-        if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM &&
-            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+    for (const auto& availableFormat : surfaceFormats)
+    {
+        if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
             found          = true;
             _SurfaceFormat = availableFormat;
         }
     }
 
-    if (NOT found) {
+    if (NOT found)
+    {
         _SurfaceFormat = surfaceFormats[0];
         found          = true;
     }
@@ -56,22 +58,25 @@ Surface::Surface()
 
     std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
-    if (formatCount != 0) {
+    if (formatCount != 0)
+    {
         surfaceFormats.resize(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(
             _PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, surfaceFormats.data());
     }
 
     bool found = false;
-    for (const auto& availableFormat : surfaceFormats) {
-        if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM &&
-            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+    for (const auto& availableFormat : surfaceFormats)
+    {
+        if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
             found          = true;
             _SurfaceFormat = availableFormat;
         }
     }
 
-    if (!found) {
+    if (!found)
+    {
         _SurfaceFormat = surfaceFormats[0];
         found          = true;
     }
@@ -86,9 +91,12 @@ VkExtent2D Surface::GetVKExtent()
 {
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &_Capabilities);
 
-    if (_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
+    if (_Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)())
+    {
         return _Capabilities.currentExtent;
-    } else {
+    }
+    else
+    {
         int width, height;
         glfwGetFramebufferSize(_Window->GetNativeWindow(), &width, &height);
 

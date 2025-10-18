@@ -5,7 +5,8 @@
 #include <set>
 #include <vector>
 #include <vulkan/vulkan.h>
-struct QueueFamily {
+struct QueueFamily
+{
     uint32_t                Index = -1;
     VkQueueFamilyProperties Props;
 
@@ -19,7 +20,8 @@ struct QueueFamily {
     VkQueue m_Queue;
 };
 
-class PhysicalDevice {
+class PhysicalDevice
+{
    public:
     const static uint32_t s_InvalidQueueFamilyIndex = -1;
 

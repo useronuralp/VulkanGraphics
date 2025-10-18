@@ -118,7 +118,8 @@ DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDe
 {
     std::vector<VkDescriptorPoolSize> poolSizes;
     poolSizes.resize(types.size());
-    for (int i = 0; i < types.size(); i++) {
+    for (int i = 0; i < types.size(); i++)
+    {
         poolSizes[i].type            = types[i];
         poolSizes[i].descriptorCount = 1; // TO DO: What does this variable do?
     }
@@ -145,15 +146,19 @@ DescriptorSetLayout::DescriptorSetLayout(const std::vector<DescriptorSetBindingS
     std::vector<VkDescriptorSetLayoutBinding> bindings;
     bindings.resize(layout.size());
 
-    for (int i = 0; i < layout.size(); i++) {
-        if (layout[i].Type == Type::UNIFORM_BUFFER) {
+    for (int i = 0; i < layout.size(); i++)
+    {
+        if (layout[i].Type == Type::UNIFORM_BUFFER)
+        {
             // For the Uniform Buffer object.
             bindings[i].binding            = layout[i].Binding; // binding number used in the shader.
             bindings[i].descriptorCount    = layout[i].Count;
             bindings[i].descriptorType     = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             bindings[i].stageFlags         = layout[i].ShaderStage;
             bindings[i].pImmutableSamplers = nullptr;
-        } else {
+        }
+        else
+        {
             // For the texture sampler in the fragment shader
             bindings[i].binding            = layout[i].Binding;
             bindings[i].descriptorCount    = layout[i].Count;

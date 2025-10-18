@@ -35,9 +35,11 @@ Mesh::Mesh(
     VkResult rslt = vkAllocateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
-    for (const auto& bindingSpecs : layout->GetBindingSpecs()) {
+    for (const auto& bindingSpecs : layout->GetBindingSpecs())
+    {
         VkSampler sampler;
-        if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_NORMAL) {
+        if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_NORMAL)
+        {
             sampler = Utils::CreateSampler(
                 m_Normals, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
             Utils::UpdateDescriptorSet(
@@ -47,7 +49,9 @@ Mesh::Mesh(
                 bindingSpecs.Binding,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
-        } else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE) {
+        }
+        else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE)
+        {
             sampler = Utils::CreateSampler(
                 m_Albedo, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
             Utils::UpdateDescriptorSet(
@@ -57,7 +61,9 @@ Mesh::Mesh(
                 bindingSpecs.Binding,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
-        } else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC) {
+        }
+        else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC)
+        {
             sampler = Utils::CreateSampler(
                 m_RoughnessMetallic,
                 ImageType::COLOR,
@@ -72,7 +78,9 @@ Mesh::Mesh(
                 bindingSpecs.Binding,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
-        } else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_SHADOWMAP) {
+        }
+        else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_SHADOWMAP)
+        {
             sampler = Utils::CreateSampler(
                 m_ShadowMap,
                 ImageType::DEPTH,
@@ -87,8 +95,11 @@ Mesh::Mesh(
                 bindingSpecs.Binding,
                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
-        } else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_POINTSHADOWMAP) {
-            for (int i = 0; i < m_PointShadows.size(); i++) {
+        }
+        else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_POINTSHADOWMAP)
+        {
+            for (int i = 0; i < m_PointShadows.size(); i++)
+            {
                 sampler = Utils::CreateCubemapSampler();
                 Utils::UpdateDescriptorSet(
                     m_DescriptorSet,
@@ -112,7 +123,8 @@ Mesh::Mesh(
     : m_CubemapTexture(cubemapTex)
 {
     // Fill up the vector.
-    for (int i = 0; i < vertexCount; i++) {
+    for (int i = 0; i < vertexCount; i++)
+    {
         m_Vertices.push_back(vertices[i]);
     }
 
@@ -125,9 +137,11 @@ Mesh::Mesh(
     VkResult rslt = vkAllocateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
-    for (const auto& bindingSpecs : layout->GetBindingSpecs()) {
+    for (const auto& bindingSpecs : layout->GetBindingSpecs())
+    {
         VkSampler sampler;
-        if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_CUBEMAP) {
+        if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_CUBEMAP)
+        {
             sampler = Utils::CreateCubemapSampler();
             Utils::UpdateDescriptorSet(
                 m_DescriptorSet,
@@ -142,7 +156,8 @@ Mesh::Mesh(
         well. I am storing that single texture in m_CubemapTexture variable as
         well. It could cause confusion. change the name of m_CubemapTexture
         later maybe?*/
-        else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE) {
+        else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE)
+        {
             sampler = Utils::CreateSampler(
                 m_CubemapTexture,
                 ImageType::COLOR,
@@ -163,7 +178,8 @@ Mesh::Mesh(
 
 Mesh::~Mesh()
 {
-    for (const auto& sampler : m_Samplers) {
+    for (const auto& sampler : m_Samplers)
+    {
         vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), sampler, nullptr);
     }
 }

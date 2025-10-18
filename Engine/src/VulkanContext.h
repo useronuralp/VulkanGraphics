@@ -9,7 +9,8 @@ class Surface;
 class Window;
 class LogicalDevice;
 
-struct QueueFamilyIndices {
+struct QueueFamilyIndices
+{
     uint32_t GraphicsFamily = UINT32_MAX;
     uint32_t PresentFamily  = UINT32_MAX;
     uint32_t TransferFamily = UINT32_MAX;
@@ -22,7 +23,8 @@ struct QueueFamilyIndices {
     }
 };
 
-class VulkanContext {
+class VulkanContext
+{
    public:
     VulkanContext() = default;
     ~VulkanContext();

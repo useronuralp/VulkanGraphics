@@ -17,7 +17,8 @@
 #include <unordered_map>
 Model::~Model()
 {
-    for (int i = 0; i < m_Meshes.size(); i++) {
+    for (int i = 0; i < m_Meshes.size(); i++)
+    {
         delete m_Meshes[i];
     }
 }
@@ -46,11 +47,14 @@ Model::Model(
     // TO DO : There might be data copying in the vectors check it. Convert to
     // pointers if that is the case.
 
-    for (const auto& mesh : m_Meshes) {
-        for (const auto& data : mesh->m_Indices) {
+    for (const auto& mesh : m_Meshes)
+    {
+        for (const auto& data : mesh->m_Indices)
+        {
             indicesAll.push_back(data);
         }
-        for (const auto& data : mesh->m_Vertices) {
+        for (const auto& data : mesh->m_Vertices)
+        {
             verticesAll.push_back(data);
         }
     }
@@ -80,12 +84,14 @@ void Model::ProcessNode(
     const Ref<DescriptorSetLayout>& layout)
 {
     // process all the node's meshes (if any)
-    for (unsigned int i = 0; i < node->mNumMeshes; i++) {
+    for (unsigned int i = 0; i < node->mNumMeshes; i++)
+    {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
         m_Meshes.emplace_back(ProcessMesh(mesh, scene, pool, layout));
     }
     // then do the same for each of its children
-    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+    for (unsigned int i = 0; i < node->mNumChildren; i++)
+    {
         ProcessNode(node->mChildren[i], scene, pool, layout);
     }
 }
@@ -101,8 +107,10 @@ Mesh* Model::ProcessMesh(
     Ref<Image>            normalTexture;
     Ref<Image>            roughnessMetallicTexture;
 
-    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
-        if (m_Flags & LOAD_VERTEX_POSITIONS) {
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++)
+    {
+        if (m_Flags & LOAD_VERTEX_POSITIONS)
+        {
             // Vertex Positions
             vertices.push_back(mesh->mVertices[i].x);
             vertices.push_back(mesh->mVertices[i].y);
@@ -111,14 +119,17 @@ Mesh* Model::ProcessMesh(
         }
 
         bool dontCalcTangent = false;
-        if (m_Flags & LOAD_UV) {
+        if (m_Flags & LOAD_UV)
+        {
             // UV
             if (mesh->mTextureCoords[0]) // does the mesh contain texture
                                          // coordinates?
             {
                 vertices.push_back(mesh->mTextureCoords[0][i].x);
                 vertices.push_back(mesh->mTextureCoords[0][i].y);
-            } else {
+            }
+            else
+            {
                 vertices.push_back(0);
                 vertices.push_back(0);
                 dontCalcTangent = true;
@@ -126,7 +137,8 @@ Mesh* Model::ProcessMesh(
             m_VertexSize += sizeof(float) * 2;
         }
 
-        if (m_Flags & LOAD_NORMALS) {
+        if (m_Flags & LOAD_NORMALS)
+        {
             // Normals
             vertices.push_back(mesh->mNormals[i].x);
             vertices.push_back(mesh->mNormals[i].y);
@@ -134,13 +146,17 @@ Mesh* Model::ProcessMesh(
             m_VertexSize += sizeof(float) * 3;
         }
 
-        if (m_Flags & LOAD_TANGENT) {
-            if (dontCalcTangent) {
+        if (m_Flags & LOAD_TANGENT)
+        {
+            if (dontCalcTangent)
+            {
                 // Tangnet
                 vertices.push_back(0);
                 vertices.push_back(0);
                 vertices.push_back(0);
-            } else {
+            }
+            else
+            {
                 // Tangent
                 vertices.push_back(mesh->mTangents[i].x);
                 vertices.push_back(mesh->mTangents[i].y);
@@ -148,13 +164,17 @@ Mesh* Model::ProcessMesh(
             }
             m_VertexSize += sizeof(float) * 3;
         }
-        if (m_Flags & LOAD_BITANGENT) {
-            if (dontCalcTangent) {
+        if (m_Flags & LOAD_BITANGENT)
+        {
+            if (dontCalcTangent)
+            {
                 // Bitangent
                 vertices.push_back(0);
                 vertices.push_back(0);
                 vertices.push_back(0);
-            } else {
+            }
+            else
+            {
                 // Bitangent
                 vertices.push_back(mesh->mBitangents[i].x);
                 vertices.push_back(mesh->mBitangents[i].y);
@@ -165,13 +185,15 @@ Mesh* Model::ProcessMesh(
     }
 
     // Process indices
-    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++)
+    {
         aiFace face = mesh->mFaces[i];
         for (unsigned int j = 0; j < face.mNumIndices; j++)
             indices.push_back((uint32_t)face.mIndices[j]);
     }
     // Process materials (In our application only textures are loaded.)
-    if (mesh->mMaterialIndex >= 0) {
+    if (mesh->mMaterialIndex >= 0)
+    {
         aiMaterial* material     = scene->mMaterials[mesh->mMaterialIndex];
         diffuseTexture           = LoadMaterialTextures(material, aiTextureType_DIFFUSE, m_AlbedoCache); // Load Albedo.
         normalTexture            = LoadMaterialTextures(material, aiTextureType_NORMALS,
@@ -204,15 +226,19 @@ Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std:
     std::string textureName(str.C_Str());
 
     bool skip = false;
-    for (unsigned int j = 0; j < cache.size(); j++) {
-        if (std::strcmp(cache[j]->GetPath().c_str(), (m_Directory + "\\" + textureName).c_str()) == 0) {
+    for (unsigned int j = 0; j < cache.size(); j++)
+    {
+        if (std::strcmp(cache[j]->GetPath().c_str(), (m_Directory + "\\" + textureName).c_str()) == 0)
+        {
             textureOUT = cache[j];
             skip       = true;
             break;
         }
     }
-    if (!skip) {
-        if (!textureName.empty()) {
+    if (!skip)
+    {
+        if (!textureName.empty())
+        {
             Ref<Image> texture = std::make_shared<Image>(
                 std::vector{ (m_Directory + "\\" + textureName) },
                 type == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
@@ -223,7 +249,8 @@ Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std:
 
     // Handles the case which the loaded model doesnt contain the specific
     // texture image. In that case, we send the default textures instead.
-    if (!textureOUT) {
+    if (!textureOUT)
+    {
         if (type == aiTextureType_DIFFUSE)
             textureOUT = m_DefaultAlbedo;
         else if (type == aiTextureType_NORMALS || aiTextureType_HEIGHT)
@@ -239,7 +266,8 @@ void Model::DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLa
     VkDeviceSize vertexOffset = 0;
     VkDeviceSize indexOffset  = 0;
 
-    for (int i = 0; i < m_Meshes.size(); i++) {
+    for (int i = 0; i < m_Meshes.size(); i++)
+    {
         vkCmdBindDescriptorSets(
             commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[i]->GetDescriptorSet(), 0, nullptr);
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);

@@ -92,6 +92,7 @@ class Renderer {
     Ref<Framebuffer>              directionalShadowMapFramebuffer;
     Ref<Framebuffer>              HDRFramebuffer;
     std::vector<Ref<Framebuffer>> pointShadowMapFramebuffers;
+    std::vector<Ref<Framebuffer>> swapchainFramebuffers;
     // Attachments. Each framebuffer can have multiple attachments.
     Ref<Image>              directionalShadowMapImage;
     Ref<Image>              HDRColorImage;
@@ -102,19 +103,10 @@ class Renderer {
     Ref<Image>              fireTexture;
     std::vector<Ref<Image>> pointShadowMaps;
 
-    // Render pass begin infos.
-    VkRenderPassBeginInfo depthPassBeginInfo;
-    VkRenderPassBeginInfo pointShadowPassBeginInfo;
-    VkRenderPassBeginInfo finalScenePassBeginInfo;
-    VkRenderPassBeginInfo HDRRenderPassBeginInfo;
-
-    // Render passes
-    // VkRenderPass shadowMapRenderPass;
-    // VkRenderPass pointShadowRenderPass;
-    // VkRenderPass                HDRRenderPass;
-    std::unique_ptr<RenderPass> pointShadowRenderPassTest;
-    std::unique_ptr<RenderPass> HDRRenderPassTest;
-    std::unique_ptr<RenderPass> shadowMapRenderPassTest;
+    std::unique_ptr<RenderPass> pointShadowRenderPass;
+    std::unique_ptr<RenderPass> HDRRenderPass;
+    std::unique_ptr<RenderPass> shadowMapRenderPass;
+    std::unique_ptr<RenderPass> swapchainRenderPass;
 
     // Descriptor Set Layouts
     Ref<DescriptorSetLayout> swapchainLayout;
@@ -230,11 +222,11 @@ class Renderer {
     float m_DeltaTimeLastFrame = GetRenderTime();
 
     // Experimental
-    Ref<Image>            bokehPassImage;
-    VkRenderPassBeginInfo bokehPassBeginInfo;
-    VkRenderPass          bokehRenderPass;
-    Ref<Framebuffer>      bokehPassFramebuffer;
-    Ref<Pipeline>         bokehPassPipeline;
+    Ref<Image>                  bokehPassImage;
+    VkRenderPassBeginInfo       bokehPassBeginInfo;
+    std::unique_ptr<RenderPass> bokehRenderPass;
+    Ref<Framebuffer>            bokehPassFramebuffer;
+    Ref<Pipeline>               bokehPassPipeline;
 
     VkRenderPassBeginInfo    bokehRenderPassBeginInfo;
     VkSampler                bokehPassSceneSampler;
@@ -247,6 +239,7 @@ class Renderer {
     void  CreateBokehRenderPass();
     float DeltaTime();
     void  CreateHDRFramebuffer();
+    void  CreateSwapchainFramebuffers();
     void  CreateBokehFramebuffer();
     void  SetupPBRPipeline();
     void  SetupFinalPassPipeline();
@@ -259,6 +252,7 @@ class Renderer {
     void SetupParticleSystemPipeline();
     void SetupEmissiveObjectPipeline();
     void SetupParticleSystems();
+    void CreateSwapchainRenderPass();
     void CreateHDRRenderPass();
     void CreateShadowRenderPass();
     void CreatePointShadowRenderPass();

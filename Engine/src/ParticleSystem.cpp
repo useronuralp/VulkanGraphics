@@ -102,11 +102,13 @@ void ParticleSystem::SetupParticles()
     m_Particles.resize(m_ParticleCount);
     m_Trails.resize(m_ParticleCount * m_TrailLength);
 
-    for (auto& particle : m_Particles) {
+    for (auto& particle : m_Particles)
+    {
         InitParticle(&particle, m_EmitterPos);
     }
 
-    for (auto& trail : m_Trails) {
+    for (auto& trail : m_Trails)
+    {
         InitParticle(&trail, m_EmitterPos);
     }
 
@@ -132,7 +134,8 @@ void ParticleSystem::SetupParticles()
         "Failed to map the memory");
     memcpy(m_MappedParticleBuffer, m_Particles.data(), m_ParticleBufferSize);
 
-    if (m_TrailLength > 0) {
+    if (m_TrailLength > 0)
+    {
         // Create a buffer and copy over the particle data into it. We also map
         // this buffer so that we can change the data contained in there every
         // frame.
@@ -225,11 +228,13 @@ void ParticleSystem::UpdateParticles(float deltaTime)
 {
     float particleTimer = deltaTime * 0.01f;
     deltaTimeSum += deltaTime;
-    for (uint64_t i = 0; i < m_Particles.size(); i++) {
+    for (uint64_t i = 0; i < m_Particles.size(); i++)
+    {
         // Before updating the leading particle, first update the trail buffer
         // with the outdated data so that we can draw the trail for the previous
         // frame.
-        if (m_TrailLength > 0 && deltaTimeSum >= trailUpdateRate) {
+        if (m_TrailLength > 0 && deltaTimeSum >= trailUpdateRate)
+        {
             m_Trails[(i * m_TrailLength) + m_Particles[i].currentTrailIndex].Position = m_Particles[i].Position;
             m_Particles[i].currentTrailIndex = ++m_Particles[i].currentTrailIndex % m_TrailLength;
         }
@@ -256,12 +261,14 @@ void ParticleSystem::UpdateParticles(float deltaTime)
         m_Particles[i].ColumnCellSize = ColumnCellSize;
 
         // Trailes are immortal.
-        for (uint64_t j = 0; j < m_TrailLength; j++) {
+        for (uint64_t j = 0; j < m_TrailLength; j++)
+        {
             m_Trails[(i * m_TrailLength) + j].Alpha = m_Particles[i].Alpha;
         }
 
         // If particle dies, re-init.
-        if (m_Particles[i].LifeTime <= 0.0f) {
+        if (m_Particles[i].LifeTime <= 0.0f)
+        {
             InitParticle(&m_Particles[i], m_EmitterPos);
             for (uint64_t k = 0; k < m_TrailLength; k++)
                 InitTrail(
@@ -269,13 +276,15 @@ void ParticleSystem::UpdateParticles(float deltaTime)
         }
     }
     // Reset
-    if (deltaTimeSum >= trailUpdateRate) {
+    if (deltaTimeSum >= trailUpdateRate)
+    {
         deltaTimeSum = 0.0f;
     }
     size_t size = m_Particles.size() * sizeof(Particle);
     memcpy(m_MappedParticleBuffer, m_Particles.data(), size);
 
-    if (m_TrailLength > 0) {
+    if (m_TrailLength > 0)
+    {
         size = m_Trails.size() * sizeof(Particle);
         memcpy(m_MappedTrailsBuffer, m_Trails.data(), size);
     }
@@ -291,7 +300,8 @@ void ParticleSystem::Draw(const VkCommandBuffer& cmdBuffer, const VkPipelineLayo
     vkCmdDraw(cmdBuffer, m_ParticleCount, 1, 0, 0);
 
     // Only draw the trails if there are trails. Pretty obvious.
-    if (m_TrailLength > 0) {
+    if (m_TrailLength > 0)
+    {
         vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &m_TrailBuffer, offsets);
         vkCmdDraw(cmdBuffer, m_ParticleCount * m_TrailLength, 1, 0, 0);
     }

@@ -20,7 +20,8 @@ PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevic
     vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, props.data());
     ASSERT(queueFamilyCount == props.size(), "There has been a problem with the queue families.");
 
-    for (int i = 0; i < queueFamilyCount; i++) {
+    for (int i = 0; i < queueFamilyCount; i++)
+    {
         QueueFamily family;
         family.Index = i;
         family.Props = props[i];
@@ -78,15 +79,19 @@ uint64_t PhysicalDevice::FindQueueFamily(VkQueueFlags queueFlags)
     // If the requested queues contain graphics or compute bits, automatically
     // add the transfer bit as these two types MUST support transfer operations
     // on almost every card.
-    if (queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
+    if (queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT))
+    {
         queueFlags |= VK_QUEUE_TRANSFER_BIT;
     }
 
     // If the above check fails, check if a queue family INCLUDES the preferred
     // flags, they don't need to match exactly.
-    if (familyIndex == s_InvalidQueueFamilyIndex) {
-        for (const auto& family : m_QueueFamilies) {
-            if ((family.Props.queueFlags & queueFlags) == queueFlags) {
+    if (familyIndex == s_InvalidQueueFamilyIndex)
+    {
+        for (const auto& family : m_QueueFamilies)
+        {
+            if ((family.Props.queueFlags & queueFlags) == queueFlags)
+            {
                 familyIndex = family.Index;
                 std::cout << "Found a queue family that INCLUDES requested flags." << std::endl;
                 break;

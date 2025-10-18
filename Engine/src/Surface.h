@@ -8,7 +8,8 @@ class Instance;
 class Window;
 class PhysicalDevice;
 
-class Surface {
+class Surface
+{
    public:
     Surface(
         std::shared_ptr<Instance>       InInstance,

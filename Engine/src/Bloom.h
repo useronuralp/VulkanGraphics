@@ -9,7 +9,8 @@ class Image;
 class Pipeline;
 class DescriptorSetLayout;
 class DescriptorPool;
-class Bloom {
+class Bloom
+{
    public:
     Bloom();
     ~Bloom();

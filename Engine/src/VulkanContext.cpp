@@ -49,8 +49,10 @@ void VulkanContext::PickPhysicalDevice()
 
     std::cout << "Searching for a DISCREETE graphics card..." << std::endl;
     // First, check for a dedicated graphics card.
-    for (auto& device : devices) {
-        if (device.GetVKProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+    for (auto& device : devices)
+    {
+        if (device.GetVKProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        {
             _PhysicalDevice = std::make_shared<PhysicalDevice>(device);
             found           = true;
             std::cout << "Found a suitable DISCREETE graphics card. \n\t Card "
@@ -61,10 +63,12 @@ void VulkanContext::PickPhysicalDevice()
     }
     // If still haven't found a GPU, we pick the first available one without
     // looking at any other condition.
-    if (!found) {
+    if (!found)
+    {
         std::cout << "Could not find a DISCREETE graphics card.\n" << std::endl;
         std::cout << "Searching for an INTEGRATED graphics card... " << std::endl;
-        for (auto& device : devices) {
+        for (auto& device : devices)
+        {
             _PhysicalDevice = std::make_shared<PhysicalDevice>(device);
             found           = true;
             std::cout << "Found a suitable INTEGRATED graphics card. \n\t Card "
@@ -144,22 +148,28 @@ VkSampleCountFlagBits VulkanContext::GetMaxUsableSampleCount(const std::shared_p
 
     VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts &
         physicalDeviceProperties.limits.framebufferDepthSampleCounts;
-    if (counts & VK_SAMPLE_COUNT_64_BIT) {
+    if (counts & VK_SAMPLE_COUNT_64_BIT)
+    {
         return VK_SAMPLE_COUNT_64_BIT;
     }
-    if (counts & VK_SAMPLE_COUNT_32_BIT) {
+    if (counts & VK_SAMPLE_COUNT_32_BIT)
+    {
         return VK_SAMPLE_COUNT_32_BIT;
     }
-    if (counts & VK_SAMPLE_COUNT_16_BIT) {
+    if (counts & VK_SAMPLE_COUNT_16_BIT)
+    {
         return VK_SAMPLE_COUNT_16_BIT;
     }
-    if (counts & VK_SAMPLE_COUNT_8_BIT) {
+    if (counts & VK_SAMPLE_COUNT_8_BIT)
+    {
         return VK_SAMPLE_COUNT_8_BIT;
     }
-    if (counts & VK_SAMPLE_COUNT_4_BIT) {
+    if (counts & VK_SAMPLE_COUNT_4_BIT)
+    {
         return VK_SAMPLE_COUNT_4_BIT;
     }
-    if (counts & VK_SAMPLE_COUNT_2_BIT) {
+    if (counts & VK_SAMPLE_COUNT_2_BIT)
+    {
         return VK_SAMPLE_COUNT_2_BIT;
     }
 

@@ -14,7 +14,8 @@ class DescriptorPool;
 class DescriptorSetLayout;
 class Image;
 class CubemapTexture;
-class Mesh {
+class Mesh
+{
     friend class Model;
 
    public:

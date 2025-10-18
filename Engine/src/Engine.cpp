@@ -31,9 +31,11 @@ void Engine::Shutdown()
 
 void Engine::Run()
 {
-    while (!_Context->GetWindow()->ShouldClose()) {
+    while (!_Context->GetWindow()->ShouldClose())
+    {
         _Renderer->PollEvents();
-        if (!_Renderer->BeginFrame()) {
+        if (!_Renderer->BeginFrame())
+        {
             continue;
         }
 

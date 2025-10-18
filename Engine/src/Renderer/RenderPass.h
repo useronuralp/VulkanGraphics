@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <vector>
-
+class Framebuffer;
 class RenderPass {
    public:
     struct AttachmentInfo {

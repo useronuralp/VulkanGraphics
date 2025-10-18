@@ -37,7 +37,8 @@ std::vector<char> Utils::ReadFile(const std::string& filePath)
 
     // std::cout << std::filesystem::current_path() << std::endl;
 
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
         std::cerr << "Error:" << errno << std::endl;
         // throw std::runtime_error("Failed to open file!");
     }
@@ -93,8 +94,10 @@ uint32_t Utils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags proper
     uint32_t                         memoryTypeIndex = -1;
 
     // TO DO: Understand this part and the bit shift.
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
             memoryTypeIndex = i;
         }
     }
@@ -145,7 +148,8 @@ VkSampler Utils::CreateSampler(
     samplerInfo.magFilter = VK_FILTER_LINEAR;
     samplerInfo.minFilter = VK_FILTER_LINEAR;
 
-    if (imageType == ImageType::COLOR) {
+    if (imageType == ImageType::COLOR)
+    {
         // Repeats the texture when going out of the sampling range. You might
         // wanna expose this variable during ImageBufferCreation.
         samplerInfo.addressModeU     = addressMode;
@@ -168,7 +172,8 @@ VkSampler Utils::CreateSampler(
         ASSERT(
             vkCreateSampler(Engine::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
             "Failed to create texture sampler!");
-    } else // Depth
+    }
+    else // Depth
     {
         samplerInfo.magFilter     = magFilter;
         samplerInfo.minFilter     = minFilter;
@@ -231,13 +236,17 @@ VkFormat Utils::FindDepthFormat()
 
 VkFormat Utils::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
 {
-    for (VkFormat format : candidates) {
+    for (VkFormat format : candidates)
+    {
         VkFormatProperties props;
         vkGetPhysicalDeviceFormatProperties(Engine::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), format, &props);
 
-        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+        {
             return format;
-        } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+        {
             return format;
         }
     }

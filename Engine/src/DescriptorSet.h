@@ -3,7 +3,8 @@
 // External
 #include <vector>
 #include <vulkan/vulkan.h>
-enum class Type {
+enum class Type
+{
     TEXTURE_SAMPLER_AMBIENTOCCLUSION,
     TEXTURE_SAMPLER_SHADOWMAP,
     TEXTURE_SAMPLER_METALLIC,
@@ -15,7 +16,8 @@ enum class Type {
     UNIFORM_BUFFER,
     TEXTURE_SAMPLER_POINTSHADOWMAP
 };
-struct DescriptorSetBindingSpecs {
+struct DescriptorSetBindingSpecs
+{
     Type               Type;
     size_t             Size;
     int                Count;
@@ -23,7 +25,8 @@ struct DescriptorSetBindingSpecs {
     uint32_t           Binding;
 };
 class Pipeline;
-class DescriptorSetLayout {
+class DescriptorSetLayout
+{
    public:
     DescriptorSetLayout() = default;
     DescriptorSetLayout(const std::vector<DescriptorSetBindingSpecs>& layout);
@@ -45,7 +48,8 @@ class DescriptorSetLayout {
     VkDescriptorSetLayout                  m_DescriptorSetLayout = VK_NULL_HANDLE;
     std::vector<DescriptorSetBindingSpecs> m_SetLayout;
 };
-class DescriptorPool {
+class DescriptorPool
+{
    public:
     DescriptorPool() = default;
     DescriptorPool(const VkDescriptorPool& pool)

@@ -11,7 +11,8 @@
 const float M_PI = 3.14159265359;
 
 class Image;
-struct Particle {
+struct Particle
+{
     glm::vec4 Position;
     glm::vec4 Color;
     float     Alpha;
@@ -29,7 +30,8 @@ struct Particle {
     int       currentTrailIndex = 0;
 };
 
-struct ParticleSpecs {
+struct ParticleSpecs
+{
     int       ParticleCount;
     float     SphereRadius;
     int       TrailLength;
@@ -45,7 +47,8 @@ struct ParticleSpecs {
 
 class DescriptorSetLayout;
 class DescriptorPool;
-class ParticleSystem {
+class ParticleSystem
+{
    public:
     // Variables to animate the sprites.
     float RowOffset      = 1.0f;

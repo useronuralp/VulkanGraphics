@@ -4,12 +4,14 @@
 // External
 #include <string>
 #include <vector>
-enum class ImageType {
+enum class ImageType
+{
     COLOR,
     DEPTH,
     DEPTH_CUBEMAP // point light shadows
 };
-class Image {
+class Image
+{
    public:
     Image(std::vector<std::string> textures, VkFormat imageFormat);
     Image(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType);

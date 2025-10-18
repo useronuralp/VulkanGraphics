@@ -5,7 +5,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/matrix.hpp>
-class Camera {
+class Camera
+{
    public:
     Camera() = default;
     Camera(float fov, float aspectRatio);

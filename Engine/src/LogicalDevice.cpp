@@ -31,7 +31,8 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
 
     // If the indices of graphics & transfer queues are not the same, we need to
     // create a separate queue for present operations.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.TransferFamily) {
+    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.TransferFamily)
+    {
         // Create a present queue.
         std::vector<float>      priorities;
         VkDeviceQueueCreateInfo QCI{};
@@ -49,7 +50,8 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
 
     // If the indices of graphics & compute queues are not the same, we need to
     // create a separate queue for present operations.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.ComputeFamily) {
+    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.ComputeFamily)
+    {
         // Create a present queue.
         std::vector<float>      priorities;
         VkDeviceQueueCreateInfo QCI{};
@@ -91,9 +93,12 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
     CI.enabledExtensionCount   = m_DeviceExtensions.size();
     CI.ppEnabledExtensionNames = m_DeviceExtensions.data();
 
-    if (m_Layers.size() == 0) {
+    if (m_Layers.size() == 0)
+    {
         CI.enabledLayerCount = 0;
-    } else {
+    }
+    else
+    {
         CI.ppEnabledLayerNames = m_Layers.data();
         CI.enabledLayerCount   = m_Layers.size();
     }
@@ -109,13 +114,15 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
     vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_GraphicsQueue);
     queueIndex++;
     // Index is Unique.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.TransferFamily) {
+    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.TransferFamily)
+    {
         VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.TransferFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.TransferFamily, 0, &m_TransferQueue);
     }
     // Index is the same with the graphics queue.
-    else {
+    else
+    {
         VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.GraphicsFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_TransferQueue);
@@ -124,13 +131,15 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
 
     // Grab a compute queue.
     // Index is unqiue.
-    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.ComputeFamily) {
+    if (Engine::GetContext()._QueueFamilies.GraphicsFamily != Engine::GetContext()._QueueFamilies.ComputeFamily)
+    {
         VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.ComputeFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.ComputeFamily, 0, &m_ComputeQueue);
     }
     // Index is the same with the graphics queue.
-    else {
+    else
+    {
         VkQueueFamilyProperties props = GetQueueFamilyProps(Engine::GetContext()._QueueFamilies.GraphicsFamily);
         ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, Engine::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_ComputeQueue);

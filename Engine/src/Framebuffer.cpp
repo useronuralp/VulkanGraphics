@@ -6,31 +6,42 @@
 
 #include <iostream>
 Framebuffer::Framebuffer(
-    const VkRenderPass&            renderPass,
-    const std::vector<VkImageView> attachments,
-    uint32_t                       width,
-    uint32_t                       height,
-    int                            layerCount)
+    const VkRenderPass&            InRenderPass,
+    const std::vector<VkImageView> InAttachments,
+    uint32_t                       InWidth,
+    uint32_t                       InHeight,
+    int                            InLayerCount)
+    : _Width(InWidth), _Height(InHeight)
 {
-    m_Width  = width;
-    m_Height = height;
-
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass      = renderPass;
-    framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-    framebufferInfo.pAttachments    = attachments.data();
-    framebufferInfo.width           = m_Width;
-    framebufferInfo.height          = m_Height;
-    framebufferInfo.layers          = layerCount;
+    framebufferInfo.renderPass      = InRenderPass;
+    framebufferInfo.attachmentCount = static_cast<uint32_t>(InAttachments.size());
+    framebufferInfo.pAttachments    = InAttachments.data();
+    framebufferInfo.width           = _Width;
+    framebufferInfo.height          = _Height;
+    framebufferInfo.layers          = InLayerCount;
 
     ASSERT(
-        vkCreateFramebuffer(Engine::GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &m_Framebuffer) ==
+        vkCreateFramebuffer(Engine::GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) ==
             VK_SUCCESS,
         "Failed to create framebuffer!");
 }
 
+const uint32_t& Framebuffer::GetWidth()
+{
+    return _Width;
+}
+const uint32_t& Framebuffer::GetHeight()
+{
+    return _Height;
+}
+const VkFramebuffer& Framebuffer::GetHandle()
+{
+    return _Framebuffer;
+}
+
 Framebuffer::~Framebuffer()
 {
-    vkDestroyFramebuffer(Engine::GetContext().GetDevice()->GetVKDevice(), m_Framebuffer, nullptr);
+    vkDestroyFramebuffer(Engine::GetContext().GetDevice()->GetVKDevice(), _Framebuffer, nullptr);
 }

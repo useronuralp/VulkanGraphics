@@ -6,7 +6,8 @@ class Swapchain;
 class Camera;
 class Renderer;
 
-class Engine {
+class Engine
+{
    public:
     void Init();
     void Run();

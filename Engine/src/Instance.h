@@ -6,7 +6,8 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <vector>
-class Instance {
+class Instance
+{
    public:
     Instance(const Instance&)            = delete;
     Instance(Instance&&)                 = delete;

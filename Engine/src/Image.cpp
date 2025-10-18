@@ -15,10 +15,13 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     VkDeviceSize imageSize;
     VkDeviceSize layerSize;
 
-    if (textures.size() == 6) {
+    if (textures.size() == 6)
+    {
         m_IsCubemap       = true;
         m_CubemapTexPaths = textures;
-    } else {
+    }
+    else
+    {
         m_Path = textures[0];
     }
 
@@ -27,14 +30,18 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     int texChannels;
 
     // Texture data loading.
-    if (m_IsCubemap) {
-        for (uint32_t i = 0; i < 6; i++) {
+    if (m_IsCubemap)
+    {
+        for (uint32_t i = 0; i < 6; i++)
+        {
             cubemapTextures[i] = stbi_load(textures[i].c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
             ASSERT(cubemapTextures[i], "Failed to load texture.");
         }
         imageSize = texWidth * texHeight * 4 * 6;
         layerSize = imageSize / 6;
-    } else {
+    }
+    else
+    {
         pixels = stbi_load(m_Path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         ASSERT(pixels, "Failed to load texture.");
         imageSize = texWidth * texHeight * 4;
@@ -48,9 +55,12 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     m_ImageSize    = imageSize;
     m_LayerSize    = layerSize;
 
-    if (m_IsCubemap) {
+    if (m_IsCubemap)
+    {
         m_MipLevels = 1;
-    } else {
+    }
+    else
+    {
         m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
     }
 
@@ -74,11 +84,15 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     // Copy the Texture data to the staging buffer.
     void* data;
     vkMapMemory(Engine::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, m_ImageSize, 0, &data);
-    if (m_IsCubemap) {
-        for (uint32_t i = 0; i < 6; i++) {
+    if (m_IsCubemap)
+    {
+        for (uint32_t i = 0; i < 6; i++)
+        {
             memcpy(static_cast<stbi_uc*>(data) + (m_LayerSize * i), cubemapTextures[i], m_LayerSize);
         }
-    } else {
+    }
+    else
+    {
         memcpy(data, pixels, static_cast<size_t>(m_ImageSize));
     }
     vkUnmapMemory(Engine::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
@@ -89,7 +103,8 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     CopyBufferToImage(stagingBuffer, m_Width, m_Height);
     // If the image is a cubemap we are done and we can transition the layout to the final format to make it readable from
     // shaders.
-    if (m_IsCubemap) {
+    if (m_IsCubemap)
+    {
         TransitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
     vkDestroyBuffer(Engine::GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
@@ -100,11 +115,15 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     if (!m_IsCubemap)
         GenerateMipmaps();
 
-    if (m_IsCubemap) {
-        for (int i = 0; i < 6; i++) {
+    if (m_IsCubemap)
+    {
+        for (int i = 0; i < 6; i++)
+        {
             stbi_image_free(cubemapTextures[i]);
         }
-    } else {
+    }
+    else
+    {
         stbi_image_free(pixels);
     }
 }
@@ -128,7 +147,8 @@ Image::~Image()
 void Image::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout)
 {
     uint32_t layerCount = 1;
-    if (m_IsCubemap) {
+    if (m_IsCubemap)
+    {
         layerCount = 6;
     }
     VkCommandBuffer singleCmdBuffer;
@@ -153,14 +173,17 @@ void Image::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayo
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
     bool                 supported = false;
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
         sourceStage           = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage      = VK_PIPELINE_STAGE_TRANSFER_BIT;
         supported             = true;
-    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
@@ -188,9 +211,12 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
     VkBufferImageCopy              region{};
     std::vector<VkBufferImageCopy> bufferCopyRegions;
 
-    if (m_IsCubemap) {
-        for (uint32_t i = 0; i < 6; i++) {
-            for (uint32_t mipLevel = 0; mipLevel < 1; mipLevel++) {
+    if (m_IsCubemap)
+    {
+        for (uint32_t i = 0; i < 6; i++)
+        {
+            for (uint32_t mipLevel = 0; mipLevel < 1; mipLevel++)
+            {
                 VkBufferImageCopy region{};
                 region.bufferOffset                    = m_LayerSize * i;
                 region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -204,7 +230,9 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
                 bufferCopyRegions.push_back(region);
             }
         }
-    } else {
+    }
+    else
+    {
         region.bufferOffset                    = 0;
         region.bufferRowLength                 = 0;
         region.bufferImageHeight               = 0;
@@ -218,7 +246,8 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
         region.imageExtent                     = { width, height, 1 };
     }
 
-    if (m_IsCubemap) {
+    if (m_IsCubemap)
+    {
         vkCmdCopyBufferToImage(
             singleCmdBuffer,
             buffer,
@@ -226,7 +255,9 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             bufferCopyRegions.size(),
             bufferCopyRegions.data());
-    } else {
+    }
+    else
+    {
         vkCmdCopyBufferToImage(singleCmdBuffer, buffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
 
@@ -238,7 +269,8 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
 
 void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType)
 {
-    if (imageType == ImageType::DEPTH_CUBEMAP) {
+    if (imageType == ImageType::DEPTH_CUBEMAP)
+    {
         m_IsCubemap = true;
     }
 
@@ -247,7 +279,8 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     VkImageViewType    viewType    = VK_IMAGE_VIEW_TYPE_2D;
     VkImageCreateFlags flags       = 0;
 
-    if (m_IsCubemap) {
+    if (m_IsCubemap)
+    {
         layerCount  = 6;
         arrayLayers = 6;
         viewType    = VK_IMAGE_VIEW_TYPE_CUBE;
@@ -337,7 +370,8 @@ void Image::GenerateMipmaps()
     int32_t mipWidth                        = m_Width;
     int32_t mipHeight                       = m_Height;
 
-    for (uint32_t i = 1; i < m_MipLevels; i++) {
+    for (uint32_t i = 1; i < m_MipLevels; i++)
+    {
         barrier.subresourceRange.baseMipLevel = i - 1;
         barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barrier.newLayout                     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;

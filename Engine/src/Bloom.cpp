@@ -47,7 +47,8 @@ Bloom::~Bloom()
     vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), m_MergeSamplerHDR, nullptr);
     vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), m_MergeSamplerBloom, nullptr);
 
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
         vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), m_UpscalingSamplersSecond[i], nullptr);
         vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), m_UpscalingSamplersFirst[i], nullptr);
         vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), m_BlurSamplers[i], nullptr);
@@ -61,11 +62,14 @@ Bloom::~Bloom()
 void Bloom::ConnectImageResourceToAddBloomTo(const Ref<Image>& frame)
 {
     m_HDRImage = frame;
-    if (m_FirstPassEver) {
+    if (m_FirstPassEver)
+    {
         m_FirstPassEver          = false;
         m_BrigtnessFilterSampler = Utils::CreateSampler(
             m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-    } else {
+    }
+    else
+    {
         vkDestroySampler(Engine::GetContext().GetDevice()->GetVKDevice(), m_BrigtnessFilterSampler, nullptr);
         m_BrigtnessFilterSampler = Utils::CreateSampler(
             m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
@@ -103,7 +107,7 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
     VkClearValue clearValues                                       = { 0.8f, 0.1f, 0.1f, 1.0f };
 
     m_BrightnessFilterRenderPassBeginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    m_BrightnessFilterRenderPassBeginInfo.framebuffer              = m_BrightnessIsolatedFramebuffer->GetVKFramebuffer();
+    m_BrightnessFilterRenderPassBeginInfo.framebuffer              = m_BrightnessIsolatedFramebuffer->GetHandle();
     m_BrightnessFilterRenderPassBeginInfo.clearValueCount          = 1;
     m_BrightnessFilterRenderPassBeginInfo.pClearValues             = &clearValues;
     m_BrightnessFilterRenderPassBeginInfo.pNext                    = nullptr;
@@ -128,12 +132,13 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
 
     VkDeviceSize offset = { 0 };
     // Blur pass.
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
         clearValues = { 0.8f, 0.1f, 0.1f, 1.0f };
 
         // Downscaling pass
         m_BlurRenderPassBeginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        m_BlurRenderPassBeginInfo.framebuffer              = m_BlurFramebuffers[i]->GetVKFramebuffer();
+        m_BlurRenderPassBeginInfo.framebuffer              = m_BlurFramebuffers[i]->GetHandle();
         m_BlurRenderPassBeginInfo.clearValueCount          = 1;
         m_BlurRenderPassBeginInfo.pClearValues             = &clearValues;
         m_BlurRenderPassBeginInfo.pNext                    = nullptr;
@@ -158,11 +163,12 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
     }
 
     // Upscaling pass.
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
         clearValues                                             = { 0.8f, 0.1f, 0.1f, 1.0f };
 
         m_UpscalingRenderPassBeginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        m_UpscalingRenderPassBeginInfo.framebuffer              = m_UpscalingFramebuffers[i]->GetVKFramebuffer();
+        m_UpscalingRenderPassBeginInfo.framebuffer              = m_UpscalingFramebuffers[i]->GetHandle();
         m_UpscalingRenderPassBeginInfo.clearValueCount          = 1;
         m_UpscalingRenderPassBeginInfo.pClearValues             = &clearValues;
         m_UpscalingRenderPassBeginInfo.pNext                    = nullptr;
@@ -189,7 +195,7 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
     clearValues                                         = { 0.8f, 0.1f, 0.1f, 1.0f };
 
     m_MergeRenderPassBeginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    m_MergeRenderPassBeginInfo.framebuffer              = m_MergeFramebuffer->GetVKFramebuffer();
+    m_MergeRenderPassBeginInfo.framebuffer              = m_MergeFramebuffer->GetHandle();
     m_MergeRenderPassBeginInfo.clearValueCount          = 1;
     m_MergeRenderPassBeginInfo.pClearValues             = &clearValues;
     m_MergeRenderPassBeginInfo.pNext                    = nullptr;
@@ -385,7 +391,8 @@ void Bloom::CreateFramebuffers()
     // TO DO: make the iteration count n - 1 as the first iteration will use the
     // image rendered by the HDR render pass.
 
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
         height /= 2;
         width /= 2;
 
@@ -401,7 +408,8 @@ void Bloom::CreateFramebuffers()
         m_BlurFramebuffers[i] = std::make_unique<Framebuffer>(m_BlurRenderPass, attachments, width, height);
     }
 
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
         height *= 2;
         width *= 2;
 
@@ -456,7 +464,8 @@ void Bloom::SetupDesciptorSets()
     rslt = vkAllocateDescriptorSets(Engine::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_MergeDescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
         // Downscaling descs.
         allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool     = m_DescriptorPool->GetDescriptorPool();
@@ -479,8 +488,10 @@ void Bloom::SetupDesciptorSets()
     }
 
     // Allocate blur descriptor Sets.
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
-        if (i == 0) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
+        if (i == 0)
+        {
             m_BlurSamplers[i] = Utils::CreateSampler(
                 m_BrightnessIsolatedImage,
                 ImageType::COLOR,
@@ -494,7 +505,9 @@ void Bloom::SetupDesciptorSets()
                 m_BrightnessIsolatedImage->GetImageView(),
                 0,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        } else {
+        }
+        else
+        {
             m_BlurSamplers[i] = Utils::CreateSampler(
                 m_BlurColorBuffers[i - 1],
                 ImageType::COLOR,
@@ -512,8 +525,10 @@ void Bloom::SetupDesciptorSets()
     }
 
     int a = BLUR_PASS_COUNT - 1;
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
-        if (i == 0) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
+        if (i == 0)
+        {
             // Grab the last two results.
             m_UpscalingSamplersFirst[i] = Utils::CreateSampler(
                 m_BlurColorBuffers[a],
@@ -542,7 +557,9 @@ void Bloom::SetupDesciptorSets()
                 m_BlurColorBuffers[a - 1]->GetImageView(),
                 1,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        } else {
+        }
+        else
+        {
             m_UpscalingSamplersFirst[i] = Utils::CreateSampler(
                 m_UpscalingColorBuffers[i - 1],
                 ImageType::COLOR,
@@ -556,7 +573,8 @@ void Bloom::SetupDesciptorSets()
                 m_UpscalingColorBuffers[i - 1]->GetImageView(),
                 0,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            if (a == 0) {
+            if (a == 0)
+            {
                 m_UpscalingSamplersSecond[i] = Utils::CreateSampler(
                     m_BrightnessIsolatedImage,
                     ImageType::COLOR,
@@ -570,7 +588,9 @@ void Bloom::SetupDesciptorSets()
                     m_BrightnessIsolatedImage->GetImageView(),
                     1,
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            } else {
+            }
+            else
+            {
                 m_UpscalingSamplersSecond[i] = Utils::CreateSampler(
                     m_BlurColorBuffers[a - 1],
                     ImageType::COLOR,
@@ -626,7 +646,8 @@ void Bloom::SetupPipelines()
 
     m_BrightnessFilterPipeline               = std::make_shared<Pipeline>(specs);
 
-    for (int i = 0; i < BLUR_PASS_COUNT; i++) {
+    for (int i = 0; i < BLUR_PASS_COUNT; i++)
+    {
         // Blur downscaling passes
         specs.DescriptorSetLayout     = m_OneSamplerLayout;
         specs.pRenderPass             = m_BlurRenderPass;

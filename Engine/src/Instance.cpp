@@ -18,9 +18,12 @@ VkResult Instance::CreateDebugUtilsMessengerEXT(
     VkDebugUtilsMessengerEXT*                 pDebugMessenger)
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
+    if (func != nullptr)
+    {
         return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    } else {
+    }
+    else
+    {
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
 }
@@ -31,7 +34,8 @@ void Instance::DestroyDebugUtilsMessengerEXT(
     const VkAllocationCallbacks* pAllocator)
 {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
+    if (func != nullptr)
+    {
         func(instance, debugMessenger, pAllocator);
     }
 }
@@ -41,7 +45,8 @@ Instance::Instance()
 
     bool validationLayersSupported = CheckValidationLayerSupport();
 
-    if (!validationLayersSupported) {
+    if (!validationLayersSupported)
+    {
         std::cerr << "Validation layers requsted, but it is not supported..." << std::endl;
         std::cerr << "Continuing without enabling debug extensions." << std::endl;
     }
@@ -83,11 +88,14 @@ Instance::Instance()
     Utils::PopulateDebugMessengerCreateInfo(debugCreateInfo, DebugCallback);
     debugCreateInfo.pNext = &validationFeatures;
 
-    if (validationLayersSupported) {
+    if (validationLayersSupported)
+    {
         vkCreateInfo.pNext               = &debugCreateInfo;
         vkCreateInfo.enabledLayerCount   = static_cast<uint32_t>(m_ValidationLayers.size());
         vkCreateInfo.ppEnabledLayerNames = m_ValidationLayers.data();
-    } else {
+    }
+    else
+    {
         vkCreateInfo.pNext               = nullptr;
         vkCreateInfo.enabledLayerCount   = 0;
         vkCreateInfo.ppEnabledLayerNames = nullptr;
@@ -98,7 +106,8 @@ Instance::Instance()
     std::cout << "Instance has been created." << std::endl;
 
     // Create the messenger handle here.
-    if (validationLayersSupported) {
+    if (validationLayersSupported)
+    {
         SetupDebugMessenger();
     }
 
@@ -110,14 +119,16 @@ Instance::Instance()
     VKdevices.resize(deviceCount);
 
     vkEnumeratePhysicalDevices(m_Instance, &deviceCount, VKdevices.data());
-    for (const auto& device : VKdevices) {
+    for (const auto& device : VKdevices)
+    {
         PhysicalDevice ANORdevice(m_Instance, device);
         m_PhysicalDevices.push_back(ANORdevice);
     }
 }
 Instance::~Instance()
 {
-    if (m_DebugMessenger) {
+    if (m_DebugMessenger)
+    {
         DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
     }
     vkDestroyInstance(m_Instance, nullptr);
@@ -129,7 +140,8 @@ void Instance::PrintAvailableExtensions()
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
     std::cout << "Supported Instance Extensions: \n";
-    for (const auto& extension : availableExtensions) {
+    for (const auto& extension : availableExtensions)
+    {
         std::cout << '\t' << extension.extensionName << '\n';
     }
 }
@@ -140,13 +152,15 @@ const std::vector<const char*> Instance::GetRequiredExtensions(bool isValLayersS
     glfwExtensions              = glfwGetRequiredInstanceExtensions(&extensionCount);
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + extensionCount);
 
-    if (isValLayersSupported) {
+    if (isValLayersSupported)
+    {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     }
     std::cout << "Required Instance Extensions: \n";
-    for (const auto& extension : extensions) {
+    for (const auto& extension : extensions)
+    {
         std::cout << '\t' << extension << std::endl;
     }
 
@@ -164,10 +178,13 @@ bool Instance::CheckValidationLayerSupport()
     for (const auto& layer : availableLayers)
         std::cout << '\t' << layer.layerName << std::endl;
 
-    for (const char* layerName : m_ValidationLayers) {
+    for (const char* layerName : m_ValidationLayers)
+    {
         bool layerFound = false;
-        for (const auto& layerProperties : availableLayers) {
-            if (strcmp(layerName, layerProperties.layerName) == 0) {
+        for (const auto& layerProperties : availableLayers)
+        {
+            if (strcmp(layerName, layerProperties.layerName) == 0)
+            {
                 layerFound = true;
                 break;
             }
