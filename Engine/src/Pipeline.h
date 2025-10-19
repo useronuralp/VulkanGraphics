@@ -1,66 +1,58 @@
 #pragma once
 #include "core.h"
+
 // External
 #include <glm/glm.hpp>
 #include <vector>
 #include <vulkan/vulkan.h>
 class DescriptorSetLayout;
+class VulkanContext;
 class Pipeline
 {
    public:
     struct Specs
     {
-        // TO DO: Check these references here. Can you make them Unique<> ?
-        VkRenderPass                        pRenderPass;
-        Ref<DescriptorSetLayout>            DescriptorSetLayout;
-        std::string                         VertexShaderPath   = "None";
-        std::string                         FragmentShaderPath = "None";
-        std::string                         GeometryShaderPath = "None";
-        VkPolygonMode                       PolygonMode;
-        VkCullModeFlags                     CullMode;
-        VkFrontFace                         FrontFace;
-        VkBool32                            EnableDepthBias;
-        float                               DepthBiasConstantFactor;
-        float                               DepthBiasClamp;
-        float                               DepthBiasSlopeFactor;
-        VkBool32                            EnableDepthTesting;
-        VkBool32                            EnableDepthWriting;
-        VkCompareOp                         DepthCompareOp;
-        uint32_t                            ViewportWidth  = UINT32_MAX;
-        uint32_t                            ViewportHeight = UINT32_MAX;
-        std::vector<VkPushConstantRange>    PushConstantRanges;
-        VkPrimitiveTopology                 PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        VkPipelineColorBlendAttachmentState ColorBlendAttachmentState;
-        VkVertexInputBindingDescription*    pVertexInputBindingDescriptions  = nullptr;
-        uint32_t                            VertexInputBindingCount          = 0;
-        uint32_t                            VertexInputAttributeCount        = 0;
-        VkVertexInputAttributeDescription*  pVertexInputAttributeDescriptons = nullptr;
+        VkRenderPass                                   RenderPass;
+        Ref<DescriptorSetLayout>                       DescriptorSetLayout;
+        std::string                                    VertexShaderPath   = "None";
+        std::string                                    FragmentShaderPath = "None";
+        std::string                                    GeometryShaderPath = "None";
+        VkPolygonMode                                  PolygonMode;
+        VkCullModeFlags                                CullMode;
+        VkFrontFace                                    FrontFace;
+        VkBool32                                       EnableDepthBias;
+        float                                          DepthBiasConstantFactor;
+        float                                          DepthBiasClamp;
+        float                                          DepthBiasSlopeFactor;
+        VkBool32                                       EnableDepthTesting;
+        VkBool32                                       EnableDepthWriting;
+        VkCompareOp                                    DepthCompareOp;
+        uint32_t                                       ViewportWidth  = UINT32_MAX;
+        uint32_t                                       ViewportHeight = UINT32_MAX;
+        std::vector<VkPushConstantRange>               PushConstantRanges;
+        VkPrimitiveTopology                            PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        VkPipelineColorBlendAttachmentState            ColorBlendAttachmentState;
+        std::vector<VkVertexInputBindingDescription>   VertexBindings   = {};
+        std::vector<VkVertexInputAttributeDescription> VertexAttributes = {};
     };
 
    public:
-    Pipeline(const Specs& CI);
+    Pipeline(VulkanContext& InContext, const Specs& InSpecs);
     ~Pipeline();
-    void              ReConstruct();
-    const VkPipeline& GetVKPipeline()
-    {
-        return m_Pipeline;
-    }
-    const VkPipelineLayout& GetPipelineLayout()
-    {
-        return m_PipelineLayout;
-    }
+    void Resize();
+
+    VkPipeline       GetHandle() const;
+    VkPipelineLayout GetPipelineLayout() const;
 
    private:
     void           Init();
     void           Cleanup();
-    VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode);
+    VkShaderModule CreateShaderModule(const std::vector<char>& InShaderCode);
 
    private:
-    VkPipeline                  m_Pipeline;
-    VkPipelineLayout            m_PipelineLayout;
-    std::vector<VkDynamicState> m_DynamicStates;
-
-    // Used to store the configuration of the pipeline. When screen is resized,
-    // these values are reused that is why we are storing them here.
-    Specs m_CI;
+    VkPipeline                  _Pipeline;
+    VkPipelineLayout            _PipelineLayout;
+    std::vector<VkDynamicState> _DynamicStates;
+    Specs                       _Specs;
+    VulkanContext&              _Context;
 };

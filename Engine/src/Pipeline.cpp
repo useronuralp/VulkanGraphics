@@ -1,15 +1,13 @@
 #include "Buffer.h"
 #include "DescriptorSet.h"
-#include "EngineInternal.h"
 #include "LogicalDevice.h"
 #include "Pipeline.h"
 #include "Surface.h"
 #include "Swapchain.h"
 #include "Utils.h"
-// #include "VulkanApplication.h"
 
 #include <iostream>
-Pipeline::Pipeline(const Specs& CI) : m_CI(CI)
+Pipeline::Pipeline(VulkanContext& InContext, const Specs& InSpecs) : _Specs(InSpecs), _Context(InContext)
 {
     Init();
 }
@@ -17,104 +15,84 @@ Pipeline::~Pipeline()
 {
     Cleanup();
 }
-void Pipeline::ReConstruct()
+void Pipeline::Resize()
 {
     Cleanup();
-    Init(); // Re initializes the pipeline with correct framebuffer dimensions.
+    Init();
 }
 void Pipeline::Cleanup()
 {
-    vkDestroyPipelineLayout(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_PipelineLayout, nullptr);
-    vkDestroyPipeline(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Pipeline, nullptr);
+    vkDestroyPipeline(_Context.GetDevice()->GetVKDevice(), _Pipeline, nullptr);
+    vkDestroyPipelineLayout(_Context.GetDevice()->GetVKDevice(), _PipelineLayout, nullptr);
 }
+
+VkPipeline Pipeline::GetHandle() const
+{
+    return _Pipeline;
+}
+VkPipelineLayout Pipeline::GetPipelineLayout() const
+{
+    return _PipelineLayout;
+}
+
 void Pipeline::Init()
 {
-    m_DynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_LINE_WIDTH, VK_DYNAMIC_STATE_SCISSOR };
+    _DynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
+    // ------------------------------------------------------------------------
+    // Shader stages
+    // ------------------------------------------------------------------------
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-
-    std::vector<char> vertShaderCode;
-    std::vector<char> fragShaderCode;
-    std::vector<char> geomShaderCode;
-
-    VkShaderModule vertShaderModule = VK_NULL_HANDLE;
-    VkShaderModule fragShaderModule = VK_NULL_HANDLE;
-    VkShaderModule geomShaderModule = VK_NULL_HANDLE;
-    // Read shaders from file.
-    if (m_CI.VertexShaderPath != "None")
+    auto loadShader = [&](const std::string& path, VkShaderStageFlagBits stage) -> VkShaderModule
     {
-        vertShaderCode   = Utils::ReadFile(m_CI.VertexShaderPath);
-        vertShaderModule = CreateShaderModule(vertShaderCode);
+        if (path.empty() || path == "None")
+            return VK_NULL_HANDLE;
 
-        // Vertex shader stage info.
-        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-        vertShaderStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vertShaderStageInfo.stage  = VK_SHADER_STAGE_VERTEX_BIT;
-        vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName  = "main"; // Shaders can have multiple entry points. Input the name of
-                                            // the entry point you want.
+        auto           code   = Utils::ReadFile(path);
+        VkShaderModule module = CreateShaderModule(code);
 
-        shaderStages.push_back(vertShaderStageInfo);
-    }
-    if (m_CI.FragmentShaderPath != "None")
-    {
-        fragShaderCode   = Utils::ReadFile(m_CI.FragmentShaderPath);
-        fragShaderModule = CreateShaderModule(fragShaderCode);
+        VkPipelineShaderStageCreateInfo stageInfo{};
+        stageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        stageInfo.stage  = stage;
+        stageInfo.module = module;
+        stageInfo.pName  = "main";
+        shaderStages.push_back(stageInfo);
 
-        // Fragment shader stage info.
-        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-        fragShaderStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        fragShaderStageInfo.stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
-        fragShaderStageInfo.module = fragShaderModule;
-        fragShaderStageInfo.pName  = "main";
+        return module;
+    };
 
-        shaderStages.push_back(fragShaderStageInfo);
-    }
+    VkShaderModule vertShaderModule = loadShader(_Specs.VertexShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
+    VkShaderModule fragShaderModule = loadShader(_Specs.FragmentShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
+    VkShaderModule geomShaderModule = loadShader(_Specs.GeometryShaderPath, VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    if (m_CI.GeometryShaderPath != "None")
-    {
-        geomShaderCode   = Utils::ReadFile(m_CI.GeometryShaderPath);
-        geomShaderModule = CreateShaderModule(geomShaderCode);
-
-        // Fragment shader stage info.
-        VkPipelineShaderStageCreateInfo geomShaderStageInfo{};
-        geomShaderStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        geomShaderStageInfo.stage  = VK_SHADER_STAGE_GEOMETRY_BIT;
-        geomShaderStageInfo.module = geomShaderModule;
-        geomShaderStageInfo.pName  = "main";
-
-        shaderStages.push_back(geomShaderStageInfo);
-    }
-
-    // This "VkPipelineVertexInputStateCreateInfo" strcut specifies the format
-    // of the data that you are going to pass to the vertex shader. Bindings:
-    // Spacing between data and whether the data is per-vertex or per-instance.
-    // Attribute: Type of the attributes passed to the vertex shader, which
-    // binding to load them from and at which offset.
+    // ------------------------------------------------------------------------
+    // Vertex input
+    // ------------------------------------------------------------------------
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount   = m_CI.VertexInputBindingCount;
-    vertexInputInfo.pVertexBindingDescriptions      = m_CI.pVertexInputBindingDescriptions;
-    vertexInputInfo.vertexAttributeDescriptionCount = m_CI.VertexInputAttributeCount;
-    vertexInputInfo.pVertexAttributeDescriptions    = m_CI.pVertexInputAttributeDescriptons;
+    vertexInputInfo.vertexBindingDescriptionCount   = static_cast<uint32_t>(_Specs.VertexBindings.size());
+    vertexInputInfo.pVertexBindingDescriptions      = _Specs.VertexBindings.data();
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(_Specs.VertexAttributes.size());
+    vertexInputInfo.pVertexAttributeDescriptions    = _Specs.VertexAttributes.data();
 
-    // This struct assembels the points and forms whatever primitive you want to
-    // form. These primitives are usually: triangles, lines and points. We are
-    // interested in drawing trianlgles in our case.
+    // ------------------------------------------------------------------------
+    // Input assembly
+    // ------------------------------------------------------------------------
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology               = m_CI.PrimitiveTopology;
+    inputAssembly.topology               = _Specs.PrimitiveTopology;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    // Viewport specifies the dimensions of the framebuffer that we want to draw
-    // to. This usually spans the entirety of a framebuffer.
+    // ------------------------------------------------------------------------
+    // Viewport & scissor
+    // ------------------------------------------------------------------------
     VkViewport viewport{};
-    if (m_CI.ViewportWidth == UINT32_MAX && m_CI.ViewportHeight == UINT32_MAX)
+    if (_Specs.ViewportWidth == UINT32_MAX && _Specs.ViewportHeight == UINT32_MAX)
     {
         viewport.x        = 0.0f;
-        viewport.y        = (float)EngineInternal::GetContext().GetSurface()->GetVKExtent().height;
-        viewport.width    = (float)EngineInternal::GetContext().GetSurface()->GetVKExtent().width;
-        viewport.height   = -(float)EngineInternal::GetContext().GetSurface()->GetVKExtent().height;
+        viewport.y        = 0.0f;
+        viewport.width    = (float)_Context.GetSurface()->GetVKExtent().width;
+        viewport.height   = (float)_Context.GetSurface()->GetVKExtent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
     }
@@ -122,26 +100,18 @@ void Pipeline::Init()
     {
         viewport.x        = 0.0f;
         viewport.y        = 0.0f;
-        viewport.width    = (float)m_CI.ViewportWidth;
-        viewport.height   = (float)m_CI.ViewportHeight;
+        viewport.width    = (float)_Specs.ViewportWidth;
+        viewport.height   = (float)_Specs.ViewportHeight;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
     }
 
-    // Any pixel outside of the scissor boundaries gets discarded. Scissors act
-    // rather as filters and required to be specified. If you do not want any
-    // kind of discarding due to scissors, make its extent the same as the
-    // framebuffer / swap chain images.
     VkRect2D scissor{};
-    scissor.offset = { 0, 0 };
-    scissor.extent.width =
-        m_CI.ViewportWidth == UINT32_MAX ? EngineInternal::GetContext().GetSurface()->GetVKExtent().width : m_CI.ViewportWidth;
+    scissor.offset       = { 0, 0 };
+    scissor.extent.width = _Specs.ViewportWidth == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().width : _Specs.ViewportWidth;
     scissor.extent.height =
-        m_CI.ViewportHeight == UINT32_MAX ? EngineInternal::GetContext().GetSurface()->GetVKExtent().height : m_CI.ViewportHeight;
+        _Specs.ViewportHeight == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().height : _Specs.ViewportHeight;
 
-    // The above two states "VkRect2D" and "VkViewport" need to be combined into
-    // a single struct called "VkPipelineViewportStateCreateInfo". That is
-    // exactly what we are doing here.
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
@@ -149,21 +119,25 @@ void Pipeline::Init()
     viewportState.scissorCount  = 1;
     viewportState.pScissors     = &scissor;
 
-    // This structure configures the rasterizer.
+    // ------------------------------------------------------------------------
+    // Rasterizer
+    // ------------------------------------------------------------------------
     VkPipelineRasterizationStateCreateInfo rasterizer{};
     rasterizer.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable        = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode             = m_CI.PolygonMode;
+    rasterizer.polygonMode             = _Specs.PolygonMode;
     rasterizer.lineWidth               = 1.0f;
-    rasterizer.cullMode                = m_CI.CullMode;
-    rasterizer.frontFace               = m_CI.FrontFace;
-    rasterizer.depthBiasEnable         = m_CI.EnableDepthBias;
-    rasterizer.depthBiasConstantFactor = m_CI.DepthBiasConstantFactor; // Optional
-    rasterizer.depthBiasClamp          = m_CI.DepthBiasClamp; // Optional
-    rasterizer.depthBiasSlopeFactor    = m_CI.DepthBiasSlopeFactor; // Optional
+    rasterizer.cullMode                = _Specs.CullMode;
+    rasterizer.frontFace               = _Specs.FrontFace;
+    rasterizer.depthBiasEnable         = _Specs.EnableDepthBias;
+    rasterizer.depthBiasConstantFactor = _Specs.DepthBiasConstantFactor; // Optional
+    rasterizer.depthBiasClamp          = _Specs.DepthBiasClamp; // Optional
+    rasterizer.depthBiasSlopeFactor    = _Specs.DepthBiasSlopeFactor; // Optional
 
-    // Multisampling configuration here.
+    // ------------------------------------------------------------------------
+    // Multisampling
+    // ------------------------------------------------------------------------
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable   = VK_FALSE;
@@ -173,23 +147,28 @@ void Pipeline::Init()
     multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
     multisampling.alphaToOneEnable      = VK_FALSE; // Optional
 
+    // ------------------------------------------------------------------------
+    // Color blending
+    // ------------------------------------------------------------------------
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable     = VK_FALSE;
     colorBlending.logicOp           = VK_LOGIC_OP_COPY; // Optional
     colorBlending.attachmentCount   = 1;
-    colorBlending.pAttachments      = &m_CI.ColorBlendAttachmentState;
+    colorBlending.pAttachments      = &_Specs.ColorBlendAttachmentState;
     colorBlending.blendConstants[0] = 0.0f; // Optional
     colorBlending.blendConstants[1] = 0.0f; // Optional
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
 
-    // Depth & Stencil testing configuration
+    // ------------------------------------------------------------------------
+    // Depth & stencil
+    // ------------------------------------------------------------------------
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable       = m_CI.EnableDepthTesting;
-    depthStencil.depthWriteEnable      = m_CI.EnableDepthWriting;
-    depthStencil.depthCompareOp        = m_CI.DepthCompareOp;
+    depthStencil.depthTestEnable       = _Specs.EnableDepthTesting;
+    depthStencil.depthWriteEnable      = _Specs.EnableDepthWriting;
+    depthStencil.depthCompareOp        = _Specs.DepthCompareOp;
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds        = 0.0f; // Optional
     depthStencil.maxDepthBounds        = 1.0f; // Optional
@@ -197,28 +176,29 @@ void Pipeline::Init()
     depthStencil.front                 = {}; // Optional
     depthStencil.back.compareOp        = VK_COMPARE_OP_ALWAYS; // Optional
 
-    // Dynamic states that can be changed during drawing time. The states that
-    // can be found in "dynamicStates" can be changed without recreateing the
-    // pipeline. Viewport size (screen resizing) is a good example for this.
+    // ------------------------------------------------------------------------
+    // Dynamic states
+    // ------------------------------------------------------------------------
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(m_DynamicStates.size());
-    dynamicState.pDynamicStates    = m_DynamicStates.data();
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(_DynamicStates.size());
+    dynamicState.pDynamicStates    = _DynamicStates.data();
 
-    // This struct specifies how the "UNIFORM" variables are going to be laid
-    // out. TO DO: Learn it better.
+    // ------------------------------------------------------------------------
+    // Pipeline layout
+    // ------------------------------------------------------------------------
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts    = &m_CI.DescriptorSetLayout->GetDescriptorLayout();
+    pipelineLayoutInfo.pSetLayouts    = &_Specs.DescriptorSetLayout->GetDescriptorLayout();
 
-    if (m_CI.PushConstantRanges.size() > 0)
+    if (_Specs.PushConstantRanges.size() > 0)
     {
-        // pushConstantRange.offset = m_CI.PushConstantOffset;
-        // pushConstantRange.size = m_CI.PushConstantSize;
-        // pushConstantRange.stageFlags = m_CI.PushConstantShaderStage;
-        pipelineLayoutInfo.pushConstantRangeCount = m_CI.PushConstantRanges.size(); // Optional
-        pipelineLayoutInfo.pPushConstantRanges    = m_CI.PushConstantRanges.data(); // Optional
+        // pushConstantRange.offset = _Specs.PushConstantOffset;
+        // pushConstantRange.size = _Specs.PushConstantSize;
+        // pushConstantRange.stageFlags = _Specs.PushConstantShaderStage;
+        pipelineLayoutInfo.pushConstantRangeCount = _Specs.PushConstantRanges.size(); // Optional
+        pipelineLayoutInfo.pPushConstantRanges    = _Specs.PushConstantRanges.data(); // Optional
     }
     else
     {
@@ -227,13 +207,12 @@ void Pipeline::Init()
     }
 
     ASSERT(
-        vkCreatePipelineLayout(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) ==
-            VK_SUCCESS,
+        vkCreatePipelineLayout(_Context.GetDevice()->GetVKDevice(), &pipelineLayoutInfo, nullptr, &_PipelineLayout) == VK_SUCCESS,
         "Failed to create pipeline layout");
 
-    // This struct binds together all the other structs we have created so far
-    // in this function up above.
+    // ------------------------------------------------------------------------
+    // Graphics pipeline creation
+    // ------------------------------------------------------------------------
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount          = static_cast<uint32_t>(shaderStages.size());
@@ -247,43 +226,44 @@ void Pipeline::Init()
     pipelineInfo.pColorBlendState    = &colorBlending;
     pipelineInfo.pDynamicState       = nullptr; // Optional
     pipelineInfo.pDepthStencilState  = &depthStencil;
-    pipelineInfo.layout              = m_PipelineLayout;
-    pipelineInfo.renderPass          = m_CI.pRenderPass;
+    pipelineInfo.layout              = _PipelineLayout;
+    pipelineInfo.renderPass          = _Specs.RenderPass;
     pipelineInfo.subpass             = 0;
     pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE; // Optional
     pipelineInfo.basePipelineIndex   = -1; // Optional
 
     ASSERT(
-        vkCreateGraphicsPipelines(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) ==
+        vkCreateGraphicsPipelines(_Context.GetDevice()->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_Pipeline) ==
             VK_SUCCESS,
         "Failed to create graphics pipeline!");
 
-    if (m_CI.FragmentShaderPath != "None")
+    // ------------------------------------------------------------------------
+    // Cleanup temporary shader modules
+    // ------------------------------------------------------------------------
+    if (_Specs.FragmentShaderPath != "None")
     {
-        vkDestroyShaderModule(EngineInternal::GetContext().GetDevice()->GetVKDevice(), fragShaderModule, nullptr);
+        vkDestroyShaderModule(_Context.GetDevice()->GetVKDevice(), fragShaderModule, nullptr);
     }
-    if (m_CI.VertexShaderPath != "None")
+    if (_Specs.VertexShaderPath != "None")
     {
-        vkDestroyShaderModule(EngineInternal::GetContext().GetDevice()->GetVKDevice(), vertShaderModule, nullptr);
+        vkDestroyShaderModule(_Context.GetDevice()->GetVKDevice(), vertShaderModule, nullptr);
     }
-    if (m_CI.GeometryShaderPath != "None")
+    if (_Specs.GeometryShaderPath != "None")
     {
-        vkDestroyShaderModule(EngineInternal::GetContext().GetDevice()->GetVKDevice(), geomShaderModule, nullptr);
+        vkDestroyShaderModule(_Context.GetDevice()->GetVKDevice(), geomShaderModule, nullptr);
     }
 }
-VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& shaderCode)
+VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& InShaderCode)
 {
     VkShaderModuleCreateInfo createInfo{};
 
     createInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = shaderCode.size();
-    createInfo.pCode    = reinterpret_cast<const uint32_t*>(shaderCode.data());
+    createInfo.codeSize = InShaderCode.size();
+    createInfo.pCode    = reinterpret_cast<const uint32_t*>(InShaderCode.data());
 
     VkShaderModule shaderModule;
     ASSERT(
-        vkCreateShaderModule(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &createInfo, nullptr, &shaderModule) ==
-            VK_SUCCESS,
+        vkCreateShaderModule(_Context.GetDevice()->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS,
         "Failed to create shader module!");
 
     return shaderModule;

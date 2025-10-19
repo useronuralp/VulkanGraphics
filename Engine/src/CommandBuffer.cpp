@@ -65,7 +65,7 @@ void CommandBuffer::EndRenderPass(const VkCommandBuffer& cmdBuffer)
 }
 void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, VkPipelineBindPoint bindPoint, const Ref<Pipeline>& pipeline)
 {
-    vkCmdBindPipeline(cmdBuffer, bindPoint, pipeline->GetVKPipeline());
+    vkCmdBindPipeline(cmdBuffer, bindPoint, pipeline->GetHandle());
 }
 void CommandBuffer::BindVertexBuffer(
     const VkCommandBuffer& cmdBuffer,
@@ -80,15 +80,6 @@ void CommandBuffer::BindIndexBuffer(const VkCommandBuffer& cmdBuffer, uint32_t o
 {
     vkCmdBindIndexBuffer(cmdBuffer, IBO, offset, indexType);
 }
-// void CommandBuffer::BindDescriptorSets(const VkCommandBuffer& cmdBuffer,
-// VkPipelineBindPoint bindPoint, uint32_t firstSet, uint32_t descCount, const
-// VkPipelineLayout& pipelineLayout, const Ref<DescriptorSet>& descriptorSet,
-//     uint32_t dynamicOffsetCount, const uint32_t* dynamicOffsets)
-//{
-//     vkCmdBindDescriptorSets(cmdBuffer, bindPoint, pipelineLayout, firstSet,
-//     descCount, &descriptorSet->GetVKDescriptorSet(), dynamicOffsetCount,
-//     dynamicOffsets);
-// }
 void CommandBuffer::DrawIndexed(
     const VkCommandBuffer& cmdBuffer,
     uint32_t               indicesCount,

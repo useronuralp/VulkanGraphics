@@ -1,5 +1,22 @@
 #include "Instance.h"
 #include "Utils.h"
+
+// Helper for printing manual messages
+inline void PrintInfo(const std::string& msg)
+{
+    std::cout << BOLD_TEXT << BLUE_TEXT << "[INFO] " << RESET_TEXT << msg << std::endl;
+}
+
+inline void PrintWarning(const std::string& msg)
+{
+    std::cerr << BOLD_TEXT << YELLOW_TEXT << "[WARNING] " << RESET_TEXT << msg << std::endl;
+}
+
+inline void PrintError(const std::string& msg)
+{
+    std::cerr << BOLD_TEXT << RED_TEXT << "[ERROR] " << RESET_TEXT << msg << std::endl;
+}
+
 // A callback that will print error messages when validation layers are enabled.
 VKAPI_ATTR VkBool32 VKAPI_CALL Instance::DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
@@ -7,7 +24,27 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Instance::DebugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void*                                       pUserData)
 {
-    std::cerr << "!!! VALIDATION LAYER !!!: " << pCallbackData->pMessage << std::endl;
+    // Print severity label
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+        std::cerr << RED_TEXT << "[ERROR]";
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+        std::cerr << ORANGE_TEXT << "[WARNING]";
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+        std::cerr << GREEN_TEXT << "[INFO]";
+    else
+        std::cerr << CYAN_TEXT << "[VERBOSE]";
+
+    // Optional type labels
+    if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
+        std::cerr << " [GENERAL] " << RESET_TEXT;
+    if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
+        std::cerr << " [VALIDATION] " << RESET_TEXT;
+    if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+        std::cerr << " [PERFORMANCE] " << RESET_TEXT;
+
+    // Print the message
+    std::cerr << pCallbackData->pMessage << "\n\n";
+
     return VK_FALSE;
 }
 // A function pointer caller that creates a DebugMessengar object.
@@ -41,14 +78,15 @@ void Instance::DestroyDebugUtilsMessengerEXT(
 }
 Instance::Instance()
 {
+    PrintInfo("Enumerating instance extensions...");
     PrintAvailableExtensions();
 
     bool validationLayersSupported = CheckValidationLayerSupport();
 
     if (!validationLayersSupported)
     {
-        std::cerr << "Validation layers requsted, but it is not supported..." << std::endl;
-        std::cerr << "Continuing without enabling debug extensions." << std::endl;
+        PrintWarning("Validation layers requested but not supported.");
+        PrintWarning("Continuing without enabling debug extensions.");
     }
 
     // Optional but good to have.
@@ -103,7 +141,7 @@ Instance::Instance()
 
     ASSERT(vkCreateInstance(&vkCreateInfo, nullptr, &m_Instance) == VK_SUCCESS, "Failed to create instance.");
 
-    std::cout << "Instance has been created." << std::endl;
+    PrintInfo("Vulkan instance created successfully.");
 
     // Create the messenger handle here.
     if (validationLayersSupported)
@@ -121,9 +159,10 @@ Instance::Instance()
     vkEnumeratePhysicalDevices(m_Instance, &deviceCount, VKdevices.data());
     for (const auto& device : VKdevices)
     {
-        PhysicalDevice ANORdevice(m_Instance, device);
-        m_PhysicalDevices.push_back(ANORdevice);
+        PhysicalDevice pd(m_Instance, device);
+        m_PhysicalDevices.push_back(pd);
     }
+    PrintInfo("Enumerated " + std::to_string(VKdevices.size()) + " physical devices.");
 }
 Instance::~Instance()
 {
@@ -139,7 +178,7 @@ void Instance::PrintAvailableExtensions()
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
-    std::cout << "Supported Instance Extensions: \n";
+    PrintInfo("Supported Instance Extensions:");
     for (const auto& extension : availableExtensions)
     {
         std::cout << '\t' << extension.extensionName << '\n';
@@ -158,7 +197,7 @@ const std::vector<const char*> Instance::GetRequiredExtensions(bool isValLayersS
         extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     }
-    std::cout << "Required Instance Extensions: \n";
+    PrintInfo("Required Instance Extensions:");
     for (const auto& extension : extensions)
     {
         std::cout << '\t' << extension << std::endl;
@@ -166,6 +205,7 @@ const std::vector<const char*> Instance::GetRequiredExtensions(bool isValLayersS
 
     return extensions;
 }
+
 bool Instance::CheckValidationLayerSupport()
 {
     uint32_t layerCount;
@@ -174,7 +214,7 @@ bool Instance::CheckValidationLayerSupport()
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-    std::cout << "Supported Layers: \n";
+    PrintInfo("Supported Validation Layers:");
     for (const auto& layer : availableLayers)
         std::cout << '\t' << layer.layerName << std::endl;
 

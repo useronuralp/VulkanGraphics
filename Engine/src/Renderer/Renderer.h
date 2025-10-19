@@ -221,8 +221,8 @@ class Renderer
     void RenderFrame(const float InDeltaTime);
     void EndFrame();
     void Cleanup();
+    void UpdateViewport_Scissor();
 
-    void WindowResize();
     void InitImGui();
     void CreateSynchronizationPrimitives();
     void PollEvents();
@@ -243,6 +243,9 @@ class Renderer
     Ref<Framebuffer>              _HDRFramebuffer;
     std::vector<Ref<Framebuffer>> _PointShadowMapFramebuffers;
     std::vector<Ref<Framebuffer>> _SwapchainFramebuffers;
+
+    VkViewport _DynamicViewport{};
+    VkRect2D   _DynamicScissor;
 
     std::vector<VkSemaphore> _ImageAvailableSemaphores;
     std::vector<VkSemaphore> _RenderFinishedSemaphores;

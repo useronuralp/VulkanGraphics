@@ -619,7 +619,7 @@ void Bloom::SetupPipelines()
     // Brightness filter pipeline.
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = m_OneSamplerLayout;
-    specs.pRenderPass             = m_BrightnessIsolationPass;
+    specs.RenderPass              = m_BrightnessIsolationPass;
     specs.CullMode                = VK_CULL_MODE_NONE;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
@@ -628,7 +628,7 @@ void Bloom::SetupPipelines()
     specs.EnableDepthBias         = false;
     specs.EnableDepthTesting      = VK_FALSE;
     specs.EnableDepthWriting      = VK_FALSE;
-    specs.FrontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
     specs.PolygonMode             = VK_POLYGON_MODE_FILL;
     specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
     specs.FragmentShaderPath      = "assets/shaders/brightnessFilterFRAG.spv";
@@ -648,13 +648,13 @@ void Bloom::SetupPipelines()
 
     specs.ColorBlendAttachmentState          = colorBlendAttachment;
 
-    m_BrightnessFilterPipeline               = make_s<Pipeline>(specs);
+    m_BrightnessFilterPipeline               = make_s<Pipeline>(EngineInternal::GetContext(), specs);
 
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
     {
         // Blur downscaling passes
         specs.DescriptorSetLayout     = m_OneSamplerLayout;
-        specs.pRenderPass             = m_BlurRenderPass;
+        specs.RenderPass              = m_BlurRenderPass;
         specs.CullMode                = VK_CULL_MODE_NONE;
         specs.DepthBiasClamp          = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
@@ -663,7 +663,7 @@ void Bloom::SetupPipelines()
         specs.EnableDepthBias         = false;
         specs.EnableDepthTesting      = VK_FALSE;
         specs.EnableDepthWriting      = VK_FALSE;
-        specs.FrontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
         specs.PolygonMode             = VK_POLYGON_MODE_FILL;
         specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
         specs.FragmentShaderPath      = "assets/shaders/blurShaderFRAG.spv";
@@ -682,22 +682,22 @@ void Bloom::SetupPipelines()
 
         specs.ColorBlendAttachmentState          = colorBlendAttachment;
 
-        m_BlurPipelines[i]                       = make_s<Pipeline>(specs);
+        m_BlurPipelines[i]                       = make_s<Pipeline>(EngineInternal::GetContext(), specs);
 
         // Blur upscaling passes.
         specs.DescriptorSetLayout = m_TwoSamplerLayout;
-        specs.pRenderPass         = m_BlurRenderPass;
+        specs.RenderPass          = m_BlurRenderPass;
         specs.VertexShaderPath    = "assets/shaders/quadRenderVERT.spv";
         specs.FragmentShaderPath  = "assets/shaders/upscaleShaderFRAG.spv";
         specs.ViewportHeight      = m_UpscalingFramebuffers[i]->GetHeight();
         specs.ViewportWidth       = m_UpscalingFramebuffers[i]->GetWidth();
 
-        m_UpscalingPipelines[i]   = make_s<Pipeline>(specs);
+        m_UpscalingPipelines[i]   = make_s<Pipeline>(EngineInternal::GetContext(), specs);
     }
 
     // Merge pipeline.
     specs.DescriptorSetLayout     = m_TwoSamplerLayout;
-    specs.pRenderPass             = m_MergeRenderPass;
+    specs.RenderPass              = m_MergeRenderPass;
     specs.CullMode                = VK_CULL_MODE_NONE;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
@@ -706,7 +706,7 @@ void Bloom::SetupPipelines()
     specs.EnableDepthBias         = false;
     specs.EnableDepthTesting      = VK_FALSE;
     specs.EnableDepthWriting      = VK_FALSE;
-    specs.FrontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
     specs.PolygonMode             = VK_POLYGON_MODE_FILL;
     specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
     specs.FragmentShaderPath      = "assets/shaders/finalPassShaderFRAG.spv";
@@ -725,5 +725,5 @@ void Bloom::SetupPipelines()
 
     specs.ColorBlendAttachmentState          = colorBlendAttachment;
 
-    m_MergePipeline                          = make_u<Pipeline>(specs);
+    m_MergePipeline                          = make_u<Pipeline>(EngineInternal::GetContext(), specs);
 }

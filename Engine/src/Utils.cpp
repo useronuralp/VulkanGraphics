@@ -12,10 +12,9 @@ void Utils::PopulateDebugMessengerCreateInfo(
     VkDebugUtilsMessengerCreateInfoEXT&  createInfo,
     PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC)
 {
-    createInfo       = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity =
-        /*VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |*/
+    createInfo                 = {};
+    createInfo.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -83,15 +82,17 @@ void Utils::CreateVKBuffer(
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
     ASSERT(
-        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) == VK_SUCCESS,
+        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) ==
+            VK_SUCCESS,
         "Failed to allocate vertex buffer memory!");
     vkBindBufferMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), buffer, bufferMemory, 0);
 }
 
 uint32_t Utils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
-    VkPhysicalDeviceMemoryProperties memProperties   = EngineInternal::GetContext().GetPhysicalDevice()->GetVKDeviceMemoryProperties();
-    uint32_t                         memoryTypeIndex = -1;
+    VkPhysicalDeviceMemoryProperties memProperties =
+        EngineInternal::GetContext().GetPhysicalDevice()->GetVKDeviceMemoryProperties();
+    uint32_t memoryTypeIndex = -1;
 
     // TO DO: Understand this part and the bit shift.
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
@@ -124,13 +125,13 @@ void Utils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size
     CommandBuffer::Submit(
         singleCmdBuffer,
         EngineInternal::GetContext().GetDevice()->GetTransferQueue()); // Graphics queue usually supports transfer
-                                                               // operations as well. At least in NVIDIA
-                                                               // cards.
+                                                                       // operations as well. At least in NVIDIA
+                                                                       // cards.
     CommandBuffer::FreeCommandBuffer(
         singleCmdBuffer,
         singleCmdPool,
         EngineInternal::GetContext().GetDevice()->GetTransferQueue()); // Wait for the queue to idle
-                                                               // to free the cmd buffer.
+                                                                       // to free the cmd buffer.
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
@@ -170,7 +171,8 @@ VkSampler Utils::CreateSampler(
         samplerInfo.minFilter               = minFilter;
 
         ASSERT(
-            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) ==
+                VK_SUCCESS,
             "Failed to create texture sampler!");
     }
     else // Depth
@@ -188,7 +190,8 @@ VkSampler Utils::CreateSampler(
         samplerInfo.borderColor   = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
         ASSERT(
-            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) ==
+                VK_SUCCESS,
             "Failed to create texture sampler!");
     }
 
@@ -205,12 +208,12 @@ VkSampler Utils::CreateCubemapSampler()
 
     // Repeats the texture when going out of the sampling range. You might wanna
     // expose this variable during ImageBufferCreation.
-    samplerInfo.addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable        = VK_TRUE;
-    samplerInfo.maxAnisotropy           = EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.addressModeU     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxAnisotropy = EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy;
+    samplerInfo.borderColor   = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable           = VK_TRUE;
     samplerInfo.compareOp               = VK_COMPARE_OP_ALWAYS;
@@ -239,7 +242,8 @@ VkFormat Utils::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkI
     for (VkFormat format : candidates)
     {
         VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), format, &props);
+        vkGetPhysicalDeviceFormatProperties(
+            EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), format, &props);
 
         if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
         {
