@@ -1,7 +1,7 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "Framebuffer.h"
 #include "LogicalDevice.h"
 #include "Pipeline.h"
@@ -21,7 +21,8 @@ void CommandBuffer::CreateCommandBuffer(VkCommandBuffer& outCmdBuffer, const VkC
     allocInfo.commandBufferCount = 1;
 
     ASSERT(
-        vkAllocateCommandBuffers(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &outCmdBuffer) == VK_SUCCESS,
+        vkAllocateCommandBuffers(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &outCmdBuffer) ==
+            VK_SUCCESS,
         "Failed to allocate command buffer memory");
 }
 void CommandBuffer::CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool)
@@ -34,7 +35,8 @@ void CommandBuffer::CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommand
                                                   // queueFamilyIndex.
 
     ASSERT(
-        vkCreateCommandPool(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &outCmdPool) == VK_SUCCESS,
+        vkCreateCommandPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &outCmdPool) ==
+            VK_SUCCESS,
         "Failed to create command pool!");
 }
 void CommandBuffer::BeginRecording(const VkCommandBuffer& cmdBuffer)
@@ -107,7 +109,7 @@ void CommandBuffer::FreeCommandBuffer(
     const VkQueue&         queueToWaitFor)
 {
     vkQueueWaitIdle(queueToWaitFor);
-    vkFreeCommandBuffers(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), cmdPool, 1, &cmdBuffer);
+    vkFreeCommandBuffers(EngineInternal::GetContext().GetDevice()->GetVKDevice(), cmdPool, 1, &cmdBuffer);
 }
 void CommandBuffer::Submit(const VkCommandBuffer& cmdBuffer, const VkQueue& queue)
 {
@@ -120,12 +122,12 @@ void CommandBuffer::Submit(const VkCommandBuffer& cmdBuffer, const VkQueue& queu
 }
 void CommandBuffer::Reset(const VkCommandBuffer& cmdBuffer)
 {
-    // vkQueueWaitIdle(Engine::GetEngine().GetContext().GetDevice()->GetGraphicsQueue());
+    // vkQueueWaitIdle(EngineInternal::GetContext().GetDevice()->GetGraphicsQueue());
     vkResetCommandBuffer(cmdBuffer, 0);
 }
 void CommandBuffer::DestroyCommandPool(const VkCommandPool& pool)
 {
-    vkDestroyCommandPool(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), pool, nullptr);
+    vkDestroyCommandPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), pool, nullptr);
 }
 void CommandBuffer::PushConstants(
     const VkCommandBuffer&  cmdBuffer,

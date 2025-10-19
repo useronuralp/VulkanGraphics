@@ -1,9 +1,9 @@
-#include "Engine.h"
+#include "Engine/Engine.h"
 
 int main()
 {
-    Engine::GetEngine().Init();
-    Engine::GetEngine().Run();
+    Engine::Get().Init();
+    Engine::Get().Run();
     // TODO: Implement Scene interface
     // auto scene = engine.CreateScene();
     //

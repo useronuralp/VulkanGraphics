@@ -1,6 +1,13 @@
 #pragma once
-#include "OVKLib.h"
+// #include "OVKLib.h"
+#include "Pipeline.h"
 #include "Renderer/RenderPass.h"
+
+// TODO: Move somewhere else
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+#include <random>
+
 class VulkanContext;
 class Swapchain;
 class Pipeline;
@@ -10,6 +17,8 @@ class Image;
 class Model;
 class ParticleSystem;
 class DescriptorSetLayout;
+class Bloom;
+class DescriptorPool;
 
 #define MAX_FRAMES_IN_FLIGHT  1
 #define MAX_POINT_LIGHT_COUNT 10
@@ -17,7 +26,6 @@ class DescriptorSetLayout;
 #define POUNT_SHADOW_DIM      1000
 #define MAX_FRAMES_IN_FLIGHT  1
 #define READY_TO_ACQUIRE      -1
-#define STB_IMAGE_IMPLEMENTATION
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -71,19 +79,6 @@ class Renderer
         glm::vec4 fstop;
     };
 
-    struct CloudParametersUBO
-    {
-        glm::mat4 viewMatrix;
-        glm::mat4 projMatrix;
-        glm::vec4 BoundsMax;
-        glm::vec4 BoundsMin;
-        glm::vec4 CameraPosition;
-    };
-
-    Ref<Framebuffer>              directionalShadowMapFramebuffer;
-    Ref<Framebuffer>              HDRFramebuffer;
-    std::vector<Ref<Framebuffer>> pointShadowMapFramebuffers;
-    std::vector<Ref<Framebuffer>> swapchainFramebuffers;
     // Attachments. Each framebuffer can have multiple attachments.
     Ref<Image>              directionalShadowMapImage;
     Ref<Image>              HDRColorImage;
@@ -94,18 +89,12 @@ class Renderer
     Ref<Image>              fireTexture;
     std::vector<Ref<Image>> pointShadowMaps;
 
-    Unique<RenderPass> pointShadowRenderPass;
-    Unique<RenderPass> HDRRenderPass;
-    Unique<RenderPass> shadowMapRenderPass;
-    Unique<RenderPass> swapchainRenderPass;
-
     // Descriptor Set Layouts
     Ref<DescriptorSetLayout> swapchainLayout;
     Ref<DescriptorSetLayout> emissiveLayout;
     Ref<DescriptorSetLayout> PBRLayout;
     Ref<DescriptorSetLayout> skyboxLayout;
     Ref<DescriptorSetLayout> cubeLayout;
-    Ref<DescriptorSetLayout> cloudLayout;
     Ref<DescriptorSetLayout> particleSystemLayout;
 
     // Descriptor Pools
@@ -119,7 +108,6 @@ class Renderer
     Ref<Pipeline> shadowPassPipeline;
     Ref<Pipeline> skyboxPipeline;
     Ref<Pipeline> cubePipeline;
-    Ref<Pipeline> cloudPipeline;
     Ref<Pipeline> particleSystemPipeline;
 
     // Models
@@ -129,7 +117,6 @@ class Renderer
     Ref<Model> torch;
     Ref<Model> skybox;
     Ref<Model> cube;
-    Ref<Model> clouds;
 
     Ref<ParticleSystem> fireBase;
     Ref<ParticleSystem> fireBase2;
@@ -146,17 +133,11 @@ class Renderer
     VkDeviceMemory      globalParametersUBOBufferMemory;
     void*               mappedGlobalParametersModelUBOBuffer;
 
-    CloudParametersUBO cloudParametersUBO;
-    VkBuffer           cloudParametersUBOBuffer;
-    VkDeviceMemory     cloudParametersUBOBufferMemory;
-    void*              mappedCloudParametersUBOBuffer;
-
     // Others
     VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
     VkCommandPool   cmdPool;
     Ref<Bloom>      bloomAgent;
     VkSampler       finalPassSampler;
-    VkSampler       finalPassWorleySampler;
     VkDescriptorSet finalPassDescriptorSet;
 
     std::random_device               rd; // obtain a random number from hardware
@@ -219,7 +200,6 @@ class Renderer
     void SetupBokehPassPipeline();
     void SetupSkyboxPipeline();
     void SetupCubePipeline();
-    void SetupCloudPipeline();
     void SetupParticleSystemPipeline();
     void SetupEmissiveObjectPipeline();
 
@@ -241,6 +221,7 @@ class Renderer
     void RenderFrame(const float InDeltaTime);
     void EndFrame();
     void Cleanup();
+
     void WindowResize();
     void InitImGui();
     void CreateSynchronizationPrimitives();
@@ -253,18 +234,20 @@ class Renderer
     Ref<Swapchain> _Swapchain;
     Ref<Camera>    _Camera;
 
-    float        _DeltaTime;
-    VkRenderPass _HDRRenderPass;
-    VkRenderPass _ShadowRenderPass;
-    VkRenderPass _PointShadowRenderPass;
+    Unique<RenderPass> _PointShadowRenderPass;
+    Unique<RenderPass> _HDRRenderPass;
+    Unique<RenderPass> _ShadowMapRenderPass;
+    Unique<RenderPass> _SwapchainRenderPass;
 
+    Ref<Framebuffer>              _DirectionalShadowMapFramebuffer;
     Ref<Framebuffer>              _HDRFramebuffer;
-    Ref<Framebuffer>              _DirectionalShadowFramebuffer;
-    std::vector<Ref<Framebuffer>> _PointShadowFramebuffers;
+    std::vector<Ref<Framebuffer>> _PointShadowMapFramebuffers;
+    std::vector<Ref<Framebuffer>> _SwapchainFramebuffers;
 
     std::vector<VkSemaphore> _ImageAvailableSemaphores;
     std::vector<VkSemaphore> _RenderFinishedSemaphores;
     std::vector<VkFence>     _InFlightFences;
 
+    float    _DeltaTime;
     uint32_t _CurrentFrame = 0;
 };

@@ -1,8 +1,16 @@
 #include "Camera.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "Renderer/Renderer.h"
 #include "Surface.h"
+#include "Swapchain.h"
 #include "VulkanContext.h"
+#include "Window.h"
+
+Engine& Engine::Get()
+{
+    static Engine instance;
+    return instance;
+}
 
 void Engine::Init()
 {
@@ -40,17 +48,6 @@ void Engine::Run()
     }
 
     Shutdown();
-}
-
-VulkanContext& Engine::GetContext()
-{
-    return *_Context;
-}
-
-Engine& Engine::GetEngine()
-{
-    static Engine instance;
-    return instance;
 }
 
 void Engine::Shutdown()

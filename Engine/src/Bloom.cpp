@@ -1,7 +1,7 @@
 #include "Bloom.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "Framebuffer.h"
 #include "Image.h"
 #include "LogicalDevice.h"
@@ -43,20 +43,20 @@ Bloom::Bloom()
 
 Bloom::~Bloom()
 {
-    vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_BrigtnessFilterSampler, nullptr);
-    vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_MergeSamplerHDR, nullptr);
-    vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_MergeSamplerBloom, nullptr);
+    vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BrigtnessFilterSampler, nullptr);
+    vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_MergeSamplerHDR, nullptr);
+    vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_MergeSamplerBloom, nullptr);
 
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
     {
-        vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_UpscalingSamplersSecond[i], nullptr);
-        vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_UpscalingSamplersFirst[i], nullptr);
-        vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_BlurSamplers[i], nullptr);
+        vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_UpscalingSamplersSecond[i], nullptr);
+        vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_UpscalingSamplersFirst[i], nullptr);
+        vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BlurSamplers[i], nullptr);
     }
 
-    vkDestroyRenderPass(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_MergeRenderPass, nullptr);
-    vkDestroyRenderPass(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_BlurRenderPass, nullptr);
-    vkDestroyRenderPass(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_BrightnessIsolationPass, nullptr);
+    vkDestroyRenderPass(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_MergeRenderPass, nullptr);
+    vkDestroyRenderPass(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BlurRenderPass, nullptr);
+    vkDestroyRenderPass(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BrightnessIsolationPass, nullptr);
 }
 
 void Bloom::ConnectImageResourceToAddBloomTo(const Ref<Image>& frame)
@@ -70,7 +70,7 @@ void Bloom::ConnectImageResourceToAddBloomTo(const Ref<Image>& frame)
     }
     else
     {
-        vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_BrigtnessFilterSampler, nullptr);
+        vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BrigtnessFilterSampler, nullptr);
         m_BrigtnessFilterSampler = Utils::CreateSampler(
             m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
     }
@@ -266,7 +266,7 @@ void Bloom::CreateRenderPasses()
 
     ASSERT(
         vkCreateRenderPass(
-            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+            EngineInternal::GetContext().GetDevice()->GetVKDevice(),
             &isolationRenderPassInfo,
             nullptr,
             &m_BrightnessIsolationPass) == VK_SUCCESS,
@@ -316,7 +316,7 @@ void Bloom::CreateRenderPasses()
 
     ASSERT(
         vkCreateRenderPass(
-            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &blurRenderPassInfo, nullptr, &m_BlurRenderPass) ==
+            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &blurRenderPassInfo, nullptr, &m_BlurRenderPass) ==
             VK_SUCCESS,
         "Failed to create a render pass.");
 
@@ -365,7 +365,7 @@ void Bloom::CreateRenderPasses()
 
     ASSERT(
         vkCreateRenderPass(
-            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &mergeRenderPassInfo, nullptr, &m_MergeRenderPass) ==
+            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &mergeRenderPassInfo, nullptr, &m_MergeRenderPass) ==
             VK_SUCCESS,
         "Failed to create a render pass.");
 }
@@ -373,8 +373,8 @@ void Bloom::CreateRenderPasses()
 void Bloom::CreateFramebuffers()
 {
     m_BrightnessIsolatedImage = std::make_unique<Image>(
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height,
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().width,
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().height,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         ImageType::COLOR);
@@ -386,12 +386,12 @@ void Bloom::CreateFramebuffers()
     m_BrightnessIsolatedFramebuffer = std::make_unique<Framebuffer>(
         m_BrightnessIsolationPass,
         attachments,
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height);
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().width,
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().height);
 
     // Setup the blur pass framebuffers.
-    uint32_t width  = Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().width;
-    uint32_t height = Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height;
+    uint32_t width  = EngineInternal::GetContext().GetSurface()->GetVKExtent().width;
+    uint32_t height = EngineInternal::GetContext().GetSurface()->GetVKExtent().height;
     // TO DO: make the iteration count n - 1 as the first iteration will use the
     // image rendered by the HDR render pass.
 
@@ -430,8 +430,8 @@ void Bloom::CreateFramebuffers()
     }
 
     m_MergeColorBuffer = make_s<Image>(
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height,
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().width,
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().height,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         ImageType::COLOR);
@@ -442,8 +442,8 @@ void Bloom::CreateFramebuffers()
     m_MergeFramebuffer = std::make_unique<Framebuffer>(
         m_MergeRenderPass,
         attachments,
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().width,
-        Engine::GetEngine().GetContext().GetSurface()->GetVKExtent().height);
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().width,
+        EngineInternal::GetContext().GetSurface()->GetVKExtent().height);
 }
 
 void Bloom::SetupDesciptorSets()
@@ -456,7 +456,7 @@ void Bloom::SetupDesciptorSets()
     allocInfo.pSetLayouts        = &m_OneSamplerLayout->GetDescriptorLayout();
 
     VkResult rslt                = vkAllocateDescriptorSets(
-        Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BrigtnessFilterDescriptorSet);
+        EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BrigtnessFilterDescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     // Merge descriptor set
@@ -465,8 +465,7 @@ void Bloom::SetupDesciptorSets()
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &m_TwoSamplerLayout->GetDescriptorLayout();
 
-    rslt =
-        vkAllocateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_MergeDescriptorSet);
+    rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_MergeDescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
@@ -478,7 +477,7 @@ void Bloom::SetupDesciptorSets()
         allocInfo.pSetLayouts        = &m_OneSamplerLayout->GetDescriptorLayout();
 
         VkResult rslt                = vkAllocateDescriptorSets(
-            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BlurDescriptorSets[i]);
+            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BlurDescriptorSets[i]);
         ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
         // Upscaling descs.
@@ -488,7 +487,7 @@ void Bloom::SetupDesciptorSets()
         allocInfo.pSetLayouts        = &m_TwoSamplerLayout->GetDescriptorLayout();
 
         rslt                         = vkAllocateDescriptorSets(
-            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_UpscalingDescriptorSets[i]);
+            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_UpscalingDescriptorSets[i]);
         ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
     }
 
@@ -726,5 +725,5 @@ void Bloom::SetupPipelines()
 
     specs.ColorBlendAttachmentState          = colorBlendAttachment;
 
-    m_MergePipeline                          = std::make_unique<Pipeline>(specs);
+    m_MergePipeline                          = make_u<Pipeline>(specs);
 }

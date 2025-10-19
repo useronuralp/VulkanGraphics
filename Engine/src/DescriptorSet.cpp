@@ -1,5 +1,5 @@
 #include "DescriptorSet.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "LogicalDevice.h"
 #include "Pipeline.h"
 #include "VulkanContext.h"
@@ -65,7 +65,7 @@
 //	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 //	layoutInfo.pBindings = bindings.data();
 //
-//	ASSERT(vkCreateDescriptorSetLayout(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//	ASSERT(vkCreateDescriptorSetLayout(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //&layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS, "Failed to create
 // descriptor set layout!");
 //
@@ -76,7 +76,7 @@
 //	poolInfo.maxSets = 1; // Needs to reflect the number of descriptor sets you
 // want to create. We are currently creating only 1.
 //
-//	ASSERT(vkCreateDescriptorPool(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//	ASSERT(vkCreateDescriptorPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //&poolInfo, nullptr, &m_DescriptorPool) == VK_SUCCESS, "Failed to create
 // descriptor pool!");
 //
@@ -88,7 +88,7 @@
 // descriptor sets you are creating. 	allocInfo.pSetLayouts =
 //&m_DescriptorSetLayout;
 //
-//	ASSERT(vkAllocateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//	ASSERT(vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //&allocInfo, &m_DescriptorSet) == VK_SUCCESS, "Failed to allocate descriptor
 // sets!");
 // }
@@ -103,15 +103,15 @@
 //&layout.GetDescriptorLayout();
 //
 //	VkResult rslt =
-// vkAllocateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+// vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //&allocInfo, &m_DescriptorSet); 	ASSERT(rslt == VK_SUCCESS, "Failed to
 // allocate descriptor sets!");
 // }
 // DescriptorSet::~DescriptorSet()
 //{
-//	vkDestroyDescriptorPool(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//	vkDestroyDescriptorPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 // m_DescriptorPool, nullptr);
-//	vkDestroyDescriptorSetLayout(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//	vkDestroyDescriptorSetLayout(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 // m_DescriptorSetLayout, nullptr);
 // }
 DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDescriptorType> types)
@@ -132,13 +132,13 @@ DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDe
     // poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
     ASSERT(
-        vkCreateDescriptorPool(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) ==
+        vkCreateDescriptorPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) ==
             VK_SUCCESS,
         "Failed to create descriptor pool!");
 }
 DescriptorPool::~DescriptorPool()
 {
-    vkDestroyDescriptorPool(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_DescriptorPool, nullptr);
+    vkDestroyDescriptorPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_DescriptorPool, nullptr);
 }
 DescriptorSetLayout::DescriptorSetLayout(const std::vector<DescriptorSetBindingSpecs>& layout)
 {
@@ -175,10 +175,10 @@ DescriptorSetLayout::DescriptorSetLayout(const std::vector<DescriptorSetBindingS
 
     ASSERT(
         vkCreateDescriptorSetLayout(
-            Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS,
+            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS,
         "Failed to create descriptor set layout!");
 }
 DescriptorSetLayout::~DescriptorSetLayout()
 {
-    vkDestroyDescriptorSetLayout(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_DescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_DescriptorSetLayout, nullptr);
 }

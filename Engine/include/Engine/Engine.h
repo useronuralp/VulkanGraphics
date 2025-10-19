@@ -1,5 +1,6 @@
 #pragma once
 #include "core.h"
+#include "Scene.h"
 
 #include <memory>
 
@@ -15,8 +16,7 @@ class Engine
     void Init();
     void Run();
 
-    static Engine& GetEngine();
-    VulkanContext& GetContext();
+    static Engine& Get();
 
     // Scene API
     Ref<Scene> CreateScene() {};
@@ -42,4 +42,6 @@ class Engine
 
    private:
     float _LastFrameTime = 0.0f;
+
+    friend class EngineInternal;
 };

@@ -1,12 +1,14 @@
 #pragma once
-#include "VulkanContext.h"
 
 #include <iostream>
 #include <vector>
 class Framebuffer;
-class RenderPass {
+class VulkanContext;
+class RenderPass
+{
    public:
-    struct AttachmentInfo {
+    struct AttachmentInfo
+    {
         VkFormat            Format;
         VkImageLayout       FinalLayout;
         VkAttachmentLoadOp  LoadOp;
@@ -14,7 +16,8 @@ class RenderPass {
         VkClearValue        ClearValue;
     };
 
-    struct CreateInfo {
+    struct CreateInfo
+    {
         std::vector<AttachmentInfo>      Attachments;
         std::vector<VkSubpassDependency> Dependencies;
         bool                             HasDepth = false;
@@ -23,9 +26,8 @@ class RenderPass {
 
    public:
     RenderPass() = default;
-    RenderPass(VulkanContext& InContext, const CreateInfo& InInfo);
     ~RenderPass();
-
+    RenderPass(VulkanContext& InContext, const CreateInfo& InInfo);
     void Begin(VkCommandBuffer InCmdBuffer, Framebuffer& InFramebuffer);
     void End(VkCommandBuffer InCmdBuffer);
 

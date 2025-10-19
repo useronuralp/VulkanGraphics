@@ -1,5 +1,6 @@
 #pragma once
 #include "core.h"
+
 // External
 #include "vulkan/vulkan.h"
 

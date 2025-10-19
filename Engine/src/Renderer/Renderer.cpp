@@ -1,9 +1,25 @@
-#include "Engine.h"
-#include "OVKLib.h"
+#include "Bloom.h"
+#include "Camera.h"
+#include "CommandBuffer.h"
+#include "DescriptorSet.h"
+#include "EngineInternal.h"
+#include "Framebuffer.h"
+#include "Instance.h"
+#include "LogicalDevice.h"
+#include "Mesh.h"
+#include "Model.h"
+#include "ParticleSystem.h"
+#include "PhysicalDevice.h"
+// #include "Pipeline.h"
 #include "Renderer.h"
-#include "Renderer/RenderPass.h"
+#include "Surface.h"
+#include "Swapchain.h"
+#include "Utils.h"
 #include "VulkanContext.h"
+#include "Window.h"
 
+#include <Curl.h>
+#include <filesystem>
 #include <iostream>
 
 Renderer::Renderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
@@ -26,7 +42,7 @@ void Renderer::Init()
 
     CurlNoise::SetCurlSettings(false, 4.0f, 6, 1.0, 0.0);
     pointShadowMaps.resize(globalParametersUBO.pointLightCount.x);
-    pointShadowMapFramebuffers.resize(globalParametersUBO.pointLightCount.x);
+    _PointShadowMapFramebuffers.resize(globalParametersUBO.pointLightCount.x);
 
     std::vector<DescriptorSetBindingSpecs> hdrLayout{
         DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER,
@@ -57,7 +73,6 @@ void Renderer::Init()
 
     std::vector<DescriptorSetBindingSpecs> SwapchainLayout{
         DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
-        DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, sizeof(CloudParametersUBO), 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 },
         DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 2 },
     };
 
@@ -66,10 +81,6 @@ void Renderer::Init()
     };
 
     std::vector<DescriptorSetBindingSpecs> CubeLayout{
-        DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, sizeof(glm::mat4) * 2, 1, VK_SHADER_STAGE_VERTEX_BIT, 0 },
-    };
-
-    std::vector<DescriptorSetBindingSpecs> CloudLayout{
         DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, sizeof(glm::mat4) * 2, 1, VK_SHADER_STAGE_VERTEX_BIT, 0 },
     };
 
@@ -87,7 +98,6 @@ void Renderer::Init()
     particleSystemLayout = make_s<DescriptorSetLayout>(ParticleSystemLayout);
     skyboxLayout         = make_s<DescriptorSetLayout>(SkyboxLayout);
     cubeLayout           = make_s<DescriptorSetLayout>(CubeLayout);
-    cloudLayout          = make_s<DescriptorSetLayout>(CloudLayout);
     PBRLayout            = make_s<DescriptorSetLayout>(hdrLayout);
     swapchainLayout      = make_s<DescriptorSetLayout>(SwapchainLayout);
     emissiveLayout       = make_s<DescriptorSetLayout>(EmissiveLayout);
@@ -107,20 +117,6 @@ void Renderer::Init()
         sizeof(GlobalParametersUBO),
         0,
         &mappedGlobalParametersModelUBOBuffer);
-
-    Utils::CreateVKBuffer(
-        sizeof(CloudParametersUBO),
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        cloudParametersUBOBuffer,
-        cloudParametersUBOBufferMemory);
-    vkMapMemory(
-        _Context.GetDevice()->GetVKDevice(),
-        cloudParametersUBOBufferMemory,
-        0,
-        sizeof(CloudParametersUBO),
-        0,
-        &mappedCloudParametersUBOBuffer);
 
     // Create an image for the shadowmap. We will render to this image when
     // we are doing a shadow pass.
@@ -176,7 +172,6 @@ void Renderer::Init()
     SetupShadowPassPipeline();
     SetupSkyboxPipeline();
     SetupCubePipeline();
-    SetupCloudPipeline();
     SetupPointShadowPassPipeline();
     SetupEmissiveObjectPipeline();
     SetupParticleSystemPipeline();
@@ -185,7 +180,8 @@ void Renderer::Init()
     // Directional light shadowmap framebuffer.
     std::vector<VkImageView> attachments = { directionalShadowMapImage->GetImageView() };
 
-    directionalShadowMapFramebuffer = make_s<Framebuffer>(shadowMapRenderPass->GetHandle(), attachments, SHADOW_DIM, SHADOW_DIM);
+    _DirectionalShadowMapFramebuffer =
+        make_s<Framebuffer>(_ShadowMapRenderPass->GetHandle(), attachments, SHADOW_DIM, SHADOW_DIM);
 
     // Framebuffers need for point light shadows. (Dependent on the number
     // of point lights in the scene)
@@ -193,8 +189,8 @@ void Renderer::Init()
     {
         attachments = { pointShadowMaps[i]->GetImageView() };
 
-        pointShadowMapFramebuffers[i] =
-            make_s<Framebuffer>(pointShadowRenderPass->GetHandle(), attachments, POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, 6);
+        _PointShadowMapFramebuffers[i] =
+            make_s<Framebuffer>(_PointShadowRenderPass->GetHandle(), attachments, POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, 6);
     }
 
     // Loading the model Sponza
@@ -343,11 +339,6 @@ void Renderer::Init()
     Utils::UpdateDescriptorSet(
         cube->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
-    clouds = make_s<Model>(cubeVertices, vertexCount, nullptr, pool, cloudLayout);
-
-    Utils::UpdateDescriptorSet(
-        clouds->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
-
     CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, cmdPool);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -360,22 +351,9 @@ void Renderer::Init()
 
     finalPassSampler = Utils::CreateSampler(
         bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-    finalPassWorleySampler = Utils::CreateSampler(
-        worleyNoiseTexture,
-        ImageType::COLOR,
-        VK_FILTER_LINEAR,
-        VK_FILTER_LINEAR,
-        VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        VK_FALSE);
+
     Utils::UpdateDescriptorSet(
         finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    Utils::UpdateDescriptorSet(finalPassDescriptorSet, cloudParametersUBOBuffer, 0, sizeof(CloudParametersUBO), 1);
-    Utils::UpdateDescriptorSet(
-        finalPassDescriptorSet,
-        finalPassWorleySampler,
-        worleyNoiseTexture->GetImageView(),
-        2,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     bokehPassSceneSampler = Utils::CreateSampler(
         bloomAgent->GetPostProcessedImage(),
@@ -457,7 +435,7 @@ void Renderer::SetupPBRPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = PBRLayout;
-    specs.pRenderPass             = HDRRenderPass->GetHandle();
+    specs.pRenderPass             = _HDRRenderPass->GetHandle();
     specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
@@ -532,7 +510,7 @@ void Renderer::SetupFinalPassPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = swapchainLayout;
-    specs.pRenderPass             = swapchainRenderPass->GetHandle();
+    specs.pRenderPass             = _SwapchainRenderPass->GetHandle();
     specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
@@ -565,7 +543,7 @@ void Renderer::SetupShadowPassPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = PBRLayout;
-    specs.pRenderPass             = shadowMapRenderPass->GetHandle();
+    specs.pRenderPass             = _ShadowMapRenderPass->GetHandle();
     specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 1.25f;
@@ -623,7 +601,7 @@ void Renderer::SetupPointShadowPassPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = PBRLayout;
-    specs.pRenderPass             = pointShadowRenderPass->GetHandle();
+    specs.pRenderPass             = _PointShadowRenderPass->GetHandle();
     specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 1.25f;
@@ -693,7 +671,7 @@ void Renderer::SetupSkyboxPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = skyboxLayout;
-    specs.pRenderPass             = HDRRenderPass->GetHandle();
+    specs.pRenderPass             = _HDRRenderPass->GetHandle();
     specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
@@ -749,7 +727,7 @@ void Renderer::SetupCubePipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = cubeLayout;
-    specs.pRenderPass             = HDRRenderPass->GetHandle();
+    specs.pRenderPass             = _HDRRenderPass->GetHandle();
     specs.CullMode                = VK_CULL_MODE_NONE;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
@@ -802,71 +780,12 @@ void Renderer::SetupCubePipeline()
     cubePipeline                           = make_s<Pipeline>(specs);
 }
 
-void Renderer::SetupCloudPipeline()
-{
-    worleyNoiseTexture = make_s<Image>(
-        std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/WorleyNoise.jpg") }, VK_FORMAT_R8G8B8A8_SRGB);
-
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = cloudLayout;
-    specs.pRenderPass             = HDRRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_NONE;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_TRUE;
-    specs.EnableDepthWriting      = VK_TRUE;
-    specs.FrontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/CloudsVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/CloudsFRAG.spv";
-
-    VkPushConstantRange pcRange;
-    pcRange.offset           = 0;
-    pcRange.size             = sizeof(glm::mat4) + sizeof(glm::vec4);
-    pcRange.stageFlags       = VK_SHADER_STAGE_VERTEX_BIT;
-
-    specs.PushConstantRanges = { pcRange };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bindingDescription3.binding              = 0;
-    bindingDescription3.stride               = sizeof(glm::vec3);
-    bindingDescription3.inputRate            = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions3.resize(1);
-    // For position
-    attributeDescriptions3[0].binding      = 0;
-    attributeDescriptions3[0].location     = 0;
-    attributeDescriptions3[0].format       = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions3[0].offset       = 0;
-
-    specs.VertexInputBindingCount          = 1;
-    specs.pVertexInputBindingDescriptions  = &bindingDescription3;
-    specs.VertexInputAttributeCount        = attributeDescriptions3.size();
-    specs.pVertexInputAttributeDescriptons = attributeDescriptions3.data();
-
-    cloudPipeline                          = make_s<Pipeline>(specs);
-}
 void Renderer::SetupParticleSystemPipeline()
 {
     Pipeline::Specs          particleSpecs{};
     Ref<DescriptorSetLayout> layout       = particleSystemLayout;
     particleSpecs.DescriptorSetLayout     = layout;
-    particleSpecs.pRenderPass             = HDRRenderPass->GetHandle();
+    particleSpecs.pRenderPass             = _HDRRenderPass->GetHandle();
     particleSpecs.CullMode                = VK_CULL_MODE_BACK_BIT;
     particleSpecs.DepthBiasClamp          = 0.0f;
     particleSpecs.DepthBiasConstantFactor = 0.0f;
@@ -963,7 +882,7 @@ void Renderer::SetupEmissiveObjectPipeline()
     // Emissive object pipeline.
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout = emissiveLayout;
-    specs.pRenderPass         = HDRRenderPass->GetHandle();
+    specs.pRenderPass         = _HDRRenderPass->GetHandle();
     specs.VertexShaderPath    = "assets/shaders/emissiveShaderVERT.spv";
     specs.FragmentShaderPath  = "assets/shaders/emissiveShaderFRAG.spv";
 
@@ -1197,7 +1116,7 @@ void Renderer::CreateSwapchainRenderPass()
 
     RenderPass::CreateInfo HDRCreateInfo{ { colorAttachment }, { dep }, false, "Swapchain Final Pass (rename)" };
 
-    swapchainRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
+    _SwapchainRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
 }
 
 void Renderer::CreateHDRRenderPass()
@@ -1224,7 +1143,7 @@ void Renderer::CreateHDRRenderPass()
 
     RenderPass::CreateInfo HDRCreateInfo{ { colorAttachment, depthAttachment }, { dep }, true, "HDR Render Pass" };
 
-    HDRRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
+    _HDRRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
 }
 void Renderer::CreateShadowRenderPass()
 {
@@ -1245,7 +1164,7 @@ void Renderer::CreateShadowRenderPass()
 
     RenderPass::CreateInfo shadowRenderPassInfo{ { depthAttachment }, { dep }, true, "Directional Shadow Render Pass" };
 
-    shadowMapRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
+    _ShadowMapRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
 }
 
 void Renderer::CreatePointShadowRenderPass()
@@ -1267,7 +1186,7 @@ void Renderer::CreatePointShadowRenderPass()
 
     RenderPass::CreateInfo shadowRenderPassInfo{ { depthAttachment }, { dep }, true, "Point Light Shadow Render Pass" };
 
-    pointShadowRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
+    _PointShadowRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
 }
 
 void Renderer::EnableDepthOfField()
@@ -1359,9 +1278,9 @@ void Renderer::CreateBokehRenderPass()
 
 void Renderer::CreateSwapchainFramebuffers()
 {
-    if (swapchainFramebuffers.size() > 0)
+    if (_SwapchainFramebuffers.size() > 0)
     {
-        swapchainFramebuffers.clear();
+        _SwapchainFramebuffers.clear();
     }
 
     for (auto imageView : _Swapchain->GetImageViews())
@@ -1371,8 +1290,8 @@ void Renderer::CreateSwapchainFramebuffers()
         std::vector<VkImageView> attachments = {
             imageView,
         };
-        swapchainFramebuffers.push_back(make_s<Framebuffer>(
-            swapchainRenderPass->GetHandle(),
+        _SwapchainFramebuffers.push_back(make_s<Framebuffer>(
+            _SwapchainRenderPass->GetHandle(),
             attachments,
             _Context.GetSurface()->GetVKExtent().width,
             _Context.GetSurface()->GetVKExtent().height));
@@ -1397,8 +1316,8 @@ void Renderer::CreateHDRFramebuffer()
 
     std::vector<VkImageView> attachments = { HDRColorImage->GetImageView(), HDRDepthImage->GetImageView() };
 
-    HDRFramebuffer                       = make_s<Framebuffer>(
-        HDRRenderPass->GetHandle(),
+    _HDRFramebuffer                      = make_s<Framebuffer>(
+        _HDRRenderPass->GetHandle(),
         attachments,
         _Context.GetSurface()->GetVKExtent().width,
         _Context.GetSurface()->GetVKExtent().height);
@@ -1439,13 +1358,10 @@ void Renderer::Cleanup()
     }
     CommandBuffer::DestroyCommandPool(cmdPool);
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
     vkFreeMemory(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
-    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBufferMemory, nullptr);
     vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
-    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), cloudParametersUBOBuffer, nullptr);
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
@@ -1458,7 +1374,6 @@ void Renderer::WindowResize()
     pipeline->ReConstruct();
     shadowPassPipeline->ReConstruct();
     cubePipeline->ReConstruct();
-    cloudPipeline->ReConstruct();
     skyboxPipeline->ReConstruct();
     particleSystemPipeline->ReConstruct();
     finalPassPipeline->ReConstruct();
@@ -1477,7 +1392,6 @@ void Renderer::WindowResize()
     bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage);
 
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassWorleySampler, nullptr);
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
 
@@ -1485,20 +1399,6 @@ void Renderer::WindowResize()
         bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
     Utils::UpdateDescriptorSet(
         finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    finalPassWorleySampler = Utils::CreateSampler(
-        worleyNoiseTexture,
-        ImageType::COLOR,
-        VK_FILTER_LINEAR,
-        VK_FILTER_LINEAR,
-        VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        VK_FALSE);
-    Utils::UpdateDescriptorSet(
-        finalPassDescriptorSet,
-        finalPassWorleySampler,
-        worleyNoiseTexture->GetImageView(),
-        2,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     bokehPassSceneSampler = Utils::CreateSampler(
         bloomAgent->GetPostProcessedImage(),
@@ -1562,7 +1462,7 @@ void Renderer::InitImGui()
     init_info.ImageCount     = 3;
     init_info.MSAASamples    = VK_SAMPLE_COUNT_1_BIT;
 
-    ImGui_ImplVulkan_Init(&init_info, swapchainRenderPass->GetHandle());
+    ImGui_ImplVulkan_Init(&init_info, _SwapchainRenderPass->GetHandle());
 
     // Loading a custom font here and scaling the the font so that it can work
     // on a 4K display. TO DO: You should dynamically handle the DPI of the
@@ -1691,7 +1591,7 @@ void Renderer::RenderFrame(const float InDeltaTime)
         glm::mat4 mat2 = model2->GetTransform();
 
         // Start shadow pass.---------------------------------------------
-        shadowMapRenderPass->Begin(cmdBuffers[m_CurrentFrame], *directionalShadowMapFramebuffer);
+        _ShadowMapRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_DirectionalShadowMapFramebuffer);
         CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
 
         // Render the objects you want to cast shadows.
@@ -1713,13 +1613,13 @@ void Renderer::RenderFrame(const float InDeltaTime)
             &mat2);
         model2->DrawIndexed(cmdBuffers[m_CurrentFrame], shadowPassPipeline->GetPipelineLayout());
 
-        shadowMapRenderPass->End(cmdBuffers[m_CurrentFrame]);
+        _ShadowMapRenderPass->End(cmdBuffers[m_CurrentFrame]);
         //   End shadow pass.---------------------------------------------
 
         // Start point shadow pass.--------------------
         for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
         {
-            pointShadowRenderPass->Begin(cmdBuffers[m_CurrentFrame], *pointShadowMapFramebuffers[i]);
+            _PointShadowRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_PointShadowMapFramebuffers[i]);
             CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
 
             glm::vec3 position = glm::vec3(
@@ -1798,7 +1698,7 @@ void Renderer::RenderFrame(const float InDeltaTime)
                 &pc);
             model2->DrawIndexed(cmdBuffers[m_CurrentFrame], pointShadowPassPipeline->GetPipelineLayout());
 
-            pointShadowRenderPass->End(cmdBuffers[m_CurrentFrame]);
+            _PointShadowRenderPass->End(cmdBuffers[m_CurrentFrame]);
             // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
             //   End point shadow pass.----------------------
         }
@@ -1852,7 +1752,7 @@ void Renderer::RenderFrame(const float InDeltaTime)
     }
     // Begin HDR rendering------------------------------------------
     // CommandBuffer::BeginRenderPass(cmdBuffers[m_CurrentFrame], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    HDRRenderPass->Begin(cmdBuffers[m_CurrentFrame], *HDRFramebuffer);
+    _HDRRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_HDRFramebuffer);
     //  Drawing the skybox.
     glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
     CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
@@ -1895,31 +1795,13 @@ void Renderer::RenderFrame(const float InDeltaTime)
 
     // Drawing the clouds.
     pushConst cloudsPC;
-    glm::mat4 cloudsMat               = glm::mat4(1.0f);
-    glm::vec4 position                = glm::vec4(0, 10, 0, 0);
-    glm::vec4 scale                   = glm::vec4(0.5f, 0.5f, 0.5f, 0.5f);
-    cloudsMat                         = glm::translate(cloudsMat, glm::vec3(position.x, position.y, position.z));
-    cloudsMat                         = glm::scale(cloudsMat, glm::vec3(scale.x, scale.y, scale.z));
-    cloudsPC.modelMat                 = cloudsMat;
-    cloudsPC.color                    = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-
-    cloudParametersUBO.viewMatrix     = cameraView;
-    cloudParametersUBO.projMatrix     = cameraProj;
-    cloudParametersUBO.BoundsMax      = (position - scale) / glm::vec4(2);
-    cloudParametersUBO.BoundsMin      = (position + scale) / glm::vec4(2);
-    cloudParametersUBO.CameraPosition = cameraPos;
-
-    memcpy(mappedCloudParametersUBOBuffer, &cloudParametersUBO, sizeof(CloudParametersUBO));
-
-    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, cloudPipeline);
-    CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame],
-        cloudPipeline->GetPipelineLayout(),
-        VK_SHADER_STAGE_VERTEX_BIT,
-        0,
-        sizeof(glm::mat4) + sizeof(glm::vec4),
-        &cloudsPC);
-    clouds->Draw(cmdBuffers[m_CurrentFrame], cloudPipeline->GetPipelineLayout());
+    glm::mat4 cloudsMat = glm::mat4(1.0f);
+    glm::vec4 position  = glm::vec4(0, 10, 0, 0);
+    glm::vec4 scale     = glm::vec4(0.5f, 0.5f, 0.5f, 0.5f);
+    cloudsMat           = glm::translate(cloudsMat, glm::vec3(position.x, position.y, position.z));
+    cloudsMat           = glm::scale(cloudsMat, glm::vec3(scale.x, scale.y, scale.z));
+    cloudsPC.modelMat   = cloudsMat;
+    cloudsPC.color      = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
     // Drawing the Sponza.
     CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -2031,7 +1913,7 @@ void Renderer::RenderFrame(const float InDeltaTime)
 
     // vkCmdEndRenderingKHR(cmdBuffers[m_CurrentFrame]);
 
-    HDRRenderPass->End(cmdBuffers[m_CurrentFrame]);
+    _HDRRenderPass->End(cmdBuffers[m_CurrentFrame]);
     // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
     //   End HDR Rendering ------------------------------------------
 
@@ -2152,7 +2034,7 @@ void Renderer::RenderFrame(const float InDeltaTime)
 
     // Start final scene render pass (to
     // swapchain).-------------------------------
-    swapchainRenderPass->Begin(cmdBuffers[m_CurrentFrame], *swapchainFramebuffers[m_ActiveImageIndex]);
+    _SwapchainRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_SwapchainFramebuffers[m_ActiveImageIndex]);
 
     CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
     vkCmdBindDescriptorSets(
@@ -2169,7 +2051,7 @@ void Renderer::RenderFrame(const float InDeltaTime)
     ImDrawData* draw_data = ImGui::GetDrawData();
     ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[m_CurrentFrame]);
 
-    swapchainRenderPass->End(cmdBuffers[m_CurrentFrame]);
+    _SwapchainRenderPass->End(cmdBuffers[m_CurrentFrame]);
     //  End the command buffer recording
     //  phase(swapchain).-------------------------------.
 

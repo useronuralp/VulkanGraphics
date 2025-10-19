@@ -1,4 +1,4 @@
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "Framebuffer.h"
 #include "LogicalDevice.h"
 #include "Surface.h"
@@ -23,7 +23,7 @@ Framebuffer::Framebuffer(
     framebufferInfo.layers          = InLayerCount;
 
     ASSERT(
-        vkCreateFramebuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) ==
+        vkCreateFramebuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) ==
             VK_SUCCESS,
         "Failed to create framebuffer!");
 }
@@ -43,5 +43,5 @@ const VkFramebuffer& Framebuffer::GetHandle()
 
 Framebuffer::~Framebuffer()
 {
-    vkDestroyFramebuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), _Framebuffer, nullptr);
+    vkDestroyFramebuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), _Framebuffer, nullptr);
 }

@@ -1,6 +1,6 @@
 #include "CommandBuffer.h"
 #include "core.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "Utils.h"
@@ -72,25 +72,25 @@ void Utils::CreateVKBuffer(
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // TO DO: What does this do check
 
     ASSERT(
-        vkCreateBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &bufferInfo, nullptr, &buffer) == VK_SUCCESS,
+        vkCreateBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &bufferInfo, nullptr, &buffer) == VK_SUCCESS,
         "Failed to create vertex buffer");
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), buffer, &memRequirements);
+    vkGetBufferMemoryRequirements(EngineInternal::GetContext().GetDevice()->GetVKDevice(), buffer, &memRequirements);
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize  = memRequirements.size;
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
     ASSERT(
-        vkAllocateMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) == VK_SUCCESS,
+        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) == VK_SUCCESS,
         "Failed to allocate vertex buffer memory!");
-    vkBindBufferMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), buffer, bufferMemory, 0);
+    vkBindBufferMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), buffer, bufferMemory, 0);
 }
 
 uint32_t Utils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
-    VkPhysicalDeviceMemoryProperties memProperties   = Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKDeviceMemoryProperties();
+    VkPhysicalDeviceMemoryProperties memProperties   = EngineInternal::GetContext().GetPhysicalDevice()->GetVKDeviceMemoryProperties();
     uint32_t                         memoryTypeIndex = -1;
 
     // TO DO: Understand this part and the bit shift.
@@ -110,7 +110,7 @@ void Utils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size
 {
     VkCommandPool   singleCmdPool;
     VkCommandBuffer singleCmdBuffer;
-    CommandBuffer::CreateCommandBufferPool(Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily, singleCmdPool);
+    CommandBuffer::CreateCommandBufferPool(EngineInternal::GetContext()._QueueFamilies.TransferFamily, singleCmdPool);
     CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
     CommandBuffer::BeginRecording(singleCmdBuffer);
 
@@ -123,13 +123,13 @@ void Utils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size
     CommandBuffer::EndRecording(singleCmdBuffer);
     CommandBuffer::Submit(
         singleCmdBuffer,
-        Engine::GetEngine().GetContext().GetDevice()->GetTransferQueue()); // Graphics queue usually supports transfer
+        EngineInternal::GetContext().GetDevice()->GetTransferQueue()); // Graphics queue usually supports transfer
                                                                // operations as well. At least in NVIDIA
                                                                // cards.
     CommandBuffer::FreeCommandBuffer(
         singleCmdBuffer,
         singleCmdPool,
-        Engine::GetEngine().GetContext().GetDevice()->GetTransferQueue()); // Wait for the queue to idle
+        EngineInternal::GetContext().GetDevice()->GetTransferQueue()); // Wait for the queue to idle
                                                                // to free the cmd buffer.
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
@@ -157,7 +157,7 @@ VkSampler Utils::CreateSampler(
         samplerInfo.addressModeW     = addressMode;
         samplerInfo.anisotropyEnable = anisotrophy;
         samplerInfo.maxAnisotropy =
-            anisotrophy ? Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy : 0;
+            anisotrophy ? EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy : 0;
         samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
         samplerInfo.compareEnable           = VK_FALSE;
@@ -170,7 +170,7 @@ VkSampler Utils::CreateSampler(
         samplerInfo.minFilter               = minFilter;
 
         ASSERT(
-            vkCreateSampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
             "Failed to create texture sampler!");
     }
     else // Depth
@@ -188,7 +188,7 @@ VkSampler Utils::CreateSampler(
         samplerInfo.borderColor   = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
         ASSERT(
-            vkCreateSampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
             "Failed to create texture sampler!");
     }
 
@@ -209,7 +209,7 @@ VkSampler Utils::CreateCubemapSampler()
     samplerInfo.addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     samplerInfo.addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     samplerInfo.anisotropyEnable        = VK_TRUE;
-    samplerInfo.maxAnisotropy           = Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy;
+    samplerInfo.maxAnisotropy           = EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy;
     samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable           = VK_TRUE;
@@ -220,7 +220,7 @@ VkSampler Utils::CreateCubemapSampler()
     samplerInfo.maxLod                  = 0.0f;
 
     ASSERT(
-        vkCreateSampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
+        vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
         "Failed to create texture sampler!");
 
     return sampler;
@@ -239,7 +239,7 @@ VkFormat Utils::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkI
     for (VkFormat format : candidates)
     {
         VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), format, &props);
+        vkGetPhysicalDeviceFormatProperties(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), format, &props);
 
         if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
         {
@@ -273,7 +273,7 @@ void Utils::UpdateDescriptorSet(
     descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrite.descriptorCount = 1;
     descriptorWrite.pImageInfo      = &imageInfo;
-    vkUpdateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+    vkUpdateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 void Utils::UpdateDescriptorSet(
     const VkDescriptorSet& dscSet,
@@ -300,5 +300,5 @@ void Utils::UpdateDescriptorSet(
     descriptorWrite.pImageInfo       = nullptr; // Optional
     descriptorWrite.pTexelBufferView = nullptr; // Optional
 
-    vkUpdateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+    vkUpdateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 }

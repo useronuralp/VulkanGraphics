@@ -72,9 +72,6 @@
     <ClInclude Include="src\Window.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Engine.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="vendor\imgui\imconfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -117,10 +114,16 @@
     <ClInclude Include="src\Renderer\RenderPass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\core.h">
+    <ClInclude Include="include\Engine\Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene.h">
+    <ClInclude Include="include\Engine\Engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Engine\core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EngineInternal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

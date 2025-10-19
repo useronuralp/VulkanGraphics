@@ -1,7 +1,7 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "Utils.h"
@@ -25,17 +25,17 @@ VertexBuffer::VertexBuffer(const std::vector<float>& vertices) : m_Vertices(vert
         stagingBufferMemory);
 
     void* data;
-    vkMapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBuffer, &memRequirements);
     memcpy_s(
         data,
         memRequirements.size,
         m_Vertices.data(),
         (size_t)bufferSize); // Copy the vertex data to the GPU using the mapped
                              // "data" pointer.
-    vkUnmapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
+    vkUnmapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
 
     // The following buffer is not visible to CPU.
     Utils::CreateVKBuffer(
@@ -47,8 +47,8 @@ VertexBuffer::VertexBuffer(const std::vector<float>& vertices) : m_Vertices(vert
 
     Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
-    vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
+    vkDestroyBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
 }
 
 VertexBuffer::VertexBuffer(const float* vertices, size_t bufferSize)
@@ -65,17 +65,17 @@ VertexBuffer::VertexBuffer(const float* vertices, size_t bufferSize)
         stagingBufferMemory);
 
     void* data;
-    vkMapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBuffer, &memRequirements);
     memcpy_s(
         data,
         memRequirements.size,
         vertices,
         (size_t)bufferSize); // Copy the vertex data to the GPU using the mapped
                              // "data" pointer.
-    vkUnmapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
+    vkUnmapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
 
     // The following buffer is not visible to CPU.
     Utils::CreateVKBuffer(
@@ -87,14 +87,14 @@ VertexBuffer::VertexBuffer(const float* vertices, size_t bufferSize)
 
     Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
-    vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
+    vkDestroyBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
 }
 
 VertexBuffer::~VertexBuffer()
 {
-    vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_Buffer, nullptr);
-    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_BufferMemory, nullptr);
+    vkDestroyBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Buffer, nullptr);
+    vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BufferMemory, nullptr);
 }
 
 IndexBuffer::IndexBuffer(const std::vector<uint32_t>& indices) : m_Indices(indices)
@@ -111,9 +111,9 @@ IndexBuffer::IndexBuffer(const std::vector<uint32_t>& indices) : m_Indices(indic
         stagingBufferMemory);
 
     void* data;
-    vkMapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, m_Indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
+    vkUnmapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
 
     Utils::CreateVKBuffer(
         bufferSize,
@@ -124,13 +124,13 @@ IndexBuffer::IndexBuffer(const std::vector<uint32_t>& indices) : m_Indices(indic
 
     Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
-    vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
+    vkDestroyBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
 }
 IndexBuffer::~IndexBuffer()
 {
-    vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_Buffer, nullptr);
-    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_BufferMemory, nullptr);
+    vkDestroyBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Buffer, nullptr);
+    vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BufferMemory, nullptr);
 }
 // UniformBuffer::UniformBuffer(const Ref<DescriptorSet>& dscSet, size_t
 // allocationSize, uint32_t bindingIndex)
@@ -155,22 +155,22 @@ IndexBuffer::~IndexBuffer()
 //     descriptorWrite.pBufferInfo = &bufferInfo;
 //     descriptorWrite.pImageInfo = nullptr; // Optional
 //     descriptorWrite.pTexelBufferView = nullptr; // Optional
-//     vkUpdateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//     vkUpdateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //     1, &descriptorWrite, 0, nullptr);
 // }
 // UniformBuffer::~UniformBuffer()
 //{
-//     vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//     vkDestroyBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //     m_Buffer, nullptr);
-//     vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//     vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //     m_BufferMemory, nullptr);
 // }
 // void UniformBuffer::UpdateUniformBuffer(void* dataToCopy, size_t dataSize)
 //{
 //     void* bufferHandle;
-//     vkMapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//     vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //     m_BufferMemory, 0, dataSize, 0, &bufferHandle); memcpy(bufferHandle,
 //     dataToCopy, dataSize);
-//     vkUnmapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(),
+//     vkUnmapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(),
 //     m_BufferMemory);
 // }

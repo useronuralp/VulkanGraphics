@@ -13,7 +13,8 @@ void RenderPass::CreateRenderPass()
     VkAttachmentReference                depthRef{};
 
     uint32_t index = 0;
-    for (auto& attachment : _Info.Attachments) {
+    for (auto& attachment : _Info.Attachments)
+    {
         VkAttachmentDescription desc{};
         desc.format         = attachment.Format;
         desc.samples        = VK_SAMPLE_COUNT_1_BIT;
@@ -44,7 +45,8 @@ void RenderPass::CreateRenderPass()
     VkSubpassDependency defaultDependency{};
     bool                useDefaultDep = (uint32_t)_Info.Dependencies.empty();
     // TODO: Add ensure macro here
-    if (useDefaultDep) {
+    if (useDefaultDep)
+    {
         VkSubpassDependency defaultDependency{};
         defaultDependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
         defaultDependency.dstSubpass    = 0;
@@ -61,10 +63,13 @@ void RenderPass::CreateRenderPass()
     rpInfo.subpassCount    = 1;
     rpInfo.pSubpasses      = &subpass;
 
-    if (useDefaultDep) {
+    if (useDefaultDep)
+    {
         rpInfo.dependencyCount = 1;
         rpInfo.pDependencies   = &defaultDependency;
-    } else {
+    }
+    else
+    {
         rpInfo.dependencyCount = static_cast<uint32_t>(_Info.Dependencies.size());
         rpInfo.pDependencies   = _Info.Dependencies.data();
     }

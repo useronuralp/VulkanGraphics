@@ -1,5 +1,5 @@
 #include "CommandBuffer.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "Image.h"
 #include "LogicalDevice.h"
 #include "PhysicalDevice.h"
@@ -83,7 +83,7 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
 
     // Copy the Texture data to the staging buffer.
     void* data;
-    vkMapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, m_ImageSize, 0, &data);
+    vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, m_ImageSize, 0, &data);
     if (m_IsCubemap)
     {
         for (uint32_t i = 0; i < 6; i++)
@@ -95,7 +95,7 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     {
         memcpy(data, pixels, static_cast<size_t>(m_ImageSize));
     }
-    vkUnmapMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
+    vkUnmapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
 
     // Transition the layout to allow copying to m_Image.
     TransitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -107,8 +107,8 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     {
         TransitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
-    vkDestroyBuffer(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
+    vkDestroyBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, nullptr);
 
     // If the image is not a cubemap we want to generate the mipmaps. This step will automatically transtion the image to a shader
     // readable format when it is done.
@@ -139,9 +139,9 @@ Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsage
 
 Image::~Image()
 {
-    vkDestroyImageView(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_ImageView, nullptr);
-    vkDestroyImage(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_Image, nullptr);
-    vkFreeMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_ImageMemory, nullptr);
+    vkDestroyImageView(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_ImageView, nullptr);
+    vkDestroyImage(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Image, nullptr);
+    vkFreeMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_ImageMemory, nullptr);
 }
 
 void Image::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout)
@@ -153,7 +153,7 @@ void Image::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayo
     }
     VkCommandBuffer singleCmdBuffer;
     VkCommandPool   singleCmdPool;
-    CommandBuffer::CreateCommandBufferPool(Engine::GetEngine().GetContext()._QueueFamilies.GraphicsFamily, singleCmdPool);
+    CommandBuffer::CreateCommandBufferPool(EngineInternal::GetContext()._QueueFamilies.GraphicsFamily, singleCmdPool);
     CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
     CommandBuffer::BeginRecording(singleCmdBuffer);
 
@@ -195,8 +195,8 @@ void Image::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayo
 
     vkCmdPipelineBarrier(singleCmdBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     CommandBuffer::EndRecording(singleCmdBuffer);
-    CommandBuffer::Submit(singleCmdBuffer, Engine::GetEngine().GetContext().GetDevice()->GetGraphicsQueue());
-    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, Engine::GetEngine().GetContext().GetDevice()->GetGraphicsQueue());
+    CommandBuffer::Submit(singleCmdBuffer, EngineInternal::GetContext().GetDevice()->GetGraphicsQueue());
+    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, EngineInternal::GetContext().GetDevice()->GetGraphicsQueue());
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
@@ -204,7 +204,7 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
 {
     VkCommandBuffer singleCmdBuffer;
     VkCommandPool   singleCmdPool;
-    CommandBuffer::CreateCommandBufferPool(Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily, singleCmdPool);
+    CommandBuffer::CreateCommandBufferPool(EngineInternal::GetContext()._QueueFamilies.TransferFamily, singleCmdPool);
     CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
     CommandBuffer::BeginRecording(singleCmdBuffer);
 
@@ -262,8 +262,8 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
     }
 
     CommandBuffer::EndRecording(singleCmdBuffer);
-    CommandBuffer::Submit(singleCmdBuffer, Engine::GetEngine().GetContext().GetDevice()->GetTransferQueue());
-    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, Engine::GetEngine().GetContext().GetDevice()->GetTransferQueue());
+    CommandBuffer::Submit(singleCmdBuffer, EngineInternal::GetContext().GetDevice()->GetTransferQueue());
+    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, EngineInternal::GetContext().GetDevice()->GetTransferQueue());
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
@@ -305,21 +305,21 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     imageCreateInfo.flags         = flags;
 
     ASSERT(
-        vkCreateImage(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &imageCreateInfo, nullptr, &m_Image) == VK_SUCCESS,
+        vkCreateImage(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &imageCreateInfo, nullptr, &m_Image) == VK_SUCCESS,
         "Failed to create image!");
 
     // Mem allocation.
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_Image, &memRequirements);
+    vkGetImageMemoryRequirements(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Image, &memRequirements);
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize  = memRequirements.size;
     allocInfo.memoryTypeIndex = Utils::FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     ASSERT(
-        vkAllocateMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &m_ImageMemory) == VK_SUCCESS,
+        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &m_ImageMemory) == VK_SUCCESS,
         "Failed to allocate image memory!");
-    vkBindImageMemory(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), m_Image, m_ImageMemory, 0);
+    vkBindImageMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Image, m_ImageMemory, 0);
 
     // Create image view to access the texture.
     VkImageViewCreateInfo viewInfo{};
@@ -337,7 +337,7 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     viewInfo.subresourceRange.layerCount     = layerCount;
 
     ASSERT(
-        vkCreateImageView(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS,
+        vkCreateImageView(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS,
         "Failed to create texture image view!");
 }
 
@@ -345,7 +345,7 @@ void Image::GenerateMipmaps()
 {
     VkFormatProperties formatProperties;
     vkGetPhysicalDeviceFormatProperties(
-        Engine::GetEngine().GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), m_ImageFormat, &formatProperties);
+        EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), m_ImageFormat, &formatProperties);
 
     ASSERT(
         formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT,
@@ -353,7 +353,7 @@ void Image::GenerateMipmaps()
 
     VkCommandBuffer cmdBuffer;
     VkCommandPool   cmdPool;
-    CommandBuffer::CreateCommandBufferPool(Engine::GetEngine().GetContext()._QueueFamilies.TransferFamily, cmdPool);
+    CommandBuffer::CreateCommandBufferPool(EngineInternal::GetContext()._QueueFamilies.TransferFamily, cmdPool);
     CommandBuffer::CreateCommandBuffer(cmdBuffer, cmdPool);
     CommandBuffer::BeginRecording(cmdBuffer);
 
@@ -438,7 +438,7 @@ void Image::GenerateMipmaps()
         cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     CommandBuffer::EndRecording(cmdBuffer);
-    CommandBuffer::Submit(cmdBuffer, Engine::GetEngine().GetContext().GetDevice()->GetTransferQueue());
-    CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool, Engine::GetEngine().GetContext().GetDevice()->GetTransferQueue());
+    CommandBuffer::Submit(cmdBuffer, EngineInternal::GetContext().GetDevice()->GetTransferQueue());
+    CommandBuffer::FreeCommandBuffer(cmdBuffer, cmdPool, EngineInternal::GetContext().GetDevice()->GetTransferQueue());
     CommandBuffer::DestroyCommandPool(cmdPool);
 }

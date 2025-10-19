@@ -119,7 +119,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\src;$(SolutionDir)Engine\include;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\src;$(SolutionDir)Engine\include\Engine;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -147,7 +147,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\src;$(SolutionDir)Engine\include;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\src;$(SolutionDir)Engine\include\Engine;$(SolutionDir)Engine\vendor\VULKAN\1.4.328.1\Include;$(SolutionDir)Engine\vendor\glfw-3.4\include;$(SolutionDir)Engine\vendor\stb_image\include;$(SolutionDir)Engine\vendor\Assimp\include;$(SolutionDir)Engine\vendor\Simplex\include;$(SolutionDir)Engine\vendor\Curl\include;$(SolutionDir)Engine\vendor\imgui</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -165,13 +165,14 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="include\core.h" />
-    <ClInclude Include="include\Engine.h" />
+    <ClInclude Include="include\Engine\core.h" />
+    <ClInclude Include="include\Engine\Engine.h" />
     <ClInclude Include="src\Bloom.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\CommandBuffer.h" />
     <ClInclude Include="src\DescriptorSet.h" />
+    <ClInclude Include="src\EngineInternal.h" />
     <ClInclude Include="src\Framebuffer.h" />
     <ClInclude Include="src\Image.h" />
     <ClInclude Include="src\Instance.h" />
@@ -184,7 +185,7 @@
     <ClInclude Include="src\Pipeline.h" />
     <ClInclude Include="src\Renderer\Renderer.h" />
     <ClInclude Include="src\Renderer\RenderPass.h" />
-    <ClInclude Include="src\Scene.h" />
+    <ClInclude Include="include\Engine\Scene.h" />
     <ClInclude Include="src\Surface.h" />
     <ClInclude Include="src\Swapchain.h" />
     <ClInclude Include="src\Utils.h" />

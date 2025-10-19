@@ -1,7 +1,7 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
-#include "Engine.h"
+#include "EngineInternal.h"
 #include "Image.h"
 #include "LogicalDevice.h"
 #include "Mesh.h"
@@ -32,7 +32,7 @@ Mesh::Mesh(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt = vkAllocateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())
@@ -134,7 +134,7 @@ Mesh::Mesh(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt = vkAllocateDescriptorSets(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())
@@ -180,6 +180,6 @@ Mesh::~Mesh()
 {
     for (const auto& sampler : m_Samplers)
     {
-        vkDestroySampler(Engine::GetEngine().GetContext().GetDevice()->GetVKDevice(), sampler, nullptr);
+        vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), sampler, nullptr);
     }
 }
