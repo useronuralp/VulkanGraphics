@@ -36,7 +36,7 @@ void VulkanContext::Init()
     // 7. Create logical device
     CreateLogicalDevice();
 
-    std::cout << "VulkanContext initialized successfully." << std::endl;
+    PrintInfo("VulkanContext initialized successfully.");
 }
 
 void VulkanContext::PickPhysicalDevice()
@@ -47,7 +47,7 @@ void VulkanContext::PickPhysicalDevice()
     // Find a suitable PHYSICAL (GPU) device here.
     bool found = false;
 
-    std::cout << "Searching for a DISCREETE graphics card..." << std::endl;
+    PrintInfo("Searching for a DISCREETE graphics card...");
     // First, check for a dedicated graphics card.
     for (auto& device : devices)
     {
@@ -55,9 +55,11 @@ void VulkanContext::PickPhysicalDevice()
         {
             _PhysicalDevice = make_s<PhysicalDevice>(device);
             found           = true;
-            std::cout << "Found a suitable DISCREETE graphics card. \n\t Card "
-                         "Name ---> "
-                      << _PhysicalDevice->GetVKProperties().deviceName << std::endl;
+            PrintInfo("Searching for a DISCREETE graphics card...");
+            PrintInfo(
+                "Found a suitable DISCREETE graphics card. Card "
+                "Name:");
+            std::cout << _PhysicalDevice->GetVKProperties().deviceName << std::endl;
             break;
         }
     }
@@ -65,15 +67,16 @@ void VulkanContext::PickPhysicalDevice()
     // looking at any other condition.
     if (!found)
     {
-        std::cout << "Could not find a DISCREETE graphics card.\n" << std::endl;
-        std::cout << "Searching for an INTEGRATED graphics card... " << std::endl;
+        PrintWarning("Could not find a DISCREETE graphics card.");
+        PrintInfo("Searching for an INTEGRATED graphics card...");
         for (auto& device : devices)
         {
             _PhysicalDevice = make_s<PhysicalDevice>(device);
             found           = true;
-            std::cout << "Found a suitable INTEGRATED graphics card. \n\t Card "
-                         "Name ---> "
-                      << _PhysicalDevice->GetVKProperties().deviceName << std::endl;
+            PrintInfo(
+                "Found a suitable INTEGRATED graphics card. Card "
+                "Name:");
+            std::cout << _PhysicalDevice->GetVKProperties().deviceName << std::endl;
             break;
         }
     }
@@ -190,5 +193,5 @@ void VulkanContext::Shutdown()
     _Instance.reset(); // Vulkan instance
     _Window.reset(); // Destroy the window last
 
-    std::cout << "VulkanContext shutdown complete." << std::endl;
+    PrintInfo("VulkanContext shutdown complete. \n");
 }

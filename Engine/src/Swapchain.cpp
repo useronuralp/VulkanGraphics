@@ -85,7 +85,7 @@ void Swapchain::Create()
     ASSERT(
         vkCreateSwapchainKHR(_Context.GetDevice()->GetVKDevice(), &ci, nullptr, &_Swapchain) == VK_SUCCESS,
         "Failed to create swap chain!");
-    std::cout << "Successfully created swapchain!" << std::endl;
+    PrintInfo("Successfully created swapchain!");
 
     // Retrieve images
     vkGetSwapchainImagesKHR(_Context.GetDevice()->GetVKDevice(), _Swapchain, &_ImageCount, nullptr);

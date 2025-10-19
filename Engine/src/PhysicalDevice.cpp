@@ -93,7 +93,7 @@ uint64_t PhysicalDevice::FindQueueFamily(VkQueueFlags queueFlags)
             if ((family.Props.queueFlags & queueFlags) == queueFlags)
             {
                 familyIndex = family.Index;
-                std::cout << "Found a queue family that INCLUDES requested flags." << std::endl;
+                PrintInfo("Found a queue family that requested flags.");
                 break;
             }
         }

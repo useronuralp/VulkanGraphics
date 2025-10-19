@@ -69,7 +69,8 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
 
     // Check Anisotrophy support.
     ASSERT(
-        EngineInternal::GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
+        EngineInternal::GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy,
+        "Anisotropy is not supported on your GPU.");
 
     // Enable Anisotropy.
     VkPhysicalDeviceFeatures deviceFeatures{};
@@ -104,7 +105,8 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
     }
 
     ASSERT(
-        vkCreateDevice(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS,
+        vkCreateDevice(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) ==
+            VK_SUCCESS,
         "Failed to create logical device!");
 
     int queueIndex = 0;
@@ -145,7 +147,7 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
         vkGetDeviceQueue(m_Device, EngineInternal::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_ComputeQueue);
         queueIndex++;
     }
-    std::cout << "Logical device has been created." << std::endl;
+    PrintInfo("Logical device has been created.");
 }
 
 LogicalDevice::~LogicalDevice()
