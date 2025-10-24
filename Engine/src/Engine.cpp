@@ -22,7 +22,7 @@ void Engine::Init()
     _Camera =
         make_s<Camera>(45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
 
-    _Renderer = std::make_unique<Renderer>(*_Context, _Swapchain, _Camera);
+    _Renderer = std::make_unique<ForwardRenderer>(*_Context, _Swapchain, _Camera);
     _Renderer->Init();
     // TODO: Move out of renderer into UI layer.
     _Renderer->InitImGui();

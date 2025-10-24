@@ -22,12 +22,12 @@
 #include <filesystem>
 #include <iostream>
 
-Renderer::Renderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
+ForwardRenderer::ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
     : _Context(InContext), _Swapchain(InSwapchain), _Camera(InCamera)
 {
 }
 
-void Renderer::Init()
+void ForwardRenderer::Init()
 {
     CreateSynchronizationPrimitives();
     UpdateViewport_Scissor();
@@ -387,7 +387,7 @@ void Renderer::Init()
         2);
 }
 
-void Renderer::CreateSynchronizationPrimitives()
+void ForwardRenderer::CreateSynchronizationPrimitives()
 {
     // Create synchronization primitives
     if (m_RenderingCompleteSemaphores.size() > 0 || m_ImageAvailableSemaphores.size() > 0 || m_InFlightFences.size() > 0)
@@ -432,7 +432,7 @@ void Renderer::CreateSynchronizationPrimitives()
     }
 }
 
-void Renderer::SetupPBRPipeline()
+void ForwardRenderer::SetupPBRPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = PBRLayout;
@@ -505,7 +505,7 @@ void Renderer::SetupPBRPipeline()
 
     pipeline                          = make_s<Pipeline>(_Context, specs);
 }
-void Renderer::SetupFinalPassPipeline()
+void ForwardRenderer::SetupFinalPassPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = swapchainLayout;
@@ -538,7 +538,7 @@ void Renderer::SetupFinalPassPipeline()
 
     finalPassPipeline                        = make_s<Pipeline>(_Context, specs);
 }
-void Renderer::SetupShadowPassPipeline()
+void ForwardRenderer::SetupShadowPassPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = PBRLayout;
@@ -595,7 +595,7 @@ void Renderer::SetupShadowPassPipeline()
 
     shadowPassPipeline                 = make_s<Pipeline>(_Context, specs);
 }
-void Renderer::SetupPointShadowPassPipeline()
+void ForwardRenderer::SetupPointShadowPassPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = PBRLayout;
@@ -664,7 +664,7 @@ void Renderer::SetupPointShadowPassPipeline()
 
     pointShadowPassPipeline            = make_s<Pipeline>(_Context, specs);
 }
-void Renderer::SetupSkyboxPipeline()
+void ForwardRenderer::SetupSkyboxPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = skyboxLayout;
@@ -718,7 +718,7 @@ void Renderer::SetupSkyboxPipeline()
 
     skyboxPipeline                     = make_s<Pipeline>(_Context, specs);
 }
-void Renderer::SetupCubePipeline()
+void ForwardRenderer::SetupCubePipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = cubeLayout;
@@ -773,7 +773,7 @@ void Renderer::SetupCubePipeline()
     cubePipeline                       = make_s<Pipeline>(_Context, specs);
 }
 
-void Renderer::SetupParticleSystemPipeline()
+void ForwardRenderer::SetupParticleSystemPipeline()
 {
     Pipeline::Specs          particleSpecs{};
     Ref<DescriptorSetLayout> layout       = particleSystemLayout;
@@ -868,7 +868,7 @@ void Renderer::SetupParticleSystemPipeline()
 
     particleSystemPipeline             = make_s<Pipeline>(_Context, particleSpecs);
 }
-void Renderer::SetupEmissiveObjectPipeline()
+void ForwardRenderer::SetupEmissiveObjectPipeline()
 {
     // Emissive object pipeline.
     Pipeline::Specs specs{};
@@ -924,7 +924,7 @@ void Renderer::SetupEmissiveObjectPipeline()
     EmissiveObjectPipeline             = make_s<Pipeline>(_Context, specs);
 }
 
-void Renderer::SetupParticleSystems()
+void ForwardRenderer::SetupParticleSystems()
 {
     particleTexture =
         make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
@@ -1087,7 +1087,7 @@ void Renderer::SetupParticleSystems()
     ambientParticles->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 }
 
-void Renderer::CreateSwapchainRenderPass()
+void ForwardRenderer::CreateSwapchainRenderPass()
 {
     RenderPass::AttachmentInfo colorAttachment{ _Context.GetSurface()->GetVKSurfaceFormat().format,
                                                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -1108,7 +1108,7 @@ void Renderer::CreateSwapchainRenderPass()
     _SwapchainRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
 }
 
-void Renderer::CreateHDRRenderPass()
+void ForwardRenderer::CreateHDRRenderPass()
 {
     RenderPass::AttachmentInfo colorAttachment{ VK_FORMAT_R16G16B16A16_SFLOAT,
                                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -1136,7 +1136,7 @@ void Renderer::CreateHDRRenderPass()
 
     _HDRRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
 }
-void Renderer::CreateShadowRenderPass()
+void ForwardRenderer::CreateShadowRenderPass()
 {
     RenderPass::AttachmentInfo depthAttachment{ VK_FORMAT_D32_SFLOAT,
                                                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
@@ -1158,7 +1158,7 @@ void Renderer::CreateShadowRenderPass()
     _ShadowMapRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
 }
 
-void Renderer::CreatePointShadowRenderPass()
+void ForwardRenderer::CreatePointShadowRenderPass()
 {
     RenderPass::AttachmentInfo depthAttachment{ VK_FORMAT_D32_SFLOAT,
                                                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
@@ -1180,7 +1180,7 @@ void Renderer::CreatePointShadowRenderPass()
     _PointShadowRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
 }
 
-void Renderer::EnableDepthOfField()
+void ForwardRenderer::EnableDepthOfField()
 {
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
@@ -1191,7 +1191,7 @@ void Renderer::EnableDepthOfField()
         finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 // Connects the bloom image to the final render pass.
-void Renderer::DisableDepthOfField()
+void ForwardRenderer::DisableDepthOfField()
 {
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
@@ -1211,7 +1211,7 @@ void Renderer::DisableDepthOfField()
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void Renderer::SetupBokehPassPipeline()
+void ForwardRenderer::SetupBokehPassPipeline()
 {
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = bokehPassLayout;
@@ -1246,7 +1246,7 @@ void Renderer::SetupBokehPassPipeline()
 
     bokehPassPipeline                        = make_s<Pipeline>(_Context, specs);
 }
-void Renderer::CreateBokehRenderPass()
+void ForwardRenderer::CreateBokehRenderPass()
 {
     RenderPass::AttachmentInfo colorAttachment{ VK_FORMAT_R16G16B16A16_SFLOAT,
                                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -1268,7 +1268,7 @@ void Renderer::CreateBokehRenderPass()
     bokehRenderPass = std::make_unique<RenderPass>(_Context, createInfo);
 }
 
-void Renderer::CreateSwapchainFramebuffers()
+void ForwardRenderer::CreateSwapchainFramebuffers()
 {
     if (_SwapchainFramebuffers.size() > 0)
     {
@@ -1290,7 +1290,7 @@ void Renderer::CreateSwapchainFramebuffers()
     }
 }
 
-void Renderer::CreateHDRFramebuffer()
+void ForwardRenderer::CreateHDRFramebuffer()
 {
     HDRColorImage = make_s<Image>(
         _Context.GetSurface()->GetVKExtent().width,
@@ -1315,7 +1315,7 @@ void Renderer::CreateHDRFramebuffer()
         _Context.GetSurface()->GetVKExtent().height);
 }
 
-void Renderer::CreateBokehFramebuffer()
+void ForwardRenderer::CreateBokehFramebuffer()
 {
     bokehPassImage = make_s<Image>(
         _Context.GetSurface()->GetVKExtent().width,
@@ -1333,7 +1333,7 @@ void Renderer::CreateBokehFramebuffer()
         _Context.GetSurface()->GetVKExtent().height);
 }
 
-void Renderer::Cleanup()
+void ForwardRenderer::Cleanup()
 {
     for (int i = 0; i < m_FramesInFlight; i++)
     {
@@ -1360,7 +1360,7 @@ void Renderer::Cleanup()
     vkDestroyDescriptorPool(_Context.GetDevice()->GetVKDevice(), imguiPool, nullptr);
     ImGui_ImplVulkan_Shutdown();
 }
-void Renderer::UpdateViewport_Scissor()
+void ForwardRenderer::UpdateViewport_Scissor()
 {
     _DynamicViewport.x            = 0.0f;
     _DynamicViewport.y            = 0.0f;
@@ -1374,7 +1374,7 @@ void Renderer::UpdateViewport_Scissor()
     _DynamicScissor.extent.height = _Context.GetSurface()->GetVKExtent().height;
 }
 
-void Renderer::InitImGui()
+void ForwardRenderer::InitImGui()
 {
     VkDescriptorPoolSize pool_sizes[]    = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
                                              { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -1440,7 +1440,7 @@ void Renderer::InitImGui()
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
-void Renderer::RenderFrame(const float InDeltaTime)
+void ForwardRenderer::RenderFrame(const float InDeltaTime)
 {
     _DeltaTime = InDeltaTime;
     // Begin command buffer recording.
@@ -2023,7 +2023,7 @@ void Renderer::RenderFrame(const float InDeltaTime)
     CommandBuffer::EndRecording(cmdBuffers[m_CurrentFrame]);
 }
 
-void Renderer::RenderImGui()
+void ForwardRenderer::RenderImGui()
 {
     // ImGui
     ImGui_ImplVulkan_NewFrame();
@@ -2081,7 +2081,7 @@ void Renderer::RenderImGui()
     ImGui::End();
 }
 
-bool Renderer::BeginFrame()
+bool ForwardRenderer::BeginFrame()
 {
     vkWaitForFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
@@ -2108,7 +2108,7 @@ bool Renderer::BeginFrame()
     return true;
 }
 
-void Renderer::HandleWindowResize(VkResult InResult)
+void ForwardRenderer::HandleWindowResize(VkResult InResult)
 {
     if (InResult == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || InResult == VK_SUBOPTIMAL_KHR)
     {
@@ -2189,7 +2189,7 @@ void Renderer::HandleWindowResize(VkResult InResult)
     }
 }
 
-void Renderer::EndFrame()
+void ForwardRenderer::EndFrame()
 {
     vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
@@ -2234,7 +2234,7 @@ void Renderer::EndFrame()
     m_ActiveImageIndex = READY_TO_ACQUIRE;
 }
 
-void Renderer::PollEvents()
+void ForwardRenderer::PollEvents()
 {
     glfwPollEvents();
 }

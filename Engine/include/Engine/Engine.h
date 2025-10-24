@@ -7,7 +7,7 @@
 class VulkanContext;
 class Swapchain;
 class Camera;
-class Renderer;
+class RendererInterface;
 class Scene;
 
 class Engine
@@ -27,12 +27,12 @@ class Engine
     Engine& operator=(const Engine&) = delete;
 
    private:
-    Unique<Renderer>      _Renderer  = nullptr;
-    Ref<Swapchain>        _Swapchain = nullptr;
-    Ref<Camera>           _Camera    = nullptr;
-    Unique<VulkanContext> _Context   = nullptr;
+    Unique<RendererInterface> _Renderer  = nullptr;
+    Ref<Swapchain>            _Swapchain = nullptr;
+    Ref<Camera>               _Camera    = nullptr;
+    Unique<VulkanContext>     _Context   = nullptr;
 
-    Ref<Scene> _ActiveScene          = nullptr;
+    Ref<Scene> _ActiveScene              = nullptr;
 
    private:
     Engine() = default;

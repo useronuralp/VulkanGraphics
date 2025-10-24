@@ -30,7 +30,22 @@ class DescriptorPool;
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
-class Renderer
+class RendererInterface
+{
+   public:
+    virtual ~RendererInterface()              = default;
+
+    virtual void Init()                       = 0; // Initialize renderer resources
+    virtual bool BeginFrame()                 = 0; // Start command buffer/frame
+    virtual void RenderFrame(float DeltaTime) = 0; // Render the main scene
+    virtual void EndFrame()                   = 0; // Submit frame
+    virtual void InitImGui()                  = 0; // Submit frame
+    virtual void PollEvents()                 = 0; // Submit frame
+    virtual void RenderImGui()                = 0; // Submit frame
+    virtual void Cleanup()                    = 0; // Submit frame
+};
+
+class ForwardRenderer : public RendererInterface
 {
    public:
     uint32_t                 m_FramesInFlight = MAX_FRAMES_IN_FLIGHT;
@@ -214,7 +229,7 @@ class Renderer
     void DisableDepthOfField();
 
    public:
-    Renderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
+    ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
 
     void Init();
     bool BeginFrame();
