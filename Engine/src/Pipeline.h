@@ -32,8 +32,9 @@ class Pipeline
         std::vector<VkPushConstantRange>               PushConstantRanges;
         VkPrimitiveTopology                            PrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         VkPipelineColorBlendAttachmentState            ColorBlendAttachmentState;
-        std::vector<VkVertexInputBindingDescription>   VertexBindings   = {};
-        std::vector<VkVertexInputAttributeDescription> VertexAttributes = {};
+        std::vector<VkVertexInputBindingDescription>   VertexBindings      = {};
+        std::vector<VkVertexInputAttributeDescription> VertexAttributes    = {};
+        bool                                           EnableDynamicStates = true;
     };
 
    public:

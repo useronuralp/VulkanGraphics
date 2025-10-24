@@ -23,6 +23,7 @@ class Swapchain
     const VkPresentModeKHR          GetPresentMode() const noexcept;
     const std::vector<VkImage>&     GetImages() const noexcept;
     const std::vector<VkImageView>& GetImageViews() const noexcept;
+    const uint32_t                  GetImageCount() const noexcept;
 
    private:
     void Create();

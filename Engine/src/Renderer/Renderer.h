@@ -20,7 +20,7 @@ class DescriptorSetLayout;
 class Bloom;
 class DescriptorPool;
 
-#define MAX_FRAMES_IN_FLIGHT  1
+#define MAX_FRAMES_IN_FLIGHT  2
 #define MAX_POINT_LIGHT_COUNT 10
 #define SHADOW_DIM            10000
 #define POUNT_SHADOW_DIM      1000

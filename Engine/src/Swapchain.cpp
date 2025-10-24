@@ -32,6 +32,11 @@ const std::vector<VkImageView>& Swapchain::GetImageViews() const noexcept
     return _ImageViews;
 }
 
+const uint32_t Swapchain::GetImageCount() const noexcept
+{
+    return _ImageCount;
+}
+
 void Swapchain::Create()
 {
     // Query present modes

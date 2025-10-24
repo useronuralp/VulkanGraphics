@@ -556,6 +556,7 @@ void Renderer::SetupShadowPassPipeline()
     specs.VertexShaderPath        = "assets/shaders/shadowPassVERT.spv";
     specs.ViewportHeight          = SHADOW_DIM;
     specs.ViewportWidth           = SHADOW_DIM;
+    specs.EnableDynamicStates     = false;
 
     VkPushConstantRange pcRange;
     pcRange.offset           = 0;
@@ -614,6 +615,7 @@ void Renderer::SetupPointShadowPassPipeline()
     specs.GeometryShaderPath      = "assets/shaders/pointShadowPassGEOM.spv";
     specs.ViewportHeight          = POUNT_SHADOW_DIM;
     specs.ViewportWidth           = POUNT_SHADOW_DIM;
+    specs.EnableDynamicStates     = false;
 
     VkPushConstantRange pcRange;
     pcRange.offset     = 0;
@@ -1099,7 +1101,7 @@ void Renderer::CreateSwapchainRenderPass()
     dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dep.srcAccessMask = 0;
     dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     RenderPass::CreateInfo HDRCreateInfo{ { colorAttachment }, { dep }, false, "Swapchain Final Pass (rename)" };
 
@@ -1121,12 +1123,14 @@ void Renderer::CreateHDRRenderPass()
                                                 { 1.0f, 0.0f } };
 
     VkSubpassDependency dep{};
-    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
-    dep.dstSubpass    = 0;
-    dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dep.srcAccessMask = 0;
+    dep.srcSubpass   = VK_SUBPASS_EXTERNAL;
+    dep.dstSubpass   = 0;
+    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dep.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
     dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dep.dstAccessMask =
+        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     RenderPass::CreateInfo HDRCreateInfo{ { colorAttachment, depthAttachment }, { dep }, true, "HDR Render Pass" };
 
@@ -1251,12 +1255,13 @@ void Renderer::CreateBokehRenderPass()
                                                 { 0.0f, 0.0f, 0.0f, 1.0f } };
 
     VkSubpassDependency dep{};
-    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
-    dep.dstSubpass    = 0;
-    dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dep.dstStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    dep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    dep.srcSubpass      = VK_SUBPASS_EXTERNAL;
+    dep.dstSubpass      = 0;
+    dep.srcStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dep.srcAccessMask   = VK_ACCESS_SHADER_READ_BIT;
+    dep.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+    dep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     RenderPass::CreateInfo createInfo{ { colorAttachment }, { dep }, false, "Bokeh Pass" };
 

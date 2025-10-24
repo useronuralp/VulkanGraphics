@@ -224,7 +224,7 @@ void Pipeline::Init()
     pipelineInfo.pMultisampleState   = &multisampling;
     pipelineInfo.pDepthStencilState  = nullptr; // Optional
     pipelineInfo.pColorBlendState    = &colorBlending;
-    pipelineInfo.pDynamicState       = nullptr; // Optional
+    pipelineInfo.pDynamicState       = _Specs.EnableDynamicStates ? &dynamicState : nullptr;
     pipelineInfo.pDepthStencilState  = &depthStencil;
     pipelineInfo.layout              = _PipelineLayout;
     pipelineInfo.renderPass          = _Specs.RenderPass;

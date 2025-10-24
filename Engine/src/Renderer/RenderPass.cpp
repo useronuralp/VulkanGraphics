@@ -47,7 +47,6 @@ void RenderPass::CreateRenderPass()
     // TODO: Add ensure macro here
     if (useDefaultDep)
     {
-        VkSubpassDependency defaultDependency{};
         defaultDependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
         defaultDependency.dstSubpass    = 0;
         defaultDependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -65,8 +64,21 @@ void RenderPass::CreateRenderPass()
 
     if (useDefaultDep)
     {
-        rpInfo.dependencyCount = 1;
-        rpInfo.pDependencies   = &defaultDependency;
+        defaultDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        defaultDependency.dstSubpass = 0;
+
+        // Wait for previous frame’s color output and/or presentation
+        defaultDependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        defaultDependency.srcAccessMask = 0;
+
+        // Synchronize layout transition -> color attachment clear/write
+        defaultDependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        defaultDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        // If you also have depth attachments, include:
+        // defaultDependency.srcStageMask |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        // defaultDependency.dstStageMask |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        // defaultDependency.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     }
     else
     {

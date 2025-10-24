@@ -225,4 +225,51 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="assets\shaders\blurShader.frag" />
+    <None Include="assets\shaders\blurShaderFRAG.spv" />
+    <None Include="assets\shaders\bokehPass.frag" />
+    <None Include="assets\shaders\bokehPassFRAG.spv" />
+    <None Include="assets\shaders\BrightnessFilter.frag" />
+    <None Include="assets\shaders\brightnessFilterFRAG.spv" />
+    <None Include="assets\shaders\Clouds.frag" />
+    <None Include="assets\shaders\Clouds.vert" />
+    <None Include="assets\shaders\CloudsFRAG.spv" />
+    <None Include="assets\shaders\CloudsVERT.spv" />
+    <None Include="assets\shaders\compileShaders.bat">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="assets\shaders\cubemap.frag" />
+    <None Include="assets\shaders\cubemap.vert" />
+    <None Include="assets\shaders\cubemapFRAG.spv" />
+    <None Include="assets\shaders\cubemapVERT.spv" />
+    <None Include="assets\shaders\emissiveShader.frag" />
+    <None Include="assets\shaders\emissiveShader.vert" />
+    <None Include="assets\shaders\emissiveShaderFRAG.spv" />
+    <None Include="assets\shaders\emissiveShaderVERT.spv" />
+    <None Include="assets\shaders\finalPassShader.frag" />
+    <None Include="assets\shaders\finalPassShaderFRAG.spv" />
+    <None Include="assets\shaders\particle.frag" />
+    <None Include="assets\shaders\particle.vert" />
+    <None Include="assets\shaders\particleFRAG.spv" />
+    <None Include="assets\shaders\particleVERT.spv" />
+    <None Include="assets\shaders\PBRShader.frag" />
+    <None Include="assets\shaders\PBRShader.vert" />
+    <None Include="assets\shaders\PBRShaderFRAG.spv" />
+    <None Include="assets\shaders\PBRShaderVERT.spv" />
+    <None Include="assets\shaders\pointShadowPass.frag" />
+    <None Include="assets\shaders\pointShadowPass.geom" />
+    <None Include="assets\shaders\pointShadowPass.vert" />
+    <None Include="assets\shaders\pointShadowPassFRAG.spv" />
+    <None Include="assets\shaders\pointShadowPassGEOM.spv" />
+    <None Include="assets\shaders\pointShadowPassVERT.spv" />
+    <None Include="assets\shaders\QuadRender.vert" />
+    <None Include="assets\shaders\quadRenderVert.spv" />
+    <None Include="assets\shaders\shadowPass.vert" />
+    <None Include="assets\shaders\shadowPassVERT.spv" />
+    <None Include="assets\shaders\swapchain.frag" />
+    <None Include="assets\shaders\swapchainFRAG.spv" />
+    <None Include="assets\shaders\upscaleShader.frag" />
+    <None Include="assets\shaders\upscaleShaderFRAG.spv" />
+  </ItemGroup>
 </Project>
