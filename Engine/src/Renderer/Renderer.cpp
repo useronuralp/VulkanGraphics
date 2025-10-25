@@ -389,18 +389,21 @@ void ForwardRenderer::Init()
 
 void ForwardRenderer::CreateSynchronizationPrimitives()
 {
+    auto device     = _Context.GetDevice()->GetVKDevice();
+    auto imageCount = _Swapchain->GetImageCount();
+
     // Cleanup
-    for (int i = 0; i < _AcquireReadySemaphores.size(); i++)
+    for (int i = 0; i < _AcquireFinishedSemaphores.size(); i++)
     {
-        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _AcquireReadySemaphores[i], nullptr);
+        vkDestroySemaphore(device, _AcquireFinishedSemaphores[i], nullptr);
     }
     for (int i = 0; i < _InFlightFences.size(); i++)
     {
-        vkDestroyFence(_Context.GetDevice()->GetVKDevice(), _InFlightFences[i], nullptr);
+        vkDestroyFence(device, _InFlightFences[i], nullptr);
     }
     for (int i = 0; i < _RenderingCompleteSemaphores.size(); i++)
     {
-        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _RenderingCompleteSemaphores[i], nullptr);
+        vkDestroySemaphore(device, _RenderingCompleteSemaphores[i], nullptr);
     }
 
     VkFenceCreateInfo fenceCreateInfo = {};
@@ -410,26 +413,24 @@ void ForwardRenderer::CreateSynchronizationPrimitives()
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    auto imageCount     = _Swapchain->GetImageCount();
     _RenderingCompleteSemaphores.resize(imageCount);
-    _AcquireReadySemaphores.resize(_ConcurrentAllowedFrameCount);
+    _AcquireFinishedSemaphores.resize(_ConcurrentAllowedFrameCount);
     _InFlightFences.resize(_ConcurrentAllowedFrameCount);
+
     for (int i = 0; i < imageCount; i++)
     {
         ASSERT(
-            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &_RenderingCompleteSemaphores[i]) ==
-                VK_SUCCESS,
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &_RenderingCompleteSemaphores[i]) == VK_SUCCESS,
             "Failed to create rendering complete semaphore.");
     }
 
     for (int i = 0; i < _ConcurrentAllowedFrameCount; i++)
     {
         ASSERT(
-            vkCreateFence(_Context.GetDevice()->GetVKDevice(), &fenceCreateInfo, nullptr, &_InFlightFences[i]) == VK_SUCCESS,
+            vkCreateFence(device, &fenceCreateInfo, nullptr, &_InFlightFences[i]) == VK_SUCCESS,
             "Failed to create is rendering fence.");
         ASSERT(
-            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &_AcquireReadySemaphores[i]) ==
-                VK_SUCCESS,
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &_AcquireFinishedSemaphores[i]) == VK_SUCCESS,
             "Failed to create image available semaphore.");
     }
 }
@@ -1346,7 +1347,7 @@ void ForwardRenderer::Cleanup()
     for (int i = 0; i < _ConcurrentAllowedFrameCount; i++)
     {
         vkDestroyFence(_Context.GetDevice()->GetVKDevice(), _InFlightFences[i], nullptr);
-        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _AcquireReadySemaphores[i], nullptr);
+        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _AcquireFinishedSemaphores[i], nullptr);
     }
 
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
@@ -1657,7 +1658,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
             model2->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pointShadowPassPipeline->GetPipelineLayout());
 
             _PointShadowRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
-            // CommandBuffer::EndRenderPass(cmdBuffers[_CurrentBufferIndex]);
             //   End point shadow pass.----------------------
         }
         // Shadow passes end  ----
@@ -1709,7 +1709,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         ct++;
     }
     // Begin HDR rendering------------------------------------------
-    // CommandBuffer::BeginRenderPass(cmdBuffers[_CurrentBufferIndex], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     _HDRRenderPass->Begin(cmdBuffers[_CurrentBufferIndex], *_HDRFramebuffer);
     //  Drawing the skybox.
     glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
@@ -1880,10 +1879,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         &dustBrigthness);
     ambientParticles->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
 
-    // vkCmdEndRenderingKHR(cmdBuffers[_CurrentBufferIndex]);
-
     _HDRRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
-    // CommandBuffer::EndRenderPass(cmdBuffers[_CurrentBufferIndex]);
     //   End HDR Rendering ------------------------------------------
 
     // Post processing begin ---------------------------
@@ -1912,7 +1908,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         vkCmdDraw(cmdBuffers[_CurrentBufferIndex], 3, 1, 0, 0);
 
         bokehRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
-        // CommandBuffer::EndRenderPass(cmdBuffers[_CurrentBufferIndex]);
     }
     // Bokeh pass end----------------------
     // Post processing end ---------------------------
@@ -2092,16 +2087,18 @@ void ForwardRenderer::RenderImGui()
 
 bool ForwardRenderer::BeginFrame()
 {
-    vkWaitForFences(_Context.GetDevice()->GetVKDevice(), 1, &_InFlightFences[_CurrentBufferIndex], VK_TRUE, UINT64_MAX);
-    vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &_InFlightFences[_CurrentBufferIndex]);
+    auto device = _Context.GetDevice()->GetVKDevice();
+
+    vkWaitForFences(device, 1, &_InFlightFences[_CurrentBufferIndex], VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &_InFlightFences[_CurrentBufferIndex]);
 
     VkResult result;
 
     result = vkAcquireNextImageKHR(
-        _Context.GetDevice()->GetVKDevice(),
+        device,
         _Swapchain->GetHandle(),
         UINT64_MAX,
-        _AcquireReadySemaphores[_CurrentBufferIndex],
+        _AcquireFinishedSemaphores[_CurrentBufferIndex],
         VK_NULL_HANDLE,
         &_CurrentSwapchainImageIndex);
 
@@ -2202,12 +2199,16 @@ void ForwardRenderer::EndFrame()
     {
         _Camera->OnUpdate(_DeltaTime);
     }
+
+    auto queue                        = _Context.GetDevice()->GetGraphicsQueue();
+    auto swapchainHandle              = _Swapchain->GetHandle();
+
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSubmitInfo         submitInfo{};
 
     submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.waitSemaphoreCount   = 1;
-    submitInfo.pWaitSemaphores      = &_AcquireReadySemaphores[_CurrentBufferIndex]; // TODO Change name to Acquire Ready.
+    submitInfo.pWaitSemaphores      = &_AcquireFinishedSemaphores[_CurrentBufferIndex];
     submitInfo.pWaitDstStageMask    = waitStages;
     submitInfo.commandBufferCount   = 1;
     submitInfo.pCommandBuffers      = &cmdBuffers[_CurrentBufferIndex];
@@ -2215,11 +2216,10 @@ void ForwardRenderer::EndFrame()
     submitInfo.pSignalSemaphores    = &_RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
 
     ASSERT(
-        vkQueueSubmit(_Context.GetDevice()->GetGraphicsQueue(), 1, &submitInfo, _InFlightFences[_CurrentBufferIndex]) ==
-            VK_SUCCESS,
+        vkQueueSubmit(queue, 1, &submitInfo, _InFlightFences[_CurrentBufferIndex]) == VK_SUCCESS,
         "Failed to submit draw command buffer!");
 
-    VkSwapchainKHR   swapchain = _Swapchain->GetHandle();
+    VkSwapchainKHR   swapchain = swapchainHandle;
     VkPresentInfoKHR presentInfo{};
 
     presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -2230,7 +2230,7 @@ void ForwardRenderer::EndFrame()
     presentInfo.pImageIndices      = &_CurrentSwapchainImageIndex;
     presentInfo.pResults           = nullptr;
 
-    result                         = vkQueuePresentKHR(_Context.GetDevice()->GetGraphicsQueue(), &presentInfo);
+    result                         = vkQueuePresentKHR(queue, &presentInfo);
     ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
 
     _CurrentBufferIndex = ++_CurrentBufferIndex % _ConcurrentAllowedFrameCount;

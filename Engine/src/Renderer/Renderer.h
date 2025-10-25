@@ -252,7 +252,7 @@ class ForwardRenderer : public RendererInterface
     uint32_t                 _ConcurrentAllowedFrameCount = MAX_FRAMES_IN_FLIGHT;
     uint32_t                 _CurrentBufferIndex          = 0;
     std::vector<VkSemaphore> _RenderingCompleteSemaphores;
-    std::vector<VkSemaphore> _AcquireReadySemaphores;
+    std::vector<VkSemaphore> _AcquireFinishedSemaphores;
     std::vector<VkFence>     _InFlightFences;
 
     uint32_t _CurrentSwapchainImageIndex = 0;

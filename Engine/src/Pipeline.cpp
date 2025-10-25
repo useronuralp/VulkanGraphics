@@ -20,6 +20,7 @@ void Pipeline::Resize()
     Cleanup();
     Init();
 }
+
 void Pipeline::Cleanup()
 {
     vkDestroyPipeline(_Context.GetDevice()->GetVKDevice(), _Pipeline, nullptr);
@@ -84,40 +85,41 @@ void Pipeline::Init()
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     // ------------------------------------------------------------------------
-    // Viewport & scissor
+    // Viewport & scissor. If you're using dynamic states, these initial setups aren't important.
     // ------------------------------------------------------------------------
-    VkViewport viewport{};
+    VkViewport viewportDummy{};
     if (_Specs.ViewportWidth == UINT32_MAX && _Specs.ViewportHeight == UINT32_MAX)
     {
-        viewport.x        = 0.0f;
-        viewport.y        = 0.0f;
-        viewport.width    = (float)_Context.GetSurface()->GetVKExtent().width;
-        viewport.height   = (float)_Context.GetSurface()->GetVKExtent().height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        viewportDummy.x        = 0.0f;
+        viewportDummy.y        = 0.0f;
+        viewportDummy.width    = (float)_Context.GetSurface()->GetVKExtent().width;
+        viewportDummy.height   = (float)_Context.GetSurface()->GetVKExtent().height;
+        viewportDummy.minDepth = 0.0f;
+        viewportDummy.maxDepth = 1.0f;
     }
     else
     {
-        viewport.x        = 0.0f;
-        viewport.y        = 0.0f;
-        viewport.width    = (float)_Specs.ViewportWidth;
-        viewport.height   = (float)_Specs.ViewportHeight;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        viewportDummy.x        = 0.0f;
+        viewportDummy.y        = 0.0f;
+        viewportDummy.width    = (float)_Specs.ViewportWidth;
+        viewportDummy.height   = (float)_Specs.ViewportHeight;
+        viewportDummy.minDepth = 0.0f;
+        viewportDummy.maxDepth = 1.0f;
     }
 
-    VkRect2D scissor{};
-    scissor.offset       = { 0, 0 };
-    scissor.extent.width = _Specs.ViewportWidth == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().width : _Specs.ViewportWidth;
-    scissor.extent.height =
+    VkRect2D scissorDummy{};
+    scissorDummy.offset = { 0, 0 };
+    scissorDummy.extent.width =
+        _Specs.ViewportWidth == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().width : _Specs.ViewportWidth;
+    scissorDummy.extent.height =
         _Specs.ViewportHeight == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().height : _Specs.ViewportHeight;
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
-    viewportState.pViewports    = &viewport;
+    viewportState.pViewports    = &viewportDummy;
     viewportState.scissorCount  = 1;
-    viewportState.pScissors     = &scissor;
+    viewportState.pScissors     = &scissorDummy;
 
     // ------------------------------------------------------------------------
     // Rasterizer
