@@ -1,5 +1,5 @@
+#include "Device.h"
 #include "Instance.h"
-#include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "Surface.h"
 #include "VulkanContext.h"
@@ -86,7 +86,7 @@ void VulkanContext::PickPhysicalDevice()
 
 void VulkanContext::CreateLogicalDevice()
 {
-    _Device = make_s<LogicalDevice>(_RequiredExtensions);
+    _Device = make_s<Device>(_RequiredExtensions);
 }
 
 void VulkanContext::SetupQueueFamilies()
@@ -124,7 +124,7 @@ Ref<Instance> VulkanContext::GetInstance() const
     return _Instance;
 }
 
-Ref<LogicalDevice> VulkanContext::GetDevice() const
+Ref<Device> VulkanContext::GetDevice() const
 {
     return _Device;
 }
@@ -187,7 +187,7 @@ void VulkanContext::Shutdown()
     }
 
     // 2. Reset objects in reverse creation order
-    _Device.reset(); // LogicalDevice first (frees queues, semaphores, command pools)
+    _Device.reset(); // Device first (frees queues, semaphores, command pools)
     _Surface.reset(); // Surface next (depends on instance + window)
     _PhysicalDevice.reset(); // Usually safe to reset next
     _Instance.reset(); // Vulkan instance

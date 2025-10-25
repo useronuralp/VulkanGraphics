@@ -7,7 +7,7 @@ class Instance;
 class PhysicalDevice;
 class Surface;
 class Window;
-class LogicalDevice;
+class Device;
 
 struct QueueFamilyIndices
 {
@@ -33,7 +33,7 @@ class VulkanContext
     void Shutdown();
 
     Ref<Instance>       GetInstance() const;
-    Ref<LogicalDevice>  GetDevice() const;
+    Ref<Device>         GetDevice() const;
     Ref<PhysicalDevice> GetPhysicalDevice() const;
     Ref<Surface>        GetSurface() const;
     // TO DO: Move this out of here;
@@ -52,7 +52,7 @@ class VulkanContext
     Ref<Instance>       _Instance;
     Ref<PhysicalDevice> _PhysicalDevice;
     Ref<Surface>        _Surface;
-    Ref<LogicalDevice>  _Device;
+    Ref<Device>         _Device;
 
     VkSampleCountFlagBits _MSAASamples           = VK_SAMPLE_COUNT_1_BIT;
 

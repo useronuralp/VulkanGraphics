@@ -1,6 +1,6 @@
 #include "core.h"
 #include "Framebuffer.h"
-#include "LogicalDevice.h"
+#include "Device.h"
 #include "RenderPass.h"
 #include "Surface.h"
 #include "VulkanContext.h"

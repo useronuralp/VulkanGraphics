@@ -176,7 +176,7 @@
     <ClInclude Include="src\Framebuffer.h" />
     <ClInclude Include="src\Image.h" />
     <ClInclude Include="src\Instance.h" />
-    <ClInclude Include="src\LogicalDevice.h" />
+    <ClInclude Include="src\Device.h" />
     <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\Model.h" />
     <ClInclude Include="src\OVKLib.h" />
@@ -213,7 +213,7 @@
     <ClCompile Include="src\Framebuffer.cpp" />
     <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\Instance.cpp" />
-    <ClCompile Include="src\LogicalDevice.cpp" />
+    <ClCompile Include="src\Device.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\ParticleSystem.cpp" />

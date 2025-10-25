@@ -1,6 +1,6 @@
 #include "Buffer.h"
 #include "DescriptorSet.h"
-#include "LogicalDevice.h"
+#include "Device.h"
 #include "Pipeline.h"
 #include "Surface.h"
 #include "Swapchain.h"

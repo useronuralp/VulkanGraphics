@@ -1,7 +1,7 @@
 #include "CommandBuffer.h"
 #include "EngineInternal.h"
 #include "Image.h"
-#include "LogicalDevice.h"
+#include "Device.h"
 #include "PhysicalDevice.h"
 #include "Utils.h"
 #include "VulkanContext.h"

@@ -1,7 +1,7 @@
 #include "DescriptorSet.h"
 #include "EngineInternal.h"
 #include "Image.h"
-#include "LogicalDevice.h"
+#include "Device.h"
 #include "ParticleSystem.h"
 #include "Utils.h"
 #include "VulkanContext.h"

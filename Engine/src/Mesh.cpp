@@ -1,9 +1,9 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
+#include "Device.h"
 #include "EngineInternal.h"
 #include "Image.h"
-#include "LogicalDevice.h"
 #include "Mesh.h"
 #include "Model.h"
 #include "Utils.h"
@@ -32,7 +32,8 @@ Mesh::Mesh(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt =
+        vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())
@@ -134,7 +135,8 @@ Mesh::Mesh(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt =
+        vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())

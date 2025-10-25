@@ -47,17 +47,3 @@ class IndexBuffer
     VkDeviceMemory        m_BufferMemory = VK_NULL_HANDLE;
     std::vector<uint32_t> m_Indices;
 };
-
-// class UniformBuffer
-//{
-// public:
-//	UniformBuffer(const Ref<DescriptorSet>& dscSet, size_t allocationSize,
-// uint32_t bindingIndex); 	~UniformBuffer(); 	const VkBuffer&
-// GetUniformBuffer() { return m_Buffer; } 	const VkDeviceMemory&
-// GetBufferMemory() { return m_BufferMemory; } 	void
-// UpdateUniformBuffer(void* dataToCopy, size_t dataSize);
-//
-// private:
-//	VkBuffer	   m_Buffer = VK_NULL_HANDLE;
-//	VkDeviceMemory m_BufferMemory = VK_NULL_HANDLE;
-// };

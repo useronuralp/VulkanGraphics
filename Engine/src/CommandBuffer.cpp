@@ -3,7 +3,7 @@
 #include "DescriptorSet.h"
 #include "EngineInternal.h"
 #include "Framebuffer.h"
-#include "LogicalDevice.h"
+#include "Device.h"
 #include "Pipeline.h"
 #include "Surface.h"
 #include "Swapchain.h"

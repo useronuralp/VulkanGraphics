@@ -1,11 +1,11 @@
+#include "Device.h"
 #include "EngineInternal.h"
 #include "Instance.h"
-#include "LogicalDevice.h"
 #include "PhysicalDevice.h"
 #include "Surface.h"
 #include "VulkanContext.h"
 #include "Window.h"
-LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExtensions(extensions)
+Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensions)
 {
     // Fetch queue families.
     std::vector<QueueFamily>             queueFamilies = EngineInternal::GetContext().GetPhysicalDevice()->GetQueueFamilies();
@@ -150,11 +150,11 @@ LogicalDevice::LogicalDevice(std::vector<const char*> extensions) : m_DeviceExte
     PrintInfo("Logical device has been created.");
 }
 
-LogicalDevice::~LogicalDevice()
+Device::~Device()
 {
     vkDestroyDevice(m_Device, nullptr);
 }
-VkQueueFamilyProperties LogicalDevice::GetQueueFamilyProps(uint64_t queueFamilyIndex)
+VkQueueFamilyProperties Device::GetQueueFamilyProps(uint64_t queueFamilyIndex)
 {
     std::vector<VkQueueFamilyProperties> props;
     uint32_t                             propertyCount = 0;

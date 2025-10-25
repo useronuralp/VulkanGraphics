@@ -39,7 +39,7 @@
     <ClInclude Include="src\Instance.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\LogicalDevice.h">
+    <ClInclude Include="src\Device.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Mesh.h">
@@ -149,7 +149,7 @@
     <ClCompile Include="src\Instance.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\LogicalDevice.cpp">
+    <ClCompile Include="src\Device.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Mesh.cpp">

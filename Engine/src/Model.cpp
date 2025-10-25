@@ -1,9 +1,9 @@
 #include "Buffer.h",
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
+#include "Device.h"
 #include "Framebuffer.h"
 #include "Image.h"
-#include "LogicalDevice.h"
 #include "Mesh.h"
 #include "Model.h"
 #include "PhysicalDevice.h"

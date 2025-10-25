@@ -30,20 +30,14 @@ inline LoadingFlags operator&(LoadingFlags a, LoadingFlags b)
     return static_cast<LoadingFlags>(static_cast<int>(a) & static_cast<int>(b));
 }
 
-class CubemapTexture;
 class Mesh;
 class Image;
 class DescriptorSet;
 class VertexBuffer;
 class IndexBuffer;
-class UniformBuffer;
-class ImageBuffer;
-class RenderPass;
-class Swapchain;
 class DescriptorPool;
 class DescriptorSetLayout;
 class Pipeline;
-class Framebuffer;
 class CommandBuffer;
 enum class DescriptorPrimitive;
 class Model

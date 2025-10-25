@@ -11,7 +11,7 @@
 // #include "glm/glm.hpp"
 // #include "Image.h"
 // #include "Instance.h"
-// #include "LogicalDevice.h"
+// #include "Device.h"
 // #include "Mesh.h"
 // #include "Model.h"
 // #include "ParticleSystem.h"

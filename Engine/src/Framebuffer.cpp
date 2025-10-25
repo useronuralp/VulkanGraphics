@@ -1,6 +1,6 @@
 #include "EngineInternal.h"
 #include "Framebuffer.h"
-#include "LogicalDevice.h"
+#include "Device.h"
 #include "Surface.h"
 #include "VulkanContext.h"
 

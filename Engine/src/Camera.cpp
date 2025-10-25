@@ -2,7 +2,7 @@
 #include "EngineInternal.h"
 #include "VulkanContext.h"
 #include "Window.h"
-Camera::Camera(float fov, float aspectRatio) : m_FOV(fov), m_AspectRatio(aspectRatio)
+Camera::Camera(float fov, float aspectRatio) : _FOV(fov), _AspectRatio(aspectRatio)
 {
     UpdateProjection();
     UpdateView();
@@ -13,8 +13,8 @@ void Camera::OnUpdate(float deltaTime)
     auto window = EngineInternal::GetContext().GetWindow()->GetNativeWindow();
 
     const glm::vec2& mouse{ GetMouseXOffset(), GetMouseYOffset() };
-    glm::vec2        delta = (mouse - m_InitialMousePosition) * 0.003f;
-    m_InitialMousePosition = mouse;
+    glm::vec2        delta = (mouse - _InitialMousePosition) * 0.003f;
+    _InitialMousePosition  = mouse;
 
     if (IsMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT))
     {
@@ -37,19 +37,19 @@ void Camera::OnUpdate(float deltaTime)
 
 void Camera::UpdateProjection()
 {
-    m_AspectRatio          = m_ViewportWidth / m_ViewportHeight;
-    m_ProjectionMatrix     = glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip, m_FarClip);
-    m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
+    _AspectRatio          = _ViewportWidth / _ViewportHeight;
+    _ProjectionMatrix     = glm::perspective(glm::radians(_FOV), _AspectRatio, _NearClip, _FarClip);
+    _ViewProjectionMatrix = _ProjectionMatrix * _ViewMatrix;
 }
 
 void Camera::UpdateView()
 {
-    m_Position             = CalculatePosition();
+    _Position             = CalculatePosition();
 
-    glm::quat orientation  = GetOrientation();
-    m_ViewMatrix           = glm::translate(glm::mat4(1.0f), m_Position) * glm::toMat4(orientation);
-    m_ViewMatrix           = glm::inverse(m_ViewMatrix);
-    m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
+    glm::quat orientation = GetOrientation();
+    _ViewMatrix           = glm::translate(glm::mat4(1.0f), _Position) * glm::toMat4(orientation);
+    _ViewMatrix           = glm::inverse(_ViewMatrix);
+    _ViewProjectionMatrix = _ProjectionMatrix * _ViewMatrix;
 }
 
 void Camera::MousePan(const glm::vec2& delta, float deltaTime)
@@ -62,20 +62,20 @@ void Camera::MousePan(const glm::vec2& delta, float deltaTime)
 
     if (IsKeyDown(GLFW_KEY_SPACE))
     {
-        modifiery = GetUpDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
+        modifiery = GetUpDirection() * xSpeed * _Distance * deltaTime * 10.0f;
     }
     else if (IsKeyDown(GLFW_KEY_LEFT_CONTROL))
     {
-        modifiery = -GetUpDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
+        modifiery = -GetUpDirection() * xSpeed * _Distance * deltaTime * 10.0f;
     }
 
     if (IsKeyDown(GLFW_KEY_A))
     {
-        modifierx = -GetRightDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
+        modifierx = -GetRightDirection() * xSpeed * _Distance * deltaTime * 10.0f;
     }
     else if (IsKeyDown(GLFW_KEY_D))
     {
-        modifierx = GetRightDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
+        modifierx = GetRightDirection() * xSpeed * _Distance * deltaTime * 10.0f;
     }
 
     if (IsKeyDown(GLFW_KEY_W))
@@ -87,16 +87,16 @@ void Camera::MousePan(const glm::vec2& delta, float deltaTime)
         zoomModifier = -normalize(GetForwardDirection()) * deltaTime * 10.0f;
     }
 
-    m_FocalPoint += modifierx + -GetRightDirection() * delta.x * xSpeed * m_Distance;
-    m_FocalPoint += modifiery + GetUpDirection() * delta.y * xSpeed * m_Distance;
-    m_FocalPoint -= zoomModifier;
+    _FocalPoint += modifierx + -GetRightDirection() * delta.x * xSpeed * _Distance;
+    _FocalPoint += modifiery + GetUpDirection() * delta.y * xSpeed * _Distance;
+    _FocalPoint -= zoomModifier;
 }
 
 void Camera::MouseRotate(const glm::vec2& delta, float deltaTime)
 {
     float yawSign = GetUpDirection().y < 0 ? -1.0f : 1.0f;
-    m_Yaw += yawSign * delta.x * RotationSpeed() * deltaTime * 30;
-    m_Pitch += delta.y * RotationSpeed() * deltaTime * 30;
+    _Yaw += yawSign * delta.x * RotationSpeed() * deltaTime * 30;
+    _Pitch += delta.y * RotationSpeed() * deltaTime * 30;
 }
 
 void Camera::MouseZoom(float delta, float deltaTime)
@@ -106,20 +106,20 @@ void Camera::MouseZoom(float delta, float deltaTime)
     {
         zoomSpeed = 20.0f;
     }
-    m_FocalPoint -= normalize(GetForwardDirection()) * delta * zoomSpeed * deltaTime * 10.0f;
+    _FocalPoint -= normalize(GetForwardDirection()) * delta * zoomSpeed * deltaTime * 10.0f;
 }
 
 glm::vec3 Camera::CalculatePosition() const
 {
-    return m_FocalPoint + GetForwardDirection() * m_Distance;
+    return _FocalPoint + GetForwardDirection() * _Distance;
 }
 
 std::pair<float, float> Camera::PanSpeed() const
 {
-    float x       = std::min(m_ViewportWidth / 1000.0f, 2.4f); // max = 2.4f
+    float x       = std::min(_ViewportWidth / 1000.0f, 2.4f); // max = 2.4f
     float xFactor = 0.0366f * (x * x) - 0.1778f * x + 0.3021f;
 
-    float y       = std::min(m_ViewportHeight / 1000.0f, 2.4f); // max = 2.4f
+    float y       = std::min(_ViewportHeight / 1000.0f, 2.4f); // max = 2.4f
     float yFactor = 0.0366f * (y * y) - 0.1778f * y + 0.3021f;
 
     return { xFactor, yFactor };
@@ -132,7 +132,7 @@ float Camera::RotationSpeed() const
 
 float Camera::ZoomSpeed() const
 {
-    float distance = m_Distance * 0.2f;
+    float distance = _Distance * 0.2f;
     distance       = std::max(distance, 0.0f);
     float speed    = distance * distance;
     speed          = std::min(speed, 100.0f); // max speed = 100
@@ -171,22 +171,70 @@ double Camera::GetMouseYOffset()
     glfwGetCursorPos(EngineInternal::GetContext().GetWindow()->GetNativeWindow(), &xpos, &ypos);
     return ypos;
 }
-const glm::vec3& Camera::GetUpDirection() const
+glm::vec3 Camera::GetUpDirection() const
 {
     return glm::rotate(GetOrientation(), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-const glm::vec3& Camera::GetRightDirection() const
+glm::vec3 Camera::GetRightDirection() const
 {
     return glm::rotate(GetOrientation(), glm::vec3(1.0f, 0.0f, 0.0f));
 }
 
-const glm::vec3& Camera::GetForwardDirection() const
+glm::vec3 Camera::GetForwardDirection() const
 {
     return glm::rotate(GetOrientation(), glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
-const glm::quat& Camera::GetOrientation() const
+glm::quat Camera::GetOrientation() const
 {
-    return glm::quat(glm::vec3(-m_Pitch, -m_Yaw, 0.0f));
+    return glm::quat(glm::vec3(-_Pitch, -_Yaw, 0.0f));
+}
+
+float Camera::GetDistance() const
+{
+    return _Distance;
+}
+glm::vec3 Camera::GetPosition() const
+{
+    return _Position;
+}
+float Camera::GetPitch() const
+{
+    return _Pitch;
+}
+float Camera::GetYaw() const
+{
+    return _Yaw;
+}
+glm::mat4 Camera::GetProjectionMatrix() const
+{
+    return _ProjectionMatrix;
+}
+glm::mat4 Camera::GetViewMatrix() const
+{
+    return _ViewMatrix;
+}
+glm::mat4 Camera::GetViewProjectionMatrix() const
+{
+    return _ViewProjectionMatrix;
+}
+
+float Camera::GetNearClip() const
+{
+    return _NearClip;
+}
+
+float Camera::GetFarClip() const
+{
+    return _FarClip;
+}
+void Camera::SetDistance(float distance)
+{
+    _Distance = distance;
+}
+void Camera::SetViewportSize(float width, float height)
+{
+    _ViewportWidth = width, _ViewportHeight = height;
+    UpdateProjection();
 }

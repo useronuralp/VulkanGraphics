@@ -20,7 +20,6 @@ class DescriptorSetLayout;
 class Bloom;
 class DescriptorPool;
 
-#define MAX_FRAMES_IN_FLIGHT  3
 #define MAX_POINT_LIGHT_COUNT 10
 #define SHADOW_DIM            10000
 #define POUNT_SHADOW_DIM      1000
@@ -35,9 +34,9 @@ class RendererInterface
     virtual void RenderFrame(float DeltaTime) = 0; // Render the main scene
     virtual void EndFrame()                   = 0; // Submit frame
     virtual void InitImGui()                  = 0; // Submit frame
-    virtual void PollEvents()                 = 0; // Submit frame
-    virtual void RenderImGui()                = 0; // Submit frame
-    virtual void Cleanup()                    = 0; // Submit frame
+    // virtual void PollEvents()                 = 0; // Submit frame
+    virtual void RenderImGui() = 0; // Submit frame
+    virtual void Cleanup()     = 0; // Submit frame
 };
 
 class ForwardRenderer : public RendererInterface
@@ -226,8 +225,6 @@ class ForwardRenderer : public RendererInterface
     void UpdateViewport_Scissor();
 
     void InitImGui();
-    void CreateSynchronizationPrimitives();
-    void PollEvents();
     void RenderImGui();
     void HandleWindowResize(VkResult InResult);
 
@@ -248,12 +245,6 @@ class ForwardRenderer : public RendererInterface
 
     VkViewport _DynamicViewport{};
     VkRect2D   _DynamicScissor;
-
-    uint32_t                 _ConcurrentAllowedFrameCount = MAX_FRAMES_IN_FLIGHT;
-    uint32_t                 _CurrentBufferIndex          = 0;
-    std::vector<VkSemaphore> _RenderingCompleteSemaphores;
-    std::vector<VkSemaphore> _AcquireFinishedSemaphores;
-    std::vector<VkFence>     _InFlightFences;
 
     uint32_t _CurrentSwapchainImageIndex = 0;
 

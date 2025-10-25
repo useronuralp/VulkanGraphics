@@ -30,19 +30,10 @@ class DescriptorSetLayout
    public:
     DescriptorSetLayout() = default;
     DescriptorSetLayout(const std::vector<DescriptorSetBindingSpecs>& layout);
-    DescriptorSetLayout(const VkDescriptorSetLayout& layout)
-    {
-        m_DescriptorSetLayout = layout;
-    }
     ~DescriptorSetLayout();
-    const std::vector<DescriptorSetBindingSpecs>& GetBindingSpecs()
-    {
-        return m_SetLayout;
-    }
-    const VkDescriptorSetLayout& GetDescriptorLayout()
-    {
-        return m_DescriptorSetLayout;
-    }
+    DescriptorSetLayout(const VkDescriptorSetLayout& layout);
+    std::vector<DescriptorSetBindingSpecs>& GetBindingSpecs();
+    VkDescriptorSetLayout&                  GetDescriptorLayout();
 
    private:
     VkDescriptorSetLayout                  m_DescriptorSetLayout = VK_NULL_HANDLE;
@@ -66,20 +57,3 @@ class DescriptorPool
    private:
     VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
 };
-// class DescriptorSet
-//{
-// public:
-//	DescriptorSet() = default;
-//	DescriptorSet(const std::vector<DescriptorBindingSpecs>& layout);
-//	DescriptorSet(const DescriptorPool& poolToAllocateFrom, DescriptorLayout&
-// layout); 	~DescriptorSet(); 	const VkDescriptorSet& GetVKDescriptorSet()
-// const { return m_DescriptorSet; } 	const VkDescriptorSetLayout&
-// GetVKDescriptorSetLayout() const { return m_DescriptorSetLayout; } 	const
-// std::vector<DescriptorBindingSpecs>& GetLayout() const { return m_SetLayout;
-// }
-// private:
-//	VkDescriptorSet					    m_DescriptorSet = VK_NULL_HANDLE;
-//	VkDescriptorPool				    m_DescriptorPool = VK_NULL_HANDLE;
-//	VkDescriptorSetLayout			    m_DescriptorSetLayout = VK_NULL_HANDLE;
-//	std::vector<DescriptorBindingSpecs>    m_SetLayout;
-// };

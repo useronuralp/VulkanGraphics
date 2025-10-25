@@ -4,11 +4,11 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-class LogicalDevice
+class Device
 {
    public:
-    LogicalDevice(std::vector<const char*> extensions);
-    ~LogicalDevice();
+    Device(std::vector<const char*> extensions);
+    ~Device();
 
    public:
     const VkDevice& GetVKDevice()

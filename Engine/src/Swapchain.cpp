@@ -1,4 +1,4 @@
-#include "LogicalDevice.h"
+#include "Device.h"
 #include "PhysicalDevice.h"
 #include "Surface.h"
 #include "Swapchain.h"

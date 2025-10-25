@@ -13,35 +13,32 @@ class Scene;
 class Engine
 {
    public:
-    void Init();
-    void Run();
-
+    void           Init();
+    void           Run();
     static Engine& Get();
 
-    // Scene API
     Ref<Scene> CreateScene() {};
     Ref<Scene> GetActiveScene() const {};
     void       SetActiveScene(Ref<Scene> InScene) {};
 
+   private:
+    Engine()                         = default;
     Engine(const Engine&)            = delete;
     Engine& operator=(const Engine&) = delete;
 
    private:
-    Unique<RendererInterface> _Renderer  = nullptr;
-    Ref<Swapchain>            _Swapchain = nullptr;
-    Ref<Camera>               _Camera    = nullptr;
-    Unique<VulkanContext>     _Context   = nullptr;
-
-    Ref<Scene> _ActiveScene              = nullptr;
-
-   private:
-    Engine() = default;
-    void Shutdown();
-
+    void  Shutdown();
     float CalculateDeltaTime();
+    void  PollEvents();
+    void  CreateSynchronizationPrimitives();
 
    private:
-    float _LastFrameTime = 0.0f;
+    Unique<RendererInterface> _Renderer      = nullptr;
+    Ref<Swapchain>            _Swapchain     = nullptr;
+    Ref<Camera>               _Camera        = nullptr;
+    Unique<VulkanContext>     _Context       = nullptr;
+    Ref<Scene>                _ActiveScene   = nullptr;
+    float                     _LastFrameTime = 0.0f;
 
     friend class EngineInternal;
 };
