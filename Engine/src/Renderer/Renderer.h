@@ -20,15 +20,10 @@ class DescriptorSetLayout;
 class Bloom;
 class DescriptorPool;
 
-#define MAX_FRAMES_IN_FLIGHT  2
+#define MAX_FRAMES_IN_FLIGHT  3
 #define MAX_POINT_LIGHT_COUNT 10
 #define SHADOW_DIM            10000
 #define POUNT_SHADOW_DIM      1000
-#define MAX_FRAMES_IN_FLIGHT  1
-#define READY_TO_ACQUIRE      -1
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
 class RendererInterface
 {
@@ -48,14 +43,6 @@ class RendererInterface
 class ForwardRenderer : public RendererInterface
 {
    public:
-    uint32_t                 m_FramesInFlight = MAX_FRAMES_IN_FLIGHT;
-    uint32_t                 m_CurrentFrame   = 0;
-    std::vector<VkSemaphore> m_RenderingCompleteSemaphores;
-    std::vector<VkSemaphore> m_ImageAvailableSemaphores;
-    std::vector<VkFence>     m_InFlightFences;
-
-    uint32_t m_ActiveImageIndex = -1;
-
     VkDescriptorPool          imguiPool;
     ImGui_ImplVulkan_InitInfo init_info;
 
@@ -262,10 +249,13 @@ class ForwardRenderer : public RendererInterface
     VkViewport _DynamicViewport{};
     VkRect2D   _DynamicScissor;
 
-    std::vector<VkSemaphore> _ImageAvailableSemaphores;
-    std::vector<VkSemaphore> _RenderFinishedSemaphores;
+    uint32_t                 _ConcurrentAllowedFrameCount = MAX_FRAMES_IN_FLIGHT;
+    uint32_t                 _CurrentBufferIndex          = 0;
+    std::vector<VkSemaphore> _RenderingCompleteSemaphores;
+    std::vector<VkSemaphore> _AcquireReadySemaphores;
     std::vector<VkFence>     _InFlightFences;
 
-    float    _DeltaTime;
-    uint32_t _CurrentFrame = 0;
+    uint32_t _CurrentSwapchainImageIndex = 0;
+
+    float _DeltaTime;
 };

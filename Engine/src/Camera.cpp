@@ -17,15 +17,21 @@ void Camera::OnUpdate(float deltaTime)
     m_InitialMousePosition = mouse;
 
     if (IsMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT))
-        MousePan(delta);
-    else if (IsMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT))
-        MouseRotate(delta);
-    else if (EngineInternal::GetContext().GetWindow()->IsMouseScrolled())
+    {
+        MousePan(delta, deltaTime);
+    }
+    if (IsMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT))
+    {
+        MouseRotate(delta, deltaTime);
+        // MousePan(delta, deltaTime);
+    }
+    if (EngineInternal::GetContext().GetWindow()->IsMouseScrolled())
     {
         auto [x, y] = EngineInternal::GetContext().GetWindow()->GetMouseScrollOffset();
-        OnMouseScroll(x, y);
+        OnMouseScroll(x, y, deltaTime);
         EngineInternal::GetContext().GetWindow()->ResetVariables(); // Resets mouse scroll variables for now.
     }
+
     UpdateView();
 }
 
@@ -46,38 +52,61 @@ void Camera::UpdateView()
     m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
 }
 
-void Camera::MousePan(const glm::vec2& delta)
+void Camera::MousePan(const glm::vec2& delta, float deltaTime)
 {
-    auto [xSpeed, ySpeed] = PanSpeed();
-    if (IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+    float zoomSpeed        = 4.0f;
+    auto [xSpeed, ySpeed]  = PanSpeed();
+    glm::vec3 modifierx    = glm::vec3(0, 0, 0);
+    glm::vec3 modifiery    = glm::vec3(0, 0, 0);
+    glm::vec3 zoomModifier = glm::vec3(0, 0, 0);
+
+    if (IsKeyDown(GLFW_KEY_SPACE))
     {
-        xSpeed *= 10.0f;
-        ySpeed *= 10.0f;
+        modifiery = GetUpDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
     }
-    m_FocalPoint += -GetRightDirection() * delta.x * xSpeed * m_Distance;
-    m_FocalPoint += GetUpDirection() * delta.y * ySpeed * m_Distance;
+    else if (IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+    {
+        modifiery = -GetUpDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
+    }
+
+    if (IsKeyDown(GLFW_KEY_A))
+    {
+        modifierx = -GetRightDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
+    }
+    else if (IsKeyDown(GLFW_KEY_D))
+    {
+        modifierx = GetRightDirection() * xSpeed * m_Distance * deltaTime * 10.0f;
+    }
+
+    if (IsKeyDown(GLFW_KEY_W))
+    {
+        zoomModifier = normalize(GetForwardDirection()) * deltaTime * 10.0f;
+    }
+    else if (IsKeyDown(GLFW_KEY_S))
+    {
+        zoomModifier = -normalize(GetForwardDirection()) * deltaTime * 10.0f;
+    }
+
+    m_FocalPoint += modifierx + -GetRightDirection() * delta.x * xSpeed * m_Distance;
+    m_FocalPoint += modifiery + GetUpDirection() * delta.y * xSpeed * m_Distance;
+    m_FocalPoint -= zoomModifier;
 }
 
-void Camera::MouseRotate(const glm::vec2& delta)
+void Camera::MouseRotate(const glm::vec2& delta, float deltaTime)
 {
     float yawSign = GetUpDirection().y < 0 ? -1.0f : 1.0f;
-    m_Yaw += yawSign * delta.x * RotationSpeed();
-    m_Pitch += delta.y * RotationSpeed();
+    m_Yaw += yawSign * delta.x * RotationSpeed() * deltaTime * 30;
+    m_Pitch += delta.y * RotationSpeed() * deltaTime * 30;
 }
 
-void Camera::MouseZoom(float delta)
+void Camera::MouseZoom(float delta, float deltaTime)
 {
     float zoomSpeed = 4.0f;
     if (IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+    {
         zoomSpeed = 20.0f;
-
-    m_FocalPoint -= normalize(GetForwardDirection()) * delta * zoomSpeed;
-    // m_Distance -= delta * zoomSpeed * 4;
-    // if (m_Distance < 0.01f)
-    //{
-    //	m_FocalPoint += GetForwardDirection();
-    //	m_Distance = 0.01f;
-    // }
+    }
+    m_FocalPoint -= normalize(GetForwardDirection()) * delta * zoomSpeed * deltaTime * 10.0f;
 }
 
 glm::vec3 Camera::CalculatePosition() const
@@ -110,10 +139,10 @@ float Camera::ZoomSpeed() const
     return speed;
 }
 
-void Camera::OnMouseScroll(float X, float Y)
+void Camera::OnMouseScroll(float X, float Y, float deltaTime)
 {
     float delta = Y * 0.05f;
-    MouseZoom(delta);
+    MouseZoom(delta, deltaTime);
     UpdateView();
 }
 

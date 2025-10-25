@@ -34,6 +34,11 @@ void main ()
 	float mappedX = (gl_PointCoord.x * inRowCellSize) + (inRowOffset - inRowCellSize);
 	float mappedY = (gl_PointCoord.y * inColumnCellSize) + (inColumnOffset - inColumnCellSize);
 	vec2 UV = vec2(mappedX, mappedY);
+
+	UV = vec2(
+    gl_PointCoord.x * inRowCellSize + (inRowOffset - inRowCellSize),
+    (1.0 - gl_PointCoord.y) * inColumnCellSize + (inColumnOffset - inColumnCellSize)
+	);
 	
 
 	// Flame

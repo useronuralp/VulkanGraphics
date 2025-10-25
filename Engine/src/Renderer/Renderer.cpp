@@ -389,24 +389,20 @@ void ForwardRenderer::Init()
 
 void ForwardRenderer::CreateSynchronizationPrimitives()
 {
-    // Create synchronization primitives
-    if (m_RenderingCompleteSemaphores.size() > 0 || m_ImageAvailableSemaphores.size() > 0 || m_InFlightFences.size() > 0)
+    // Cleanup
+    for (int i = 0; i < _AcquireReadySemaphores.size(); i++)
     {
-        for (int i = 0; i < m_FramesInFlight; i++)
-        {
-            vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
-            vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
-            vkDestroyFence(_Context.GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
-        }
+        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _AcquireReadySemaphores[i], nullptr);
+    }
+    for (int i = 0; i < _InFlightFences.size(); i++)
+    {
+        vkDestroyFence(_Context.GetDevice()->GetVKDevice(), _InFlightFences[i], nullptr);
+    }
+    for (int i = 0; i < _RenderingCompleteSemaphores.size(); i++)
+    {
+        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _RenderingCompleteSemaphores[i], nullptr);
     }
 
-    // Initialize 2 sempahores and a single fence needed to synchronize
-    // rendering and presentation.
-    m_RenderingCompleteSemaphores.resize(m_FramesInFlight);
-    m_ImageAvailableSemaphores.resize(m_FramesInFlight);
-    m_InFlightFences.resize(m_FramesInFlight);
-
-    // Setup the fences and semaphores needed to synchronize the rendering.
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCreateInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -414,19 +410,25 @@ void ForwardRenderer::CreateSynchronizationPrimitives()
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    // Create the scynhronization objects as many times as the frames in flight
-    // number.
-    for (int i = 0; i < m_FramesInFlight; i++)
+    auto imageCount     = _Swapchain->GetImageCount();
+    _RenderingCompleteSemaphores.resize(imageCount);
+    _AcquireReadySemaphores.resize(_ConcurrentAllowedFrameCount);
+    _InFlightFences.resize(_ConcurrentAllowedFrameCount);
+    for (int i = 0; i < imageCount; i++)
     {
         ASSERT(
-            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_RenderingCompleteSemaphores[i]) ==
+            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &_RenderingCompleteSemaphores[i]) ==
                 VK_SUCCESS,
             "Failed to create rendering complete semaphore.");
+    }
+
+    for (int i = 0; i < _ConcurrentAllowedFrameCount; i++)
+    {
         ASSERT(
-            vkCreateFence(_Context.GetDevice()->GetVKDevice(), &fenceCreateInfo, nullptr, &m_InFlightFences[i]) == VK_SUCCESS,
+            vkCreateFence(_Context.GetDevice()->GetVKDevice(), &fenceCreateInfo, nullptr, &_InFlightFences[i]) == VK_SUCCESS,
             "Failed to create is rendering fence.");
         ASSERT(
-            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) ==
+            vkCreateSemaphore(_Context.GetDevice()->GetVKDevice(), &semaphoreInfo, nullptr, &_AcquireReadySemaphores[i]) ==
                 VK_SUCCESS,
             "Failed to create image available semaphore.");
     }
@@ -723,7 +725,7 @@ void ForwardRenderer::SetupCubePipeline()
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = cubeLayout;
     specs.RenderPass              = _HDRRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_NONE;
+    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
     specs.DepthBiasSlopeFactor    = 0.0f;
@@ -1216,7 +1218,7 @@ void ForwardRenderer::SetupBokehPassPipeline()
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = bokehPassLayout;
     specs.RenderPass              = bokehRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_NONE;
+    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
     specs.DepthBiasSlopeFactor    = 0.0f;
@@ -1335,11 +1337,16 @@ void ForwardRenderer::CreateBokehFramebuffer()
 
 void ForwardRenderer::Cleanup()
 {
-    for (int i = 0; i < m_FramesInFlight; i++)
+    auto imageCount = _Swapchain->GetImageCount();
+    for (int i = 0; i < imageCount; i++)
     {
-        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_ImageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), m_RenderingCompleteSemaphores[i], nullptr);
-        vkDestroyFence(_Context.GetDevice()->GetVKDevice(), m_InFlightFences[i], nullptr);
+        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _RenderingCompleteSemaphores[i], nullptr);
+    }
+
+    for (int i = 0; i < _ConcurrentAllowedFrameCount; i++)
+    {
+        vkDestroyFence(_Context.GetDevice()->GetVKDevice(), _InFlightFences[i], nullptr);
+        vkDestroySemaphore(_Context.GetDevice()->GetVKDevice(), _AcquireReadySemaphores[i], nullptr);
     }
 
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
@@ -1444,7 +1451,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
 {
     _DeltaTime = InDeltaTime;
     // Begin command buffer recording.
-    CommandBuffer::BeginRecording(cmdBuffers[m_CurrentFrame]);
+    CommandBuffer::BeginRecording(cmdBuffers[_CurrentBufferIndex]);
 
     // Timer.
     timer += 7.0f * _DeltaTime;
@@ -1541,36 +1548,37 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         glm::mat4 mat2 = model2->GetTransform();
 
         // Start shadow pass.---------------------------------------------
-        _ShadowMapRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_DirectionalShadowMapFramebuffer);
-        CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
+        _ShadowMapRenderPass->Begin(cmdBuffers[_CurrentBufferIndex], *_DirectionalShadowMapFramebuffer);
+        CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPassPipeline);
 
         // Render the objects you want to cast shadows.
         CommandBuffer::PushConstants(
-            cmdBuffers[m_CurrentFrame],
+            cmdBuffers[_CurrentBufferIndex],
             shadowPassPipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &mat);
-        model->DrawIndexed(cmdBuffers[m_CurrentFrame], shadowPassPipeline->GetPipelineLayout());
+        model->DrawIndexed(cmdBuffers[_CurrentBufferIndex], shadowPassPipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[m_CurrentFrame],
+            cmdBuffers[_CurrentBufferIndex],
             shadowPassPipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &mat2);
-        model2->DrawIndexed(cmdBuffers[m_CurrentFrame], shadowPassPipeline->GetPipelineLayout());
+        model2->DrawIndexed(cmdBuffers[_CurrentBufferIndex], shadowPassPipeline->GetPipelineLayout());
 
-        _ShadowMapRenderPass->End(cmdBuffers[m_CurrentFrame]);
+        _ShadowMapRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
         //   End shadow pass.---------------------------------------------
 
         // Start point shadow pass.--------------------
         for (int i = 0; i < globalParametersUBO.pointLightCount.x; i++)
         {
-            _PointShadowRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_PointShadowMapFramebuffers[i]);
-            CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
+            _PointShadowRenderPass->Begin(cmdBuffers[_CurrentBufferIndex], *_PointShadowMapFramebuffers[i]);
+            CommandBuffer::BindPipeline(
+                cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pointShadowPassPipeline);
 
             glm::vec3 position = glm::vec3(
                 globalParametersUBO.pointLightPositions[i].x,
@@ -1603,53 +1611,53 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
             pc.farPlane = glm::vec4(pointFarPlane);
 
             CommandBuffer::PushConstants(
-                cmdBuffers[m_CurrentFrame],
+                cmdBuffers[_CurrentBufferIndex],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 sizeof(glm::mat4),
                 &mat);
             CommandBuffer::PushConstants(
-                cmdBuffers[m_CurrentFrame],
+                cmdBuffers[_CurrentBufferIndex],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_GEOMETRY_BIT,
                 sizeof(glm::mat4),
                 sizeof(glm::vec4),
                 &pointLightIndex);
             CommandBuffer::PushConstants(
-                cmdBuffers[m_CurrentFrame],
+                cmdBuffers[_CurrentBufferIndex],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 sizeof(glm::mat4) + sizeof(glm::vec4),
                 sizeof(glm::vec4) + sizeof(glm::vec4),
                 &pc);
-            model->DrawIndexed(cmdBuffers[m_CurrentFrame], pointShadowPassPipeline->GetPipelineLayout());
+            model->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pointShadowPassPipeline->GetPipelineLayout());
 
             CommandBuffer::PushConstants(
-                cmdBuffers[m_CurrentFrame],
+                cmdBuffers[_CurrentBufferIndex],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 sizeof(glm::mat4),
                 &mat2);
             CommandBuffer::PushConstants(
-                cmdBuffers[m_CurrentFrame],
+                cmdBuffers[_CurrentBufferIndex],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_GEOMETRY_BIT,
                 sizeof(glm::mat4),
                 sizeof(glm::vec4),
                 &pointLightIndex);
             CommandBuffer::PushConstants(
-                cmdBuffers[m_CurrentFrame],
+                cmdBuffers[_CurrentBufferIndex],
                 pointShadowPassPipeline->GetPipelineLayout(),
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 sizeof(glm::mat4) + sizeof(glm::vec4),
                 sizeof(glm::vec4) + sizeof(glm::vec4),
                 &pc);
-            model2->DrawIndexed(cmdBuffers[m_CurrentFrame], pointShadowPassPipeline->GetPipelineLayout());
+            model2->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pointShadowPassPipeline->GetPipelineLayout());
 
-            _PointShadowRenderPass->End(cmdBuffers[m_CurrentFrame]);
-            // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
+            _PointShadowRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
+            // CommandBuffer::EndRenderPass(cmdBuffers[_CurrentBufferIndex]);
             //   End point shadow pass.----------------------
         }
         // Shadow passes end  ----
@@ -1701,22 +1709,22 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         ct++;
     }
     // Begin HDR rendering------------------------------------------
-    // CommandBuffer::BeginRenderPass(cmdBuffers[m_CurrentFrame], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    _HDRRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_HDRFramebuffer);
+    // CommandBuffer::BeginRenderPass(cmdBuffers[_CurrentBufferIndex], HDRRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    _HDRRenderPass->Begin(cmdBuffers[_CurrentBufferIndex], *_HDRFramebuffer);
     //  Drawing the skybox.
     glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
-    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
-    vkCmdSetViewport(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicViewport);
-    vkCmdSetScissor(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicScissor);
+    CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
+    vkCmdSetViewport(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicViewport);
+    vkCmdSetScissor(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicScissor);
 
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame],
+        cmdBuffers[_CurrentBufferIndex],
         skyboxPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(glm::mat4),
         &skyBoxView);
-    skybox->Draw(cmdBuffers[m_CurrentFrame], skyboxPipeline->GetPipelineLayout());
+    skybox->Draw(cmdBuffers[_CurrentBufferIndex], skyboxPipeline->GetPipelineLayout());
 
     struct pushConst
     {
@@ -1736,17 +1744,17 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     lightCubeMat         = glm::scale(lightCubeMat, glm::vec3(0.05f));
     lightCubePC.modelMat = lightCubeMat;
     lightCubePC.color    = glm::vec4(4.5f, 1.0f, 1.0f, 1.0f);
-    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
-    vkCmdSetViewport(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicViewport);
-    vkCmdSetScissor(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicScissor);
+    CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
+    vkCmdSetViewport(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicViewport);
+    vkCmdSetScissor(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicScissor);
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame],
+        cmdBuffers[_CurrentBufferIndex],
         cubePipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(glm::mat4) + sizeof(glm::vec4),
         &lightCubePC);
-    cube->Draw(cmdBuffers[m_CurrentFrame], cubePipeline->GetPipelineLayout());
+    cube->Draw(cmdBuffers[_CurrentBufferIndex], cubePipeline->GetPipelineLayout());
 
     // Drawing the clouds.
     pushConst cloudsPC;
@@ -1759,78 +1767,78 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     cloudsPC.color      = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
     // Drawing the Sponza.
-    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    vkCmdSetViewport(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicViewport);
-    vkCmdSetScissor(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicScissor);
+    CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdSetViewport(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicViewport);
+    vkCmdSetScissor(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicScissor);
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
-    model->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
+        cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
+    model->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout());
 
     // Drawing the helmet.
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
-    model2->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
+        cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
+    model2->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout());
 
     // Drawing 4 torches.
     for (int i = 0; i < torch->GetMeshCount(); i++)
     {
         CommandBuffer::PushConstants(
-            cmdBuffers[m_CurrentFrame],
+            cmdBuffers[_CurrentBufferIndex],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch1modelMatrix);
-        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[m_CurrentFrame],
+            cmdBuffers[_CurrentBufferIndex],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch2modelMatrix);
-        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[m_CurrentFrame],
+            cmdBuffers[_CurrentBufferIndex],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch3modelMatrix);
-        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout());
 
         CommandBuffer::PushConstants(
-            cmdBuffers[m_CurrentFrame],
+            cmdBuffers[_CurrentBufferIndex],
             pipeline->GetPipelineLayout(),
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(glm::mat4),
             &torch4modelMatrix);
-        torch->DrawIndexed(cmdBuffers[m_CurrentFrame], pipeline->GetPipelineLayout());
+        torch->DrawIndexed(cmdBuffers[_CurrentBufferIndex], pipeline->GetPipelineLayout());
     }
 
     pushConst swordPC;
     // Draw the emissive sword.
     swordPC.modelMat = model3->GetTransform();
     swordPC.color    = glm::vec4(0.1f, 3.0f, 0.1f, 1.0f);
-    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
-    vkCmdSetViewport(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicViewport);
-    vkCmdSetScissor(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicScissor);
+    CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
+    vkCmdSetViewport(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicViewport);
+    vkCmdSetScissor(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicScissor);
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame],
+        cmdBuffers[_CurrentBufferIndex],
         EmissiveObjectPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(glm::mat4) + sizeof(glm::vec4),
         &swordPC);
-    model3->DrawIndexed(cmdBuffers[m_CurrentFrame], EmissiveObjectPipeline->GetPipelineLayout());
+    model3->DrawIndexed(cmdBuffers[_CurrentBufferIndex], EmissiveObjectPipeline->GetPipelineLayout());
 
     // Draw the particles systems.
-    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline);
-    vkCmdSetViewport(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicViewport);
-    vkCmdSetScissor(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicScissor);
+    CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, particleSystemPipeline);
+    vkCmdSetViewport(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicViewport);
+    vkCmdSetScissor(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicScissor);
 
     glm::vec4 sparkBrigtness;
     sparkBrigtness.x = 5.0f;
@@ -1840,60 +1848,60 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     dustBrigthness.x = 1.0f;
 
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame],
+        cmdBuffers[_CurrentBufferIndex],
         particleSystemPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_FRAGMENT_BIT,
         0,
         sizeof(glm::vec4),
         &sparkBrigtness);
-    fireSparks->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
-    fireSparks2->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
-    fireSparks3->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
-    fireSparks4->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireSparks->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
+    fireSparks2->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
+    fireSparks3->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
+    fireSparks4->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
 
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame],
+        cmdBuffers[_CurrentBufferIndex],
         particleSystemPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_FRAGMENT_BIT,
         0,
         sizeof(glm::vec4),
         &flameBrigthness);
-    fireBase->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
-    fireBase2->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
-    fireBase3->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
-    fireBase4->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    fireBase->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
+    fireBase2->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
+    fireBase3->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
+    fireBase4->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
 
     CommandBuffer::PushConstants(
-        cmdBuffers[m_CurrentFrame],
+        cmdBuffers[_CurrentBufferIndex],
         particleSystemPipeline->GetPipelineLayout(),
         VK_SHADER_STAGE_FRAGMENT_BIT,
         0,
         sizeof(glm::vec4),
         &dustBrigthness);
-    ambientParticles->Draw(cmdBuffers[m_CurrentFrame], particleSystemPipeline->GetPipelineLayout());
+    ambientParticles->Draw(cmdBuffers[_CurrentBufferIndex], particleSystemPipeline->GetPipelineLayout());
 
-    // vkCmdEndRenderingKHR(cmdBuffers[m_CurrentFrame]);
+    // vkCmdEndRenderingKHR(cmdBuffers[_CurrentBufferIndex]);
 
-    _HDRRenderPass->End(cmdBuffers[m_CurrentFrame]);
-    // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
+    _HDRRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
+    // CommandBuffer::EndRenderPass(cmdBuffers[_CurrentBufferIndex]);
     //   End HDR Rendering ------------------------------------------
 
     // Post processing begin ---------------------------
 
-    bloomAgent->ApplyBloom(cmdBuffers[m_CurrentFrame]);
+    bloomAgent->ApplyBloom(cmdBuffers[_CurrentBufferIndex]);
 
     if (enableDepthOfField)
     {
         //// Bokeh Pass start---------------------
 
-        bokehRenderPass->Begin(cmdBuffers[m_CurrentFrame], *bokehPassFramebuffer);
-        // CommandBuffer::BeginRenderPass(cmdBuffers[m_CurrentFrame], bokehPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, bokehPassPipeline);
-        vkCmdSetViewport(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicViewport);
-        vkCmdSetScissor(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicScissor);
+        bokehRenderPass->Begin(cmdBuffers[_CurrentBufferIndex], *bokehPassFramebuffer);
+        // CommandBuffer::BeginRenderPass(cmdBuffers[_CurrentBufferIndex], bokehPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, bokehPassPipeline);
+        vkCmdSetViewport(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicViewport);
+        vkCmdSetScissor(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicScissor);
 
         vkCmdBindDescriptorSets(
-            cmdBuffers[m_CurrentFrame],
+            cmdBuffers[_CurrentBufferIndex],
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             bokehPassPipeline->GetPipelineLayout(),
             0,
@@ -1901,10 +1909,10 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
             &bokehDescriptorSet,
             0,
             nullptr);
-        vkCmdDraw(cmdBuffers[m_CurrentFrame], 3, 1, 0, 0);
+        vkCmdDraw(cmdBuffers[_CurrentBufferIndex], 3, 1, 0, 0);
 
-        bokehRenderPass->End(cmdBuffers[m_CurrentFrame]);
-        // CommandBuffer::EndRenderPass(cmdBuffers[m_CurrentFrame]);
+        bokehRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
+        // CommandBuffer::EndRenderPass(cmdBuffers[_CurrentBufferIndex]);
     }
     // Bokeh pass end----------------------
     // Post processing end ---------------------------
@@ -1997,13 +2005,13 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
 
     // Start final scene render pass (to
     // swapchain).-------------------------------
-    _SwapchainRenderPass->Begin(cmdBuffers[m_CurrentFrame], *_SwapchainFramebuffers[m_ActiveImageIndex]);
+    _SwapchainRenderPass->Begin(cmdBuffers[_CurrentBufferIndex], *_SwapchainFramebuffers[_CurrentSwapchainImageIndex]);
 
-    CommandBuffer::BindPipeline(cmdBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
-    vkCmdSetViewport(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicViewport);
-    vkCmdSetScissor(cmdBuffers[m_CurrentFrame], 0, 1, &_DynamicScissor);
+    CommandBuffer::BindPipeline(cmdBuffers[_CurrentBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, finalPassPipeline);
+    vkCmdSetViewport(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicViewport);
+    vkCmdSetScissor(cmdBuffers[_CurrentBufferIndex], 0, 1, &_DynamicScissor);
     vkCmdBindDescriptorSets(
-        cmdBuffers[m_CurrentFrame],
+        cmdBuffers[_CurrentBufferIndex],
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         finalPassPipeline->GetPipelineLayout(),
         0,
@@ -2011,16 +2019,16 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         &finalPassDescriptorSet,
         0,
         nullptr);
-    vkCmdDraw(cmdBuffers[m_CurrentFrame], 3, 1, 0, 0);
+    vkCmdDraw(cmdBuffers[_CurrentBufferIndex], 3, 1, 0, 0);
 
     ImDrawData* draw_data = ImGui::GetDrawData();
-    ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[m_CurrentFrame]);
+    ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffers[_CurrentBufferIndex]);
 
-    _SwapchainRenderPass->End(cmdBuffers[m_CurrentFrame]);
+    _SwapchainRenderPass->End(cmdBuffers[_CurrentBufferIndex]);
     //  End the command buffer recording
     //  phase(swapchain).-------------------------------.
 
-    CommandBuffer::EndRecording(cmdBuffers[m_CurrentFrame]);
+    CommandBuffer::EndRecording(cmdBuffers[_CurrentBufferIndex]);
 }
 
 void ForwardRenderer::RenderImGui()
@@ -2029,82 +2037,81 @@ void ForwardRenderer::RenderImGui()
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("Shaders:");
-    bool breakFrame = false;
-    for (const auto& entry : std::filesystem::directory_iterator((std::string(SOLUTION_DIR) + "/Engine/assets/shaders").c_str()))
-    {
-        int         fullstopIndex  = entry.path().string().find_last_of('.');
-        int         lastSlashIndex = entry.path().string().find_last_of('\\');
-        std::string path           = entry.path().string();
-        std::string extension;
-        std::string shadersFolder = std::string(SOLUTION_DIR) + "Engine/assets/shaders/";
-        if (fullstopIndex != std::string::npos)
-        {
-            extension = path.substr(fullstopIndex, path.length() - fullstopIndex);
-        }
-        if (extension == ".frag" || extension == ".vert")
-        {
-            std::string shaderPath = path.substr(lastSlashIndex + 1, path.length() - lastSlashIndex);
-            std::string shaderName = path.substr(lastSlashIndex + 1, fullstopIndex - (lastSlashIndex + 1));
-            ImGui::PushID(shaderPath.c_str());
-            if (ImGui::Button("Compile"))
-            {
-                std::string extensionWithoutDot = extension.substr(1, extension.length() - 1);
-                for (int i = 0; i < extensionWithoutDot.length(); i++)
-                {
-                    extensionWithoutDot[i] = toupper(extensionWithoutDot[i]);
-                }
+    // ImGui::Begin("Shaders:");
+    //  bool breakFrame = false;
+    //  for (const auto& entry : std::filesystem::directory_iterator((std::string(SOLUTION_DIR) +
+    //  "/Engine/assets/shaders").c_str()))
+    //{
+    //      int         fullstopIndex  = entry.path().string().find_last_of('.');
+    //      int         lastSlashIndex = entry.path().string().find_last_of('\\');
+    //      std::string path           = entry.path().string();
+    //      std::string extension;
+    //      std::string shadersFolder = std::string(SOLUTION_DIR) + "Engine/assets/shaders/";
+    //      if (fullstopIndex != std::string::npos)
+    //      {
+    //          extension = path.substr(fullstopIndex, path.length() - fullstopIndex);
+    //      }
+    //      if (extension == ".frag" || extension == ".vert")
+    //      {
+    //          std::string shaderPath = path.substr(lastSlashIndex + 1, path.length() - lastSlashIndex);
+    //          std::string shaderName = path.substr(lastSlashIndex + 1, fullstopIndex - (lastSlashIndex + 1));
+    //          ImGui::PushID(shaderPath.c_str());
+    //          if (ImGui::Button("Compile"))
+    //          {
+    //              std::string extensionWithoutDot = extension.substr(1, extension.length() - 1);
+    //              for (int i = 0; i < extensionWithoutDot.length(); i++)
+    //              {
+    //                  extensionWithoutDot[i] = toupper(extensionWithoutDot[i]);
+    //              }
+    //
+    //              std::string outputName = shaderName + extensionWithoutDot + ".spv";
+    //              std::string command    = std::string(SOLUTION_DIR) + "Engine/vendor/VULKAN/1.4.328.1/bin/glslc.exe " +
+    //                  shadersFolder + shaderPath + " -o " + "shaders/" + outputName;
+    //              int success = system(command.c_str());
+    //
+    //              ImGui::PopID();
+    //              ImGui::End();
+    //              ImGui::EndFrame();
+    //              breakFrame = true;
+    //              break;
+    //          }
+    //          ImGui::PopID();
+    //          ImGui::SameLine();
+    //          ImGui::Text(shaderPath.c_str());
+    //      }
+    //  }
+    //
+    //  if (breakFrame)
+    //{
+    //      vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+    //      // WindowResize(); // TODO: THis crashes due to swapchain.
+    //  }
 
-                std::string outputName = shaderName + extensionWithoutDot + ".spv";
-                std::string command    = std::string(SOLUTION_DIR) + "Engine/vendor/VULKAN/1.3.239.0/bin/glslc.exe " +
-                    shadersFolder + shaderPath + " -o " + "shaders/" + outputName;
-                int success = system(command.c_str());
-
-                ImGui::PopID();
-                ImGui::End();
-                ImGui::EndFrame();
-                breakFrame = true;
-                break;
-            }
-            ImGui::PopID();
-            ImGui::SameLine();
-            ImGui::Text(shaderPath.c_str());
-        }
-    }
-
-    if (breakFrame)
-    {
-        vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
-        // WindowResize(); // TODO: THis crashes due to swapchain.
-    }
-
-    ImGui::End();
+    // ImGui::End();
 }
 
 bool ForwardRenderer::BeginFrame()
 {
-    vkWaitForFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(_Context.GetDevice()->GetVKDevice(), 1, &_InFlightFences[_CurrentBufferIndex], VK_TRUE, UINT64_MAX);
+    vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &_InFlightFences[_CurrentBufferIndex]);
 
     VkResult result;
 
-    if (m_ActiveImageIndex == READY_TO_ACQUIRE)
+    result = vkAcquireNextImageKHR(
+        _Context.GetDevice()->GetVKDevice(),
+        _Swapchain->GetHandle(),
+        UINT64_MAX,
+        _AcquireReadySemaphores[_CurrentBufferIndex],
+        VK_NULL_HANDLE,
+        &_CurrentSwapchainImageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _Context.GetWindow()->IsWindowResized())
     {
-        result = vkAcquireNextImageKHR(
-            _Context.GetDevice()->GetVKDevice(),
-            _Swapchain->GetHandle(),
-            UINT64_MAX,
-            m_ImageAvailableSemaphores[m_CurrentFrame],
-            VK_NULL_HANDLE,
-            &m_ActiveImageIndex);
-
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _Context.GetWindow()->IsWindowResized())
-        {
-            HandleWindowResize(result);
-            return false;
-        }
-
-        ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
+        HandleWindowResize(result);
+        return false;
     }
+
+    ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
     return true;
 }
 
@@ -2184,54 +2191,49 @@ void ForwardRenderer::HandleWindowResize(VkResult InResult)
         _Context.GetWindow()->OnResize();
         _Camera->SetViewportSize(_Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
         ImGui::EndFrame();
-        m_ActiveImageIndex = READY_TO_ACQUIRE;
         CreateSynchronizationPrimitives();
     }
 }
 
 void ForwardRenderer::EndFrame()
 {
-    vkResetFences(_Context.GetDevice()->GetVKDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
-
     VkResult result;
     if (!ImGui::GetIO().WantCaptureMouse)
     {
         _Camera->OnUpdate(_DeltaTime);
     }
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    VkSubmitInfo         submitInfo{};
 
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType                      = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    VkSemaphore          waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
-    VkPipelineStageFlags waitStages[]     = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.waitSemaphoreCount         = 1;
-    submitInfo.pWaitSemaphores            = waitSemaphores;
-    submitInfo.pWaitDstStageMask          = waitStages;
-    submitInfo.commandBufferCount         = 1;
-    submitInfo.pCommandBuffers            = &cmdBuffers[m_CurrentFrame];
-    VkSemaphore signalSemaphores[]        = { m_RenderingCompleteSemaphores[m_CurrentFrame] };
-    submitInfo.signalSemaphoreCount       = 1;
-    submitInfo.pSignalSemaphores          = signalSemaphores;
+    submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount   = 1;
+    submitInfo.pWaitSemaphores      = &_AcquireReadySemaphores[_CurrentBufferIndex]; // TODO Change name to Acquire Ready.
+    submitInfo.pWaitDstStageMask    = waitStages;
+    submitInfo.commandBufferCount   = 1;
+    submitInfo.pCommandBuffers      = &cmdBuffers[_CurrentBufferIndex];
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores    = &_RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
 
-    VkQueue graphicsQueue                 = _Context.GetDevice()->GetGraphicsQueue();
     ASSERT(
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) == VK_SUCCESS,
+        vkQueueSubmit(_Context.GetDevice()->GetGraphicsQueue(), 1, &submitInfo, _InFlightFences[_CurrentBufferIndex]) ==
+            VK_SUCCESS,
         "Failed to submit draw command buffer!");
 
+    VkSwapchainKHR   swapchain = _Swapchain->GetHandle();
     VkPresentInfoKHR presentInfo{};
+
     presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores    = signalSemaphores;
-    VkSwapchainKHR swapChains[]    = { _Swapchain->GetHandle() };
+    presentInfo.pWaitSemaphores    = &_RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
     presentInfo.swapchainCount     = 1;
-    presentInfo.pSwapchains        = swapChains;
-    presentInfo.pImageIndices      = &m_ActiveImageIndex;
+    presentInfo.pSwapchains        = &swapchain;
+    presentInfo.pImageIndices      = &_CurrentSwapchainImageIndex;
     presentInfo.pResults           = nullptr;
 
-    result                         = vkQueuePresentKHR(graphicsQueue, &presentInfo);
+    result                         = vkQueuePresentKHR(_Context.GetDevice()->GetGraphicsQueue(), &presentInfo);
     ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
 
-    m_CurrentFrame     = ++m_CurrentFrame % m_FramesInFlight;
-    m_ActiveImageIndex = READY_TO_ACQUIRE;
+    _CurrentBufferIndex = ++_CurrentBufferIndex % _ConcurrentAllowedFrameCount;
 }
 
 void ForwardRenderer::PollEvents()

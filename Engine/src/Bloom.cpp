@@ -620,7 +620,7 @@ void Bloom::SetupPipelines()
     Pipeline::Specs specs{};
     specs.DescriptorSetLayout     = m_OneSamplerLayout;
     specs.RenderPass              = m_BrightnessIsolationPass;
-    specs.CullMode                = VK_CULL_MODE_NONE;
+    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
     specs.DepthBiasSlopeFactor    = 0.0f;
@@ -634,6 +634,7 @@ void Bloom::SetupPipelines()
     specs.FragmentShaderPath      = "assets/shaders/brightnessFilterFRAG.spv";
     specs.ViewportHeight          = m_BrightnessIsolatedFramebuffer->GetHeight();
     specs.ViewportWidth           = m_BrightnessIsolatedFramebuffer->GetWidth();
+    specs.EnableDynamicStates     = false;
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
@@ -655,7 +656,7 @@ void Bloom::SetupPipelines()
         // Blur downscaling passes
         specs.DescriptorSetLayout     = m_OneSamplerLayout;
         specs.RenderPass              = m_BlurRenderPass;
-        specs.CullMode                = VK_CULL_MODE_NONE;
+        specs.CullMode                = VK_CULL_MODE_BACK_BIT;
         specs.DepthBiasClamp          = 0.0f;
         specs.DepthBiasConstantFactor = 0.0f;
         specs.DepthBiasSlopeFactor    = 0.0f;
@@ -669,6 +670,7 @@ void Bloom::SetupPipelines()
         specs.FragmentShaderPath      = "assets/shaders/blurShaderFRAG.spv";
         specs.ViewportHeight          = m_BlurFramebuffers[i]->GetHeight();
         specs.ViewportWidth           = m_BlurFramebuffers[i]->GetWidth();
+        specs.EnableDynamicStates     = false;
 
         colorBlendAttachment.colorWriteMask =
             VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -698,7 +700,7 @@ void Bloom::SetupPipelines()
     // Merge pipeline.
     specs.DescriptorSetLayout     = m_TwoSamplerLayout;
     specs.RenderPass              = m_MergeRenderPass;
-    specs.CullMode                = VK_CULL_MODE_NONE;
+    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
     specs.DepthBiasClamp          = 0.0f;
     specs.DepthBiasConstantFactor = 0.0f;
     specs.DepthBiasSlopeFactor    = 0.0f;

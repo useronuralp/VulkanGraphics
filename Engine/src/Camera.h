@@ -73,10 +73,10 @@ class Camera
    private:
     void                    UpdateProjection();
     void                    UpdateView();
-    void                    MousePan(const glm::vec2& delta);
-    void                    MouseRotate(const glm::vec2& delta);
-    void                    MouseZoom(float delta);
-    void                    OnMouseScroll(float X, float Y);
+    void                    MousePan(const glm::vec2& delta, float deltaTime);
+    void                    MouseRotate(const glm::vec2& delta, float deltaTime);
+    void                    MouseZoom(float delta, float deltaTime);
+    void                    OnMouseScroll(float X, float Y, float deltaTime);
     glm::vec3               CalculatePosition() const;
     std::pair<float, float> PanSpeed() const;
     float                   RotationSpeed() const;
