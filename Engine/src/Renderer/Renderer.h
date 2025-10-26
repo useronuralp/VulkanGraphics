@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core.h"
+#include "RenderPass.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <imgui_impl_glfw.h>

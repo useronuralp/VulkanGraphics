@@ -17,7 +17,7 @@ VulkanContext& EngineInternal::GetContext()
 
 void EngineInternal::Init()
 {
-    _Context = std::make_unique<VulkanContext>();
+    _Context = make_u<VulkanContext>();
     _Context->Init();
 
     _Swapchain = make_s<Swapchain>(*_Context);
@@ -25,7 +25,7 @@ void EngineInternal::Init()
     _Camera =
         make_s<Camera>(45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
 
-    _Renderer = std::make_unique<ForwardRenderer>(*_Context, _Swapchain, _Camera);
+    _Renderer = make_u<ForwardRenderer>(*_Context, _Swapchain, _Camera);
     _Renderer->Init();
     // TODO: Move out of renderer into UI layer.
     _Renderer->InitImGui();

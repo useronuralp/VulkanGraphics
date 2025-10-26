@@ -1,5 +1,7 @@
 #pragma once
 #include "core.h"
+#include "Renderer/Renderer.h"
+#include "VulkanContext.h"
 
 struct FrameSync
 {
@@ -10,7 +12,6 @@ struct FrameSync
     std::vector<VkFence>     InFlightFences;
 };
 
-class VulkanContext;
 class EngineInternal
 {
    public:
@@ -32,12 +33,12 @@ class EngineInternal
     void  PollEvents();
     void  CreateSynchronizationPrimitives();
 
-    Ref<class RendererInterface> _Renderer      = nullptr;
-    Ref<class Swapchain>         _Swapchain     = nullptr;
-    Ref<class Camera>            _Camera        = nullptr;
-    Ref<VulkanContext>           _Context       = nullptr;
-    Ref<class Scene>             _ActiveScene   = nullptr;
-    float                        _LastFrameTime = 0.0f;
+    Unique<RendererInterface> _Renderer      = nullptr;
+    Unique<VulkanContext>     _Context       = nullptr;
+    Ref<class Swapchain>      _Swapchain     = nullptr;
+    Ref<class Camera>         _Camera        = nullptr;
+    Ref<class Scene>          _ActiveScene   = nullptr;
+    float                     _LastFrameTime = 0.0f;
 
     friend class Engine;
 };
