@@ -15,9 +15,7 @@
 Bloom::Bloom()
 {
     CreateRenderPasses();
-
     CreateFramebuffers();
-
     std::vector<DescriptorSetBindingSpecs> layout{
         DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
         DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 },

@@ -10,6 +10,8 @@
 #include "Model.h"
 #include "ParticleSystem.h"
 #include "PhysicalDevice.h"
+#include "Pipeline.h"
+#include "Renderer/RenderPass.h"
 // #include "Pipeline.h"
 #include "Renderer.h"
 #include "Surface.h"

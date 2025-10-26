@@ -1,13 +1,13 @@
 #pragma once
-// #include "OVKLib.h"
-#include "Pipeline.h"
-#include "Renderer/RenderPass.h"
 
-// TODO: Move somewhere else
+#include "core.h"
+
+#include <glm/gtc/matrix_transform.hpp>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 #include <random>
 
+class RenderPass;
 class VulkanContext;
 class Swapchain;
 class Pipeline;

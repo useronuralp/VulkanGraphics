@@ -4,6 +4,8 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <vector>
+#include <vulkan/vulkan.h>
 
 #define RED_TEXT    "\033[31m"
 #define ORANGE_TEXT "\033[38;5;208m" // true orange in 256-color ANSI
@@ -13,6 +15,8 @@
 #define RESET_TEXT  "\033[0m"
 #define BOLD_TEXT   "\033[1m"
 #define BLUE_TEXT   "\033[34m"
+
+#define MAX_FRAMES_IN_FLIGHT 3
 
 #define NOT !
 #define VERIFY_EXPR(EXPRESSION, ERR_MESSAGE) \
