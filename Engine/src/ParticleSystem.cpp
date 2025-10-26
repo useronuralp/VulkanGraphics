@@ -23,7 +23,7 @@ ParticleSystem::ParticleSystem(
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
     VkResult rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
-    ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+    ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     m_ParticleCount       = specs.ParticleCount;
     m_SphereRadius        = specs.SphereRadius;
@@ -123,7 +123,7 @@ void ParticleSystem::SetupParticles()
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         m_ParticleBuffer,
         m_ParticleBufferMemory);
-    ASSERT(
+    ENSURE(
         vkMapMemory(
             EngineInternal::GetContext().GetDevice()->GetVKDevice(),
             m_ParticleBufferMemory,
@@ -145,7 +145,7 @@ void ParticleSystem::SetupParticles()
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             m_TrailBuffer,
             m_TrailBufferMemory);
-        ASSERT(
+        ENSURE(
             vkMapMemory(
                 EngineInternal::GetContext().GetDevice()->GetVKDevice(),
                 m_TrailBufferMemory,
@@ -179,7 +179,7 @@ void ParticleSystem::SetupParticles()
     samplerInfo.minLod                  = 0.0f;
     samplerInfo.maxLod                  = 0.0f;
 
-    ASSERT(
+    ENSURE(
         vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &m_ParticleSampler) == VK_SUCCESS,
         "Failed to create particle sampler!");
 

@@ -68,7 +68,7 @@ Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensi
     }
 
     // Check Anisotrophy support.
-    ASSERT(
+    ENSURE(
         EngineInternal::GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy,
         "Anisotropy is not supported on your GPU.");
 
@@ -104,7 +104,7 @@ Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensi
         CI.enabledLayerCount   = m_Layers.size();
     }
 
-    ASSERT(
+    ENSURE(
         vkCreateDevice(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) ==
             VK_SUCCESS,
         "Failed to create logical device!");
@@ -119,14 +119,14 @@ Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensi
     if (EngineInternal::GetContext()._QueueFamilies.GraphicsFamily != EngineInternal::GetContext()._QueueFamilies.TransferFamily)
     {
         VkQueueFamilyProperties props = GetQueueFamilyProps(EngineInternal::GetContext()._QueueFamilies.TransferFamily);
-        ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
+        ENSURE(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, EngineInternal::GetContext()._QueueFamilies.TransferFamily, 0, &m_TransferQueue);
     }
     // Index is the same with the graphics queue.
     else
     {
         VkQueueFamilyProperties props = GetQueueFamilyProps(EngineInternal::GetContext()._QueueFamilies.GraphicsFamily);
-        ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
+        ENSURE(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, EngineInternal::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_TransferQueue);
         queueIndex++;
     }
@@ -136,14 +136,14 @@ Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensi
     if (EngineInternal::GetContext()._QueueFamilies.GraphicsFamily != EngineInternal::GetContext()._QueueFamilies.ComputeFamily)
     {
         VkQueueFamilyProperties props = GetQueueFamilyProps(EngineInternal::GetContext()._QueueFamilies.ComputeFamily);
-        ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
+        ENSURE(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, EngineInternal::GetContext()._QueueFamilies.ComputeFamily, 0, &m_ComputeQueue);
     }
     // Index is the same with the graphics queue.
     else
     {
         VkQueueFamilyProperties props = GetQueueFamilyProps(EngineInternal::GetContext()._QueueFamilies.GraphicsFamily);
-        ASSERT(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
+        ENSURE(props.queueCount >= queueIndex, "Exceeded the maxium number of queues for this queue family");
         vkGetDeviceQueue(m_Device, EngineInternal::GetContext()._QueueFamilies.GraphicsFamily, queueIndex, &m_ComputeQueue);
         queueIndex++;
     }

@@ -262,7 +262,7 @@ void Bloom::CreateRenderPasses()
     isolationRenderPassInfo.dependencyCount = 1;
     isolationRenderPassInfo.pDependencies   = &isolationDependency;
 
-    ASSERT(
+    ENSURE(
         vkCreateRenderPass(
             EngineInternal::GetContext().GetDevice()->GetVKDevice(),
             &isolationRenderPassInfo,
@@ -312,7 +312,7 @@ void Bloom::CreateRenderPasses()
     blurRenderPassInfo.dependencyCount = 1;
     blurRenderPassInfo.pDependencies   = &blurDependency;
 
-    ASSERT(
+    ENSURE(
         vkCreateRenderPass(
             EngineInternal::GetContext().GetDevice()->GetVKDevice(), &blurRenderPassInfo, nullptr, &m_BlurRenderPass) ==
             VK_SUCCESS,
@@ -361,7 +361,7 @@ void Bloom::CreateRenderPasses()
     mergeRenderPassInfo.dependencyCount = 1;
     mergeRenderPassInfo.pDependencies   = &mergeDependency;
 
-    ASSERT(
+    ENSURE(
         vkCreateRenderPass(
             EngineInternal::GetContext().GetDevice()->GetVKDevice(), &mergeRenderPassInfo, nullptr, &m_MergeRenderPass) ==
             VK_SUCCESS,
@@ -455,7 +455,7 @@ void Bloom::SetupDesciptorSets()
 
     VkResult rslt                = vkAllocateDescriptorSets(
         EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BrigtnessFilterDescriptorSet);
-    ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+    ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     // Merge descriptor set
     allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -464,7 +464,7 @@ void Bloom::SetupDesciptorSets()
     allocInfo.pSetLayouts        = &m_TwoSamplerLayout->GetDescriptorLayout();
 
     rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_MergeDescriptorSet);
-    ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+    ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
     {
@@ -476,7 +476,7 @@ void Bloom::SetupDesciptorSets()
 
         VkResult rslt                = vkAllocateDescriptorSets(
             EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BlurDescriptorSets[i]);
-        ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+        ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
         // Upscaling descs.
         allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -486,7 +486,7 @@ void Bloom::SetupDesciptorSets()
 
         rslt                         = vkAllocateDescriptorSets(
             EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_UpscalingDescriptorSets[i]);
-        ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+        ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
     }
 
     // Allocate blur descriptor Sets.

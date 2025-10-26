@@ -66,7 +66,7 @@ void Window::glfw_mouse_scroll_callback(GLFWwindow* window, double xoffset, doub
 }
 Window::Window(const char* windowName, uint32_t width, uint32_t height) : _WindowName(windowName), _Height(height), _Width(width)
 {
-    ASSERT(glfwInit(), "Failed to initialize GLFW!, glfwInit() fnc failed.");
+    ENSURE(glfwInit(), "Failed to initialize GLFW!, glfwInit() fnc failed.");
 
     glfwWindowHint(GLFW_CLIENT_API,
                    GLFW_NO_API); // Tell it to not use OpenGL as the default API.
@@ -79,7 +79,7 @@ Window::Window(const char* windowName, uint32_t width, uint32_t height) : _Windo
     glfwSetErrorCallback(glfw_error_callback);
     glfwSetScrollCallback(_Window, glfw_mouse_scroll_callback);
 
-    ASSERT(_Window, "Failed to create Window! '_Window' is empty.");
+    ENSURE(_Window, "Failed to create Window! '_Window' is empty.");
 }
 Window::~Window()
 {

@@ -81,7 +81,7 @@ void VulkanContext::PickPhysicalDevice()
         }
     }
 
-    ASSERT(found, "Could not find a GPU.");
+    ENSURE(found, "Could not find a GPU.");
 }
 
 void VulkanContext::CreateLogicalDevice()
@@ -97,7 +97,7 @@ void VulkanContext::SetupQueueFamilies()
 
     // Check whether the graphics queue we just got also supports present
     // operations.
-    ASSERT(
+    ENSURE(
         _PhysicalDevice->CheckPresentSupport(_QueueFamilies.GraphicsFamily, _Surface->GetVKSurface()),
         "Present operations are not supported by the graphics queue. Might "
         "want to search for it manually.");

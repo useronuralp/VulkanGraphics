@@ -14,11 +14,11 @@ PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevic
     std::vector<VkQueueFamilyProperties> props;
     vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, nullptr);
 
-    ASSERT(queueFamilyCount > 0, "Could not find any queue families in this physical device.");
+    ENSURE(queueFamilyCount > 0, "Could not find any queue families in this physical device.");
     props.resize(queueFamilyCount);
 
     vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, props.data());
-    ASSERT(queueFamilyCount == props.size(), "There has been a problem with the queue families.");
+    ENSURE(queueFamilyCount == props.size(), "There has been a problem with the queue families.");
 
     for (int i = 0; i < queueFamilyCount; i++)
     {
@@ -32,12 +32,12 @@ PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevic
     uint32_t extensionCount = 0;
 
     vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, nullptr);
-    ASSERT(extensionCount > 0, "Physical Device doesn't support ANY extensions.");
+    ENSURE(extensionCount > 0, "Physical Device doesn't support ANY extensions.");
 
     m_SupportedExtensions.resize(extensionCount);
 
     // Store the supported extenions in the member variable.
-    ASSERT(
+    ENSURE(
         vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, m_SupportedExtensions.data()) ==
             VK_SUCCESS,
         "Failed to enumerate device extension properties.");
@@ -98,7 +98,7 @@ uint64_t PhysicalDevice::FindQueueFamily(VkQueueFlags queueFlags)
             }
         }
     }
-    ASSERT(familyIndex != s_InvalidQueueFamilyIndex, "Could not find a queue family with the desired queue families.");
+    ENSURE(familyIndex != s_InvalidQueueFamilyIndex, "Could not find a queue family with the desired queue families.");
     return familyIndex;
 }
 const std::string& PhysicalDevice::GetPhysicalDeviceName()

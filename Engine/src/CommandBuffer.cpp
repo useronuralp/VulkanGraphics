@@ -20,7 +20,7 @@ void CommandBuffer::CreateCommandBuffer(VkCommandBuffer& outCmdBuffer, const VkC
     allocInfo.commandPool        = poolToAllocateFrom;
     allocInfo.commandBufferCount = 1;
 
-    ASSERT(
+    ENSURE(
         vkAllocateCommandBuffers(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &outCmdBuffer) ==
             VK_SUCCESS,
         "Failed to allocate command buffer memory");
@@ -34,7 +34,7 @@ void CommandBuffer::CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommand
                                                   // must be submitted to a queue allocated from this
                                                   // queueFamilyIndex.
 
-    ASSERT(
+    ENSURE(
         vkCreateCommandPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &outCmdPool) ==
             VK_SUCCESS,
         "Failed to create command pool!");
@@ -46,11 +46,11 @@ void CommandBuffer::BeginRecording(const VkCommandBuffer& cmdBuffer)
     beginInfo.flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     beginInfo.pInheritanceInfo = nullptr; // Optional
 
-    ASSERT(vkBeginCommandBuffer(cmdBuffer, &beginInfo) == VK_SUCCESS, "Failed to begin recording command buffer");
+    ENSURE(vkBeginCommandBuffer(cmdBuffer, &beginInfo) == VK_SUCCESS, "Failed to begin recording command buffer");
 }
 void CommandBuffer::EndRecording(const VkCommandBuffer& cmdBuffer)
 {
-    ASSERT(vkEndCommandBuffer(cmdBuffer) == VK_SUCCESS, "Failed to record command buffer");
+    ENSURE(vkEndCommandBuffer(cmdBuffer) == VK_SUCCESS, "Failed to record command buffer");
 }
 void CommandBuffer::BeginRenderPass(
     VkCommandBuffer              cmdBuffer,

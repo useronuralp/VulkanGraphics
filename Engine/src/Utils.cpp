@@ -70,7 +70,7 @@ void Utils::CreateVKBuffer(
     bufferInfo.usage       = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // TO DO: What does this do check
 
-    ASSERT(
+    ENSURE(
         vkCreateBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &bufferInfo, nullptr, &buffer) == VK_SUCCESS,
         "Failed to create vertex buffer");
 
@@ -81,7 +81,7 @@ void Utils::CreateVKBuffer(
     allocInfo.allocationSize  = memRequirements.size;
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
-    ASSERT(
+    ENSURE(
         vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) ==
             VK_SUCCESS,
         "Failed to allocate vertex buffer memory!");
@@ -103,7 +103,7 @@ uint32_t Utils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags proper
         }
     }
 
-    ASSERT(memoryTypeIndex != -1, "Failed to find suitable memory type!");
+    ENSURE(memoryTypeIndex != -1, "Failed to find suitable memory type!");
     return memoryTypeIndex;
 }
 
@@ -170,7 +170,7 @@ VkSampler Utils::CreateSampler(
         samplerInfo.magFilter               = magFilter;
         samplerInfo.minFilter               = minFilter;
 
-        ASSERT(
+        ENSURE(
             vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) ==
                 VK_SUCCESS,
             "Failed to create texture sampler!");
@@ -189,7 +189,7 @@ VkSampler Utils::CreateSampler(
         samplerInfo.maxLod        = 1.0f;
         samplerInfo.borderColor   = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
-        ASSERT(
+        ENSURE(
             vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) ==
                 VK_SUCCESS,
             "Failed to create texture sampler!");
@@ -222,7 +222,7 @@ VkSampler Utils::CreateCubemapSampler()
     samplerInfo.minLod                  = 0.0f;
     samplerInfo.maxLod                  = 0.0f;
 
-    ASSERT(
+    ENSURE(
         vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
         "Failed to create texture sampler!");
 
@@ -254,7 +254,7 @@ VkFormat Utils::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkI
             return format;
         }
     }
-    ASSERT(false, "Failed to find depth format");
+    ENSURE(false, "Failed to find depth format");
 }
 void Utils::UpdateDescriptorSet(
     const VkDescriptorSet& dscSet,

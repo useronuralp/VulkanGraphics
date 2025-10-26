@@ -36,7 +36,7 @@ Model::Model(
     const aiScene*   scene = importer.ReadFile(
         m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 
-    ASSERT(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, importer.GetErrorString());
+    ENSURE(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, importer.GetErrorString());
 
     // Process the model in a recursive way.
     ProcessNode(scene->mRootNode, scene, pool, layout);

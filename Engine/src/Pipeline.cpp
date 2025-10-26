@@ -208,7 +208,7 @@ void Pipeline::Init()
         pipelineLayoutInfo.pPushConstantRanges    = nullptr; // Optional
     }
 
-    ASSERT(
+    ENSURE(
         vkCreatePipelineLayout(_Context.GetDevice()->GetVKDevice(), &pipelineLayoutInfo, nullptr, &_PipelineLayout) == VK_SUCCESS,
         "Failed to create pipeline layout");
 
@@ -234,7 +234,7 @@ void Pipeline::Init()
     pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE; // Optional
     pipelineInfo.basePipelineIndex   = -1; // Optional
 
-    ASSERT(
+    ENSURE(
         vkCreateGraphicsPipelines(_Context.GetDevice()->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_Pipeline) ==
             VK_SUCCESS,
         "Failed to create graphics pipeline!");
@@ -264,7 +264,7 @@ VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& InShaderCod
     createInfo.pCode    = reinterpret_cast<const uint32_t*>(InShaderCode.data());
 
     VkShaderModule shaderModule;
-    ASSERT(
+    ENSURE(
         vkCreateShaderModule(_Context.GetDevice()->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS,
         "Failed to create shader module!");
 

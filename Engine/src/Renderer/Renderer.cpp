@@ -149,7 +149,7 @@ void ForwardRenderer::Init()
     allocInfo.pSetLayouts        = &swapchainLayout->GetDescriptorLayout();
 
     VkResult rslt = vkAllocateDescriptorSets(_Context.GetDevice()->GetVKDevice(), &allocInfo, &finalPassDescriptorSet);
-    ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+    ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     // Allocate bokeh pass descriptor Set.
     allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -158,7 +158,7 @@ void ForwardRenderer::Init()
     allocInfo.pSetLayouts        = &bokehPassLayout->GetDescriptorLayout();
 
     rslt                         = vkAllocateDescriptorSets(_Context.GetDevice()->GetVKDevice(), &allocInfo, &bokehDescriptorSet);
-    ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+    ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     // Setup resources.
     CreateSwapchainRenderPass();
@@ -1346,7 +1346,7 @@ void ForwardRenderer::InitImGui()
     pool_info.poolSizeCount              = std::size(pool_sizes);
     pool_info.pPoolSizes                 = pool_sizes;
 
-    ASSERT(
+    ENSURE(
         vkCreateDescriptorPool(_Context.GetDevice()->GetVKDevice(), &pool_info, nullptr, &imguiPool) == VK_SUCCESS,
         "Failed to initialize imgui pool");
 
@@ -2066,7 +2066,7 @@ bool ForwardRenderer::BeginFrame()
         return false;
     }
 
-    ASSERT(result == VK_SUCCESS, "Failed to acquire next image.");
+    ENSURE(result == VK_SUCCESS, "Failed to acquire next image.");
     return true;
 }
 
@@ -2172,7 +2172,7 @@ void ForwardRenderer::EndFrame()
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores    = &GFrameSync.RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
 
-    ASSERT(
+    ENSURE(
         vkQueueSubmit(queue, 1, &submitInfo, GFrameSync.InFlightFences[GFrameSync.CurrentBufferIndex]) == VK_SUCCESS,
         "Failed to submit draw command buffer!");
 
@@ -2188,5 +2188,5 @@ void ForwardRenderer::EndFrame()
     presentInfo.pResults           = nullptr;
 
     result                         = vkQueuePresentKHR(queue, &presentInfo);
-    ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+    ENSURE(result == VK_SUCCESS, "Failed to present swap chain image!");
 }

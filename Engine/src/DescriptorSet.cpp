@@ -23,7 +23,7 @@ DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDe
                                                // allocations or just reallocate pools.
     // poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
-    ASSERT(
+    ENSURE(
         vkCreateDescriptorPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) ==
             VK_SUCCESS,
         "Failed to create descriptor pool!");
@@ -60,7 +60,7 @@ DescriptorSetLayout::DescriptorSetLayout(const std::vector<DescriptorSetBindingS
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings    = bindings.data();
 
-    ASSERT(
+    ENSURE(
         vkCreateDescriptorSetLayout(
             EngineInternal::GetContext().GetDevice()->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS,
         "Failed to create descriptor set layout!");

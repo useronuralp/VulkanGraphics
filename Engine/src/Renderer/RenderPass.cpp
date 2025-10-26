@@ -86,7 +86,7 @@ void RenderPass::CreateRenderPass()
         rpInfo.pDependencies   = _Info.Dependencies.data();
     }
 
-    ASSERT(vkCreateRenderPass(_Context.GetDevice()->GetVKDevice(), &rpInfo, nullptr, &_RenderPass) == VK_SUCCESS, "Failed");
+    ENSURE(vkCreateRenderPass(_Context.GetDevice()->GetVKDevice(), &rpInfo, nullptr, &_RenderPass) == VK_SUCCESS, "Failed");
 }
 void RenderPass::Destroy()
 {

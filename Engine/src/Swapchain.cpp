@@ -87,7 +87,7 @@ void Swapchain::Create()
     ci.clipped          = VK_TRUE;
     ci.oldSwapchain     = VK_NULL_HANDLE;
 
-    ASSERT(
+    ENSURE(
         vkCreateSwapchainKHR(_Context.GetDevice()->GetVKDevice(), &ci, nullptr, &_Swapchain) == VK_SUCCESS,
         "Failed to create swap chain!");
     PrintInfo("Successfully created swapchain!");
@@ -118,7 +118,7 @@ void Swapchain::Create()
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount     = 1;
 
-        ASSERT(
+        ENSURE(
             vkCreateImageView(_Context.GetDevice()->GetVKDevice(), &viewInfo, nullptr, &_ImageViews[i]) == VK_SUCCESS,
             "Failed to create image view.");
     }

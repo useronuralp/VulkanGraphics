@@ -35,7 +35,7 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
         for (uint32_t i = 0; i < 6; i++)
         {
             cubemapTextures[i] = stbi_load(textures[i].c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-            ASSERT(cubemapTextures[i], "Failed to load texture.");
+            ENSURE(cubemapTextures[i], "Failed to load texture.");
         }
         imageSize = texWidth * texHeight * 4 * 6;
         layerSize = imageSize / 6;
@@ -43,7 +43,7 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     else
     {
         pixels = stbi_load(m_Path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        ASSERT(pixels, "Failed to load texture.");
+        ENSURE(pixels, "Failed to load texture.");
         imageSize = texWidth * texHeight * 4;
         layerSize = imageSize;
     }
@@ -191,7 +191,7 @@ void Image::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayo
         destinationStage      = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         supported             = true;
     }
-    ASSERT(supported, "Unsupported layout transition");
+    ENSURE(supported, "Unsupported layout transition");
 
     vkCmdPipelineBarrier(singleCmdBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     CommandBuffer::EndRecording(singleCmdBuffer);
@@ -304,7 +304,7 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     imageCreateInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.flags         = flags;
 
-    ASSERT(
+    ENSURE(
         vkCreateImage(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &imageCreateInfo, nullptr, &m_Image) == VK_SUCCESS,
         "Failed to create image!");
 
@@ -316,7 +316,7 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     allocInfo.allocationSize  = memRequirements.size;
     allocInfo.memoryTypeIndex = Utils::FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    ASSERT(
+    ENSURE(
         vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &m_ImageMemory) == VK_SUCCESS,
         "Failed to allocate image memory!");
     vkBindImageMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Image, m_ImageMemory, 0);
@@ -336,7 +336,7 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount     = layerCount;
 
-    ASSERT(
+    ENSURE(
         vkCreateImageView(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS,
         "Failed to create texture image view!");
 }
@@ -347,7 +347,7 @@ void Image::GenerateMipmaps()
     vkGetPhysicalDeviceFormatProperties(
         EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), m_ImageFormat, &formatProperties);
 
-    ASSERT(
+    ENSURE(
         formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT,
         "Texture image format does not support linear blitting!");
 

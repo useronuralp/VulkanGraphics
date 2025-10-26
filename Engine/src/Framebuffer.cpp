@@ -22,7 +22,7 @@ Framebuffer::Framebuffer(
     framebufferInfo.height          = _Height;
     framebufferInfo.layers          = InLayerCount;
 
-    ASSERT(
+    ENSURE(
         vkCreateFramebuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) ==
             VK_SUCCESS,
         "Failed to create framebuffer!");

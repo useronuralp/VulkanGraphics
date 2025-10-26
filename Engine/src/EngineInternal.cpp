@@ -12,6 +12,7 @@ FrameSync GFrameSync;
 
 VulkanContext& EngineInternal::GetContext()
 {
+    ENSURE(Engine::Get()._Internal->_Context, "Invalid context");
     return *Engine::Get()._Internal->_Context;
 }
 
@@ -115,17 +116,17 @@ void EngineInternal::CreateSynchronizationPrimitives()
 
     for (int i = 0; i < imageCount; i++)
     {
-        ASSERT(
+        ENSURE(
             vkCreateSemaphore(device, &semaphoreInfo, nullptr, &GFrameSync.RenderingCompleteSemaphores[i]) == VK_SUCCESS,
             "Failed to create rendering complete semaphore.");
     }
 
     for (int i = 0; i < GFrameSync.ConcurrentAllowedFrameCount; i++)
     {
-        ASSERT(
+        ENSURE(
             vkCreateFence(device, &fenceCreateInfo, nullptr, &GFrameSync.InFlightFences[i]) == VK_SUCCESS,
             "Failed to create is rendering fence.");
-        ASSERT(
+        ENSURE(
             vkCreateSemaphore(device, &semaphoreInfo, nullptr, &GFrameSync.AcquireFinishedSemaphores[i]) == VK_SUCCESS,
             "Failed to create image available semaphore.");
     }

@@ -123,7 +123,7 @@ Instance::Instance()
         vkCreateInfo.ppEnabledLayerNames = nullptr;
     }
 
-    ASSERT(vkCreateInstance(&vkCreateInfo, nullptr, &m_Instance) == VK_SUCCESS, "Failed to create instance.");
+    ENSURE(vkCreateInstance(&vkCreateInfo, nullptr, &m_Instance) == VK_SUCCESS, "Failed to create instance.");
 
     PrintInfo("Vulkan instance created successfully.");
 
@@ -222,7 +222,7 @@ void Instance::SetupDebugMessenger()
 {
     VkDebugUtilsMessengerCreateInfoEXT createInfo{};
     Utils::PopulateDebugMessengerCreateInfo(createInfo, DebugCallback);
-    ASSERT(
+    ENSURE(
         CreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_DebugMessenger) == VK_SUCCESS,
         "Failed to create the Debug Messenger. Tip: Maybe try building in "
         "release mode.");

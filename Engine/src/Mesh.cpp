@@ -34,7 +34,7 @@ Mesh::Mesh(
 
     VkResult rslt =
         vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
-    ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+    ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())
     {
@@ -137,7 +137,7 @@ Mesh::Mesh(
 
     VkResult rslt =
         vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
-    ASSERT(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
+    ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())
     {

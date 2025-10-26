@@ -1,10 +1,10 @@
 #pragma once
 #include "core.h"
-#include "Scene.h"
 
 class Engine
 {
    public:
+    // public API exposed to Editor/Application
     void           Init();
     void           Run();
     static Engine& Get();
@@ -12,11 +12,11 @@ class Engine
     Ref<class Scene> CreateScene() {};
     Ref<class Scene> GetActiveScene() const {};
     void             SetActiveScene(Ref<class Scene> InScene) {};
-
-    Engine();
-    ~Engine() = default;
+    // ~public API end
 
    private:
+    Engine();
+    ~Engine()                        = default;
     Engine(const Engine&)            = delete;
     Engine& operator=(const Engine&) = delete;
 

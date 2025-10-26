@@ -14,7 +14,7 @@ Surface::Surface(
     // 1. Create the Vulkan surface for the given window
     auto result = glfwCreateWindowSurface(_Instance->GetVkInstance(), _Window->GetNativeWindow(), nullptr, &_Surface);
 
-    ASSERT(result == VK_SUCCESS, "Failed to create a window surface");
+    ENSURE(result == VK_SUCCESS, "Failed to create a window surface");
 
     // 2. Query capabilities and surface format
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &_Capabilities);
@@ -24,7 +24,7 @@ Surface::Surface(
 
     std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
-    ASSERT(formatCount != 0, "No surface formats found!");
+    ENSURE(formatCount != 0, "No surface formats found!");
 
     surfaceFormats.resize(formatCount);
     vkGetPhysicalDeviceSurfaceFormatsKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, surfaceFormats.data());
@@ -47,7 +47,7 @@ Surface::Surface(
 }
 Surface::Surface()
 {
-    ASSERT(
+    ENSURE(
         glfwCreateWindowSurface(_Instance->GetVkInstance(), _Window->GetNativeWindow(), nullptr, &_Surface) == VK_SUCCESS,
         "Failed to create a window surface");
 

@@ -30,7 +30,7 @@
     } while (0)
 #define ASSERT_ABORT(EXPR, MESSAGE) assert(EXPR&& MESSAGE)
 
-#define ASSERT(condition, message) \
+#define ENSURE(condition, message) \
     do \
     { \
         if (!(condition)) \
