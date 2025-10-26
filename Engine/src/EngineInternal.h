@@ -29,7 +29,7 @@ class EngineInternal
     void Init();
     void Run();
 
-    float CalculateDeltaTime();
+    float DeltaTime();
     void  PollEvents();
     void  CreateSynchronizationPrimitives();
 

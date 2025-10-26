@@ -4,7 +4,7 @@
 class Engine
 {
    public:
-    // public API exposed to Editor/Application
+    // public API
     void           Init();
     void           Run();
     static Engine& Get();

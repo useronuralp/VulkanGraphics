@@ -38,7 +38,7 @@ void EngineInternal::Run()
 {
     while (!_Context->GetWindow()->ShouldClose())
     {
-        float deltaTime = CalculateDeltaTime();
+        float deltaTime = DeltaTime();
 
         PollEvents();
 
@@ -137,7 +137,7 @@ void EngineInternal::PollEvents()
     glfwPollEvents();
 }
 
-float EngineInternal::CalculateDeltaTime()
+float EngineInternal::DeltaTime()
 {
     const float currentTime = static_cast<float>(glfwGetTime());
     const float deltaTime   = currentTime - _LastFrameTime;

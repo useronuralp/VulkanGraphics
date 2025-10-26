@@ -35,9 +35,8 @@ class RendererInterface
     virtual void RenderFrame(float DeltaTime) = 0; // Render the main scene
     virtual void EndFrame()                   = 0; // Submit frame
     virtual void InitImGui()                  = 0; // Submit frame
-    // virtual void PollEvents()                 = 0; // Submit frame
-    virtual void RenderImGui() = 0; // Submit frame
-    virtual void Cleanup()     = 0; // Submit frame
+    virtual void RenderImGui()                = 0; // Submit frame
+    virtual void Cleanup()                    = 0; // Submit frame
 };
 
 class ForwardRenderer : public RendererInterface
