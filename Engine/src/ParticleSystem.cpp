@@ -1,18 +1,14 @@
 #include "DescriptorSet.h"
+#include "Device.h"
 #include "EngineInternal.h"
 #include "Image.h"
-#include "Device.h"
 #include "ParticleSystem.h"
 #include "Utils.h"
 #include "VulkanContext.h"
 // External
 #include <Curl.h>
 #include <simplexnoise.h>
-ParticleSystem::ParticleSystem(
-    const ParticleSpecs&            specs,
-    Ref<Image>                      texture,
-    const Ref<DescriptorSetLayout>& layout,
-    const Ref<DescriptorPool>&      pool)
+ParticleSystem::ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorSetLayout>& layout, const Ref<DescriptorPool>& pool)
     : m_ParticleTexture(texture)
 {
     // Create shared descriptor set for all particle systems.
@@ -22,7 +18,7 @@ ParticleSystem::ParticleSystem(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt                = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     m_ParticleCount       = specs.ParticleCount;
@@ -59,10 +55,7 @@ float ParticleSystem::rnd(float min, float max)
 void ParticleSystem::InitParticle(Particle* particle, glm::vec3 emitterPos)
 {
     particle->Velocity = glm::vec4(
-        m_MinVel.x + rnd(0.0f, m_MaxVel.x - m_MinVel.x),
-        m_MinVel.y + rnd(0.0f, m_MaxVel.y - m_MinVel.y),
-        m_MinVel.z + rnd(0.0f, m_MaxVel.z - m_MinVel.z),
-        0.0f);
+        m_MinVel.x + rnd(0.0f, m_MaxVel.x - m_MinVel.x), m_MinVel.y + rnd(0.0f, m_MaxVel.y - m_MinVel.y), m_MinVel.z + rnd(0.0f, m_MaxVel.z - m_MinVel.z), 0.0f);
     particle->Alpha            = 1.0f;
     particle->SizeRadius       = m_ParticleSize;
     particle->Color            = glm::vec4(1.0f);
@@ -124,13 +117,7 @@ void ParticleSystem::SetupParticles()
         m_ParticleBuffer,
         m_ParticleBufferMemory);
     ENSURE(
-        vkMapMemory(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(),
-            m_ParticleBufferMemory,
-            0,
-            m_ParticleBufferSize,
-            0,
-            &m_MappedParticleBuffer) == VK_SUCCESS,
+        vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_ParticleBufferMemory, 0, m_ParticleBufferSize, 0, &m_MappedParticleBuffer) == VK_SUCCESS,
         "Failed to map the memory");
     memcpy(m_MappedParticleBuffer, m_Particles.data(), m_ParticleBufferSize);
 
@@ -146,13 +133,7 @@ void ParticleSystem::SetupParticles()
             m_TrailBuffer,
             m_TrailBufferMemory);
         ENSURE(
-            vkMapMemory(
-                EngineInternal::GetContext().GetDevice()->GetVKDevice(),
-                m_TrailBufferMemory,
-                0,
-                m_TrailBufferSize,
-                0,
-                &m_MappedTrailsBuffer) == VK_SUCCESS,
+            vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_TrailBufferMemory, 0, m_TrailBufferSize, 0, &m_MappedTrailsBuffer) == VK_SUCCESS,
             "Failed to map the memory");
         memcpy(m_MappedTrailsBuffer, m_Trails.data(), m_TrailBufferSize);
     }
@@ -236,15 +217,14 @@ void ParticleSystem::UpdateParticles(float deltaTime)
         if (m_TrailLength > 0 && deltaTimeSum >= trailUpdateRate)
         {
             m_Trails[(i * m_TrailLength) + m_Particles[i].currentTrailIndex].Position = m_Particles[i].Position;
-            m_Particles[i].currentTrailIndex = ++m_Particles[i].currentTrailIndex % m_TrailLength;
+            m_Particles[i].currentTrailIndex                                          = ++m_Particles[i].currentTrailIndex % m_TrailLength;
         }
 
-        CurlNoise::float3 curlNoise = CurlNoise::ComputeCurlNoBoundaries(
-            Vectormath::Aos::Vector3(m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z));
+        CurlNoise::float3 curlNoise =
+            CurlNoise::ComputeCurlNoBoundaries(Vectormath::Aos::Vector3(m_Particles[i].Position.x, m_Particles[i].Position.y, m_Particles[i].Position.z));
         // float noise = scaled_raw_noise_3d(-20, 20, m_Particles[i].Position.x,
         // m_Particles[i].Position.y, m_Particles[i].Position.z);
-        m_Particles[i].Position.y +=
-            m_Particles[i].Velocity.y * 3.0f * (m_EnableNoise ? (curlNoise.val[1] / 10) + 1 : 1) * particleTimer * 3.5f;
+        m_Particles[i].Position.y += m_Particles[i].Velocity.y * 3.0f * (m_EnableNoise ? (curlNoise.val[1] / 10) + 1 : 1) * particleTimer * 3.5f;
         m_Particles[i].Position.x += m_Particles[i].Velocity.x * (m_EnableNoise ? curlNoise.val[0] : 1) * particleTimer * 3.5f;
         m_Particles[i].Position.z += m_Particles[i].Velocity.z * (m_EnableNoise ? curlNoise.val[2] : 1) * particleTimer * 3.5f;
 
@@ -271,8 +251,7 @@ void ParticleSystem::UpdateParticles(float deltaTime)
         {
             InitParticle(&m_Particles[i], m_EmitterPos);
             for (uint64_t k = 0; k < m_TrailLength; k++)
-                InitTrail(
-                    &m_Trails[(i * m_TrailLength) + k], m_Particles[i].Position, m_Particles[i].Alpha, m_Particles[i].SizeRadius);
+                InitTrail(&m_Trails[(i * m_TrailLength) + k], m_Particles[i].Position, m_Particles[i].Alpha, m_Particles[i].SizeRadius);
         }
     }
     // Reset

@@ -54,12 +54,7 @@ class Image
    private:
     void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout);
     void CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t height);
-    void SetupImage(
-        uint32_t          width,
-        uint32_t          height,
-        VkFormat          imageFormat,
-        VkImageUsageFlags usage,
-        ImageType         imageType = ImageType::COLOR);
+    void SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usage, ImageType imageType = ImageType::COLOR);
     void GenerateMipmaps();
 
    private:

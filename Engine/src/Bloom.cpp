@@ -1,4 +1,5 @@
 #include "Bloom.h"
+#include "CloudPass.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
 #include "Device.h"
@@ -25,14 +26,21 @@ Bloom::Bloom()
         DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
     };
 
+    std::vector<DescriptorSetBindingSpecs> layout3{
+        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
+        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 },
+        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 2 },
+    };
+
     std::vector<VkDescriptorType> types;
     types.clear();
     types.push_back(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     m_DescriptorPool = std::make_unique<DescriptorPool>(200, types);
 
     // Create the layouts used in the blur passes and merge.
-    m_TwoSamplerLayout = std::make_unique<DescriptorSetLayout>(layout);
-    m_OneSamplerLayout = std::make_unique<DescriptorSetLayout>(layout2);
+    m_TwoSamplerLayout   = std::make_unique<DescriptorSetLayout>(layout);
+    m_OneSamplerLayout   = std::make_unique<DescriptorSetLayout>(layout2);
+    m_ThreeSamplerLayout = std::make_unique<DescriptorSetLayout>(layout3);
 
     SetupPipelines();
 
@@ -57,51 +65,51 @@ Bloom::~Bloom()
     vkDestroyRenderPass(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BrightnessIsolationPass, nullptr);
 }
 
-void Bloom::ConnectImageResourceToAddBloomTo(const Ref<Image>& frame)
+void Bloom::ConnectImageResourceToAddBloomTo(const Ref<Image>& frame, Ref<CloudPass> cloudpass)
 {
     m_HDRImage = frame;
     if (m_FirstPassEver)
     {
-        m_FirstPassEver          = false;
-        m_BrigtnessFilterSampler = Utils::CreateSampler(
-            m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        m_FirstPassEver = false;
+        m_BrigtnessFilterSampler =
+            Utils::CreateSampler(m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
     }
     else
     {
         vkDestroySampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_BrigtnessFilterSampler, nullptr);
-        m_BrigtnessFilterSampler = Utils::CreateSampler(
-            m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+        m_BrigtnessFilterSampler =
+            Utils::CreateSampler(m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
     }
-    Utils::UpdateDescriptorSet(
-        m_BrigtnessFilterDescriptorSet,
-        m_BrigtnessFilterSampler,
-        m_HDRImage->GetImageView(),
-        0,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    Utils::UpdateDescriptorSet(m_BrigtnessFilterDescriptorSet, m_BrigtnessFilterSampler, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // Merge pass.
-    m_MergeSamplerHDR = Utils::CreateSampler(
-        m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+    m_MergeSamplerHDR   = Utils::CreateSampler(m_HDRImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
     m_MergeSamplerBloom = Utils::CreateSampler(
-        m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1],
-        ImageType::COLOR,
-        VK_FILTER_LINEAR,
-        VK_FILTER_LINEAR,
-        VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        VK_FALSE);
+        m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
 
+    Utils::UpdateDescriptorSet(m_MergeDescriptorSet, m_MergeSamplerHDR, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     Utils::UpdateDescriptorSet(
-        m_MergeDescriptorSet, m_MergeSamplerHDR, m_HDRImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    Utils::UpdateDescriptorSet(
-        m_MergeDescriptorSet,
-        m_MergeSamplerBloom,
-        m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1]->GetImageView(),
-        1,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        m_MergeDescriptorSet, m_MergeSamplerBloom, m_UpscalingColorBuffers[BLUR_PASS_COUNT - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    // CLOUD STUFF
+    cloudSampler = Utils::CreateSampler(ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+
+    Utils::UpdateDescriptorSet(m_MergeDescriptorSet, cloudSampler, cloudpass->GetOutputColorView(), 2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
 {
+    VkDebugUtilsLabelEXT label{};
+    label.sType         = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    label.pLabelName    = "[Bloom] Brightness Filter";
+    label.color[0]      = 0.0f;
+    label.color[1]      = 1.0f;
+    label.color[2]      = 0.0f;
+    label.color[3]      = 1.0f;
+
+    auto funcBeginLabel = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetDeviceProcAddr(EngineInternal::GetContext().GetDevice()->GetVKDevice(), "vkCmdBeginDebugUtilsLabelEXT");
+    auto funcEndLabel   = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetDeviceProcAddr(EngineInternal::GetContext().GetDevice()->GetVKDevice(), "vkCmdEndDebugUtilsLabelEXT");
+
     VkClearValue clearValues                                       = { 0.8f, 0.1f, 0.1f, 1.0f };
 
     m_BrightnessFilterRenderPassBeginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -115,17 +123,12 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
     m_BrightnessFilterRenderPassBeginInfo.renderArea.extent.width  = m_BrightnessIsolatedFramebuffer->GetWidth();
 
     CommandBuffer::BeginRenderPass(cmdBuffer, m_BrightnessFilterRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    funcBeginLabel(cmdBuffer, &label);
     CommandBuffer::BindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BrightnessFilterPipeline);
     vkCmdBindDescriptorSets(
-        cmdBuffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        m_BrightnessFilterPipeline->GetPipelineLayout(),
-        0,
-        1,
-        &m_BrigtnessFilterDescriptorSet,
-        0,
-        nullptr);
+        cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BrightnessFilterPipeline->GetPipelineLayout(), 0, 1, &m_BrigtnessFilterDescriptorSet, 0, nullptr);
     vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+    funcEndLabel(cmdBuffer);
     CommandBuffer::EndRenderPass(cmdBuffer);
 
     VkDeviceSize offset = { 0 };
@@ -145,24 +148,21 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
         m_BlurRenderPassBeginInfo.renderArea.extent.height = m_BlurFramebuffers[i]->GetHeight();
         m_BlurRenderPassBeginInfo.renderArea.extent.width  = m_BlurFramebuffers[i]->GetWidth();
 
+        label.pLabelName                                   = "[Bloom] Downscaling";
+
         CommandBuffer::BeginRenderPass(cmdBuffer, m_BlurRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        funcBeginLabel(cmdBuffer, &label);
         CommandBuffer::BindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlurPipelines[i]);
-        vkCmdBindDescriptorSets(
-            cmdBuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            m_BlurPipelines[i]->GetPipelineLayout(),
-            0,
-            1,
-            &m_BlurDescriptorSets[i],
-            0,
-            nullptr);
+        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlurPipelines[i]->GetPipelineLayout(), 0, 1, &m_BlurDescriptorSets[i], 0, nullptr);
         vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+        funcEndLabel(cmdBuffer);
         CommandBuffer::EndRenderPass(cmdBuffer);
     }
 
     // Upscaling pass.
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
     {
+        label.pLabelName                                        = "[Bloom] Upscaling";
         clearValues                                             = { 0.8f, 0.1f, 0.1f, 1.0f };
 
         m_UpscalingRenderPassBeginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -176,17 +176,12 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
         m_UpscalingRenderPassBeginInfo.renderArea.extent.width  = m_UpscalingFramebuffers[i]->GetWidth();
 
         CommandBuffer::BeginRenderPass(cmdBuffer, m_UpscalingRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        funcBeginLabel(cmdBuffer, &label);
         CommandBuffer::BindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_UpscalingPipelines[i]);
         vkCmdBindDescriptorSets(
-            cmdBuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            m_UpscalingPipelines[i]->GetPipelineLayout(),
-            0,
-            1,
-            &m_UpscalingDescriptorSets[i],
-            0,
-            nullptr);
+            cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_UpscalingPipelines[i]->GetPipelineLayout(), 0, 1, &m_UpscalingDescriptorSets[i], 0, nullptr);
         vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+        funcEndLabel(cmdBuffer);
         CommandBuffer::EndRenderPass(cmdBuffer);
     }
 
@@ -202,18 +197,14 @@ void Bloom::ApplyBloom(const VkCommandBuffer& cmdBuffer)
     m_MergeRenderPassBeginInfo.renderArea.extent.height = m_MergeFramebuffer->GetHeight();
     m_MergeRenderPassBeginInfo.renderArea.extent.width  = m_MergeFramebuffer->GetWidth();
 
+    label.pLabelName                                    = "[Bloom] Merge";
+
     CommandBuffer::BeginRenderPass(cmdBuffer, m_MergeRenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    funcBeginLabel(cmdBuffer, &label);
     CommandBuffer::BindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MergePipeline);
-    vkCmdBindDescriptorSets(
-        cmdBuffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        m_MergePipeline->GetPipelineLayout(),
-        0,
-        1,
-        &m_MergeDescriptorSet,
-        0,
-        nullptr);
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MergePipeline->GetPipelineLayout(), 0, 1, &m_MergeDescriptorSet, 0, nullptr);
     vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+    funcEndLabel(cmdBuffer);
     CommandBuffer::EndRenderPass(cmdBuffer);
 }
 
@@ -253,21 +244,16 @@ void Bloom::CreateRenderPasses()
     isolationAttachmentDescriptions[0] = isolationColorAttachmentDescription;
 
     VkRenderPassCreateInfo isolationRenderPassInfo{};
-    isolationRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    isolationRenderPassInfo.attachmentCount =
-        static_cast<uint32_t>(isolationAttachmentDescriptions.size()); // Number of attachments.
-    isolationRenderPassInfo.pAttachments = isolationAttachmentDescriptions.data(); // An array with the size of "attachmentCount".
-    isolationRenderPassInfo.subpassCount = 1;
-    isolationRenderPassInfo.pSubpasses   = &isolationSubpass;
+    isolationRenderPassInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    isolationRenderPassInfo.attachmentCount = static_cast<uint32_t>(isolationAttachmentDescriptions.size()); // Number of attachments.
+    isolationRenderPassInfo.pAttachments    = isolationAttachmentDescriptions.data(); // An array with the size of "attachmentCount".
+    isolationRenderPassInfo.subpassCount    = 1;
+    isolationRenderPassInfo.pSubpasses      = &isolationSubpass;
     isolationRenderPassInfo.dependencyCount = 1;
     isolationRenderPassInfo.pDependencies   = &isolationDependency;
 
     ENSURE(
-        vkCreateRenderPass(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(),
-            &isolationRenderPassInfo,
-            nullptr,
-            &m_BrightnessIsolationPass) == VK_SUCCESS,
+        vkCreateRenderPass(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &isolationRenderPassInfo, nullptr, &m_BrightnessIsolationPass) == VK_SUCCESS,
         "Failed to create a render pass.");
 
     // Blur render pass.
@@ -313,9 +299,7 @@ void Bloom::CreateRenderPasses()
     blurRenderPassInfo.pDependencies   = &blurDependency;
 
     ENSURE(
-        vkCreateRenderPass(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &blurRenderPassInfo, nullptr, &m_BlurRenderPass) ==
-            VK_SUCCESS,
+        vkCreateRenderPass(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &blurRenderPassInfo, nullptr, &m_BlurRenderPass) == VK_SUCCESS,
         "Failed to create a render pass.");
 
     // Merge render pass. // TO DO: This is same as the above render pass. Merge
@@ -362,9 +346,7 @@ void Bloom::CreateRenderPasses()
     mergeRenderPassInfo.pDependencies   = &mergeDependency;
 
     ENSURE(
-        vkCreateRenderPass(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &mergeRenderPassInfo, nullptr, &m_MergeRenderPass) ==
-            VK_SUCCESS,
+        vkCreateRenderPass(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &mergeRenderPassInfo, nullptr, &m_MergeRenderPass) == VK_SUCCESS,
         "Failed to create a render pass.");
 }
 
@@ -398,12 +380,8 @@ void Bloom::CreateFramebuffers()
         height /= 2;
         width /= 2;
 
-        m_BlurColorBuffers[i] = std::make_unique<Image>(
-            width,
-            height,
-            VK_FORMAT_R16G16B16A16_SFLOAT,
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-            ImageType::COLOR);
+        m_BlurColorBuffers[i] =
+            std::make_unique<Image>(width, height, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, ImageType::COLOR);
 
         attachments           = { m_BlurColorBuffers[i]->GetImageView() };
 
@@ -415,12 +393,8 @@ void Bloom::CreateFramebuffers()
         height *= 2;
         width *= 2;
 
-        m_UpscalingColorBuffers[i] = make_s<Image>(
-            width,
-            height,
-            VK_FORMAT_R16G16B16A16_SFLOAT,
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-            ImageType::COLOR);
+        m_UpscalingColorBuffers[i] =
+            make_s<Image>(width, height, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, ImageType::COLOR);
 
         attachments                = { m_UpscalingColorBuffers[i]->GetImageView() };
 
@@ -438,10 +412,7 @@ void Bloom::CreateFramebuffers()
     attachments        = { m_MergeColorBuffer->GetImageView() };
 
     m_MergeFramebuffer = std::make_unique<Framebuffer>(
-        m_MergeRenderPass,
-        attachments,
-        EngineInternal::GetContext().GetSurface()->GetVKExtent().width,
-        EngineInternal::GetContext().GetSurface()->GetVKExtent().height);
+        m_MergeRenderPass, attachments, EngineInternal::GetContext().GetSurface()->GetVKExtent().width, EngineInternal::GetContext().GetSurface()->GetVKExtent().height);
 }
 
 void Bloom::SetupDesciptorSets()
@@ -453,17 +424,16 @@ void Bloom::SetupDesciptorSets()
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &m_OneSamplerLayout->GetDescriptorLayout();
 
-    VkResult rslt                = vkAllocateDescriptorSets(
-        EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BrigtnessFilterDescriptorSet);
+    VkResult rslt                = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BrigtnessFilterDescriptorSet);
     ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     // Merge descriptor set
     allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool     = m_DescriptorPool->GetDescriptorPool();
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts        = &m_TwoSamplerLayout->GetDescriptorLayout();
+    allocInfo.pSetLayouts        = &m_ThreeSamplerLayout->GetDescriptorLayout();
 
-    rslt = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_MergeDescriptorSet);
+    rslt                         = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_MergeDescriptorSet);
     ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
@@ -474,8 +444,7 @@ void Bloom::SetupDesciptorSets()
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts        = &m_OneSamplerLayout->GetDescriptorLayout();
 
-        VkResult rslt                = vkAllocateDescriptorSets(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BlurDescriptorSets[i]);
+        VkResult rslt                = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_BlurDescriptorSets[i]);
         ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
         // Upscaling descs.
@@ -484,8 +453,7 @@ void Bloom::SetupDesciptorSets()
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts        = &m_TwoSamplerLayout->GetDescriptorLayout();
 
-        rslt                         = vkAllocateDescriptorSets(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_UpscalingDescriptorSets[i]);
+        rslt                         = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_UpscalingDescriptorSets[i]);
         ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
     }
 
@@ -494,35 +462,17 @@ void Bloom::SetupDesciptorSets()
     {
         if (i == 0)
         {
-            m_BlurSamplers[i] = Utils::CreateSampler(
-                m_BrightnessIsolatedImage,
-                ImageType::COLOR,
-                VK_FILTER_LINEAR,
-                VK_FILTER_LINEAR,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                VK_FALSE);
+            m_BlurSamplers[i] =
+                Utils::CreateSampler(m_BrightnessIsolatedImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
             Utils::UpdateDescriptorSet(
-                m_BlurDescriptorSets[i],
-                m_BlurSamplers[i],
-                m_BrightnessIsolatedImage->GetImageView(),
-                0,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BrightnessIsolatedImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
         else
         {
-            m_BlurSamplers[i] = Utils::CreateSampler(
-                m_BlurColorBuffers[i - 1],
-                ImageType::COLOR,
-                VK_FILTER_LINEAR,
-                VK_FILTER_LINEAR,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                VK_FALSE);
+            m_BlurSamplers[i] =
+                Utils::CreateSampler(m_BlurColorBuffers[i - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
             Utils::UpdateDescriptorSet(
-                m_BlurDescriptorSets[i],
-                m_BlurSamplers[i],
-                m_BlurColorBuffers[i - 1]->GetImageView(),
-                0,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                m_BlurDescriptorSets[i], m_BlurSamplers[i], m_BlurColorBuffers[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
     }
 
@@ -532,80 +482,35 @@ void Bloom::SetupDesciptorSets()
         if (i == 0)
         {
             // Grab the last two results.
-            m_UpscalingSamplersFirst[i] = Utils::CreateSampler(
-                m_BlurColorBuffers[a],
-                ImageType::COLOR,
-                VK_FILTER_LINEAR,
-                VK_FILTER_LINEAR,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                VK_FALSE);
-            m_UpscalingSamplersSecond[i] = Utils::CreateSampler(
-                m_BlurColorBuffers[a - 1],
-                ImageType::COLOR,
-                VK_FILTER_LINEAR,
-                VK_FILTER_LINEAR,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                VK_FALSE);
+            m_UpscalingSamplersFirst[i] =
+                Utils::CreateSampler(m_BlurColorBuffers[a], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+            m_UpscalingSamplersSecond[i] =
+                Utils::CreateSampler(m_BlurColorBuffers[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
 
             Utils::UpdateDescriptorSet(
-                m_UpscalingDescriptorSets[i],
-                m_UpscalingSamplersFirst[i],
-                m_BlurColorBuffers[a]->GetImageView(),
-                0,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_BlurColorBuffers[a]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             Utils::UpdateDescriptorSet(
-                m_UpscalingDescriptorSets[i],
-                m_UpscalingSamplersSecond[i],
-                m_BlurColorBuffers[a - 1]->GetImageView(),
-                1,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
         else
         {
             m_UpscalingSamplersFirst[i] = Utils::CreateSampler(
-                m_UpscalingColorBuffers[i - 1],
-                ImageType::COLOR,
-                VK_FILTER_LINEAR,
-                VK_FILTER_LINEAR,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                VK_FALSE);
+                m_UpscalingColorBuffers[i - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
             Utils::UpdateDescriptorSet(
-                m_UpscalingDescriptorSets[i],
-                m_UpscalingSamplersFirst[i],
-                m_UpscalingColorBuffers[i - 1]->GetImageView(),
-                0,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                m_UpscalingDescriptorSets[i], m_UpscalingSamplersFirst[i], m_UpscalingColorBuffers[i - 1]->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             if (a == 0)
             {
                 m_UpscalingSamplersSecond[i] = Utils::CreateSampler(
-                    m_BrightnessIsolatedImage,
-                    ImageType::COLOR,
-                    VK_FILTER_LINEAR,
-                    VK_FILTER_LINEAR,
-                    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                    VK_FALSE);
+                    m_BrightnessIsolatedImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
                 Utils::UpdateDescriptorSet(
-                    m_UpscalingDescriptorSets[i],
-                    m_UpscalingSamplersSecond[i],
-                    m_BrightnessIsolatedImage->GetImageView(),
-                    1,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BrightnessIsolatedImage->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             }
             else
             {
                 m_UpscalingSamplersSecond[i] = Utils::CreateSampler(
-                    m_BlurColorBuffers[a - 1],
-                    ImageType::COLOR,
-                    VK_FILTER_LINEAR,
-                    VK_FILTER_LINEAR,
-                    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                    VK_FALSE);
+                    m_BlurColorBuffers[a - 1], ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
                 Utils::UpdateDescriptorSet(
-                    m_UpscalingDescriptorSets[i],
-                    m_UpscalingSamplersSecond[i],
-                    m_BlurColorBuffers[a - 1]->GetImageView(),
-                    1,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    m_UpscalingDescriptorSets[i], m_UpscalingSamplersSecond[i], m_BlurColorBuffers[a - 1]->GetImageView(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             }
         }
         a--;
@@ -635,8 +540,7 @@ void Bloom::SetupPipelines()
     specs.EnableDynamicStates     = false;
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable         = VK_TRUE;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -652,26 +556,25 @@ void Bloom::SetupPipelines()
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
     {
         // Blur downscaling passes
-        specs.DescriptorSetLayout     = m_OneSamplerLayout;
-        specs.RenderPass              = m_BlurRenderPass;
-        specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-        specs.DepthBiasClamp          = 0.0f;
-        specs.DepthBiasConstantFactor = 0.0f;
-        specs.DepthBiasSlopeFactor    = 0.0f;
-        specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-        specs.EnableDepthBias         = false;
-        specs.EnableDepthTesting      = VK_FALSE;
-        specs.EnableDepthWriting      = VK_FALSE;
-        specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-        specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
-        specs.FragmentShaderPath      = "assets/shaders/blurShaderFRAG.spv";
-        specs.ViewportHeight          = m_BlurFramebuffers[i]->GetHeight();
-        specs.ViewportWidth           = m_BlurFramebuffers[i]->GetWidth();
-        specs.EnableDynamicStates     = false;
+        specs.DescriptorSetLayout                = m_OneSamplerLayout;
+        specs.RenderPass                         = m_BlurRenderPass;
+        specs.CullMode                           = VK_CULL_MODE_BACK_BIT;
+        specs.DepthBiasClamp                     = 0.0f;
+        specs.DepthBiasConstantFactor            = 0.0f;
+        specs.DepthBiasSlopeFactor               = 0.0f;
+        specs.DepthCompareOp                     = VK_COMPARE_OP_LESS_OR_EQUAL;
+        specs.EnableDepthBias                    = false;
+        specs.EnableDepthTesting                 = VK_FALSE;
+        specs.EnableDepthWriting                 = VK_FALSE;
+        specs.FrontFace                          = VK_FRONT_FACE_CLOCKWISE;
+        specs.PolygonMode                        = VK_POLYGON_MODE_FILL;
+        specs.VertexShaderPath                   = "assets/shaders/quadRenderVERT.spv";
+        specs.FragmentShaderPath                 = "assets/shaders/blurShaderFRAG.spv";
+        specs.ViewportHeight                     = m_BlurFramebuffers[i]->GetHeight();
+        specs.ViewportWidth                      = m_BlurFramebuffers[i]->GetWidth();
+        specs.EnableDynamicStates                = false;
 
-        colorBlendAttachment.colorWriteMask =
-            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         colorBlendAttachment.blendEnable         = VK_TRUE;
         colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
         colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -696,25 +599,24 @@ void Bloom::SetupPipelines()
     }
 
     // Merge pipeline.
-    specs.DescriptorSetLayout     = m_TwoSamplerLayout;
-    specs.RenderPass              = m_MergeRenderPass;
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_FALSE;
-    specs.EnableDepthWriting      = VK_FALSE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/finalPassShaderFRAG.spv";
-    specs.ViewportHeight          = m_MergeFramebuffer->GetHeight();
-    specs.ViewportWidth           = m_MergeFramebuffer->GetWidth();
+    specs.DescriptorSetLayout                = m_ThreeSamplerLayout;
+    specs.RenderPass                         = m_MergeRenderPass;
+    specs.CullMode                           = VK_CULL_MODE_BACK_BIT;
+    specs.DepthBiasClamp                     = 0.0f;
+    specs.DepthBiasConstantFactor            = 0.0f;
+    specs.DepthBiasSlopeFactor               = 0.0f;
+    specs.DepthCompareOp                     = VK_COMPARE_OP_LESS_OR_EQUAL;
+    specs.EnableDepthBias                    = false;
+    specs.EnableDepthTesting                 = VK_FALSE;
+    specs.EnableDepthWriting                 = VK_FALSE;
+    specs.FrontFace                          = VK_FRONT_FACE_CLOCKWISE;
+    specs.PolygonMode                        = VK_POLYGON_MODE_FILL;
+    specs.VertexShaderPath                   = "assets/shaders/quadRenderVERT.spv";
+    specs.FragmentShaderPath                 = "assets/shaders/finalPassShaderFRAG.spv";
+    specs.ViewportHeight                     = m_MergeFramebuffer->GetHeight();
+    specs.ViewportWidth                      = m_MergeFramebuffer->GetWidth();
 
-    colorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable         = VK_TRUE;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;

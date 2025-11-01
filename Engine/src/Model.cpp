@@ -33,8 +33,7 @@ Model::Model(
 {
     m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
     Assimp::Importer importer;
-    const aiScene*   scene = importer.ReadFile(
-        m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
+    const aiScene*   scene = importer.ReadFile(m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 
     ENSURE(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, importer.GetErrorString());
 
@@ -64,12 +63,7 @@ Model::Model(
     m_IBO = std::make_unique<IndexBuffer>(indicesAll);
 }
 
-Model::Model(
-    const float*             vertices,
-    uint32_t                 vertexCount,
-    const Ref<Image>&        cubemapTex,
-    Ref<DescriptorPool>      pool,
-    Ref<DescriptorSetLayout> layout)
+Model::Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout)
     : m_FullPath("No path. Not loaded from a file"), m_DefaultCubeMap(cubemapTex), m_Flags(NONE)
 {
     m_Meshes.emplace_back(new Mesh(vertices, vertexCount, m_DefaultCubeMap, pool, layout));
@@ -77,11 +71,7 @@ Model::Model(
     m_VBO        = std::make_unique<VertexBuffer>(m_Meshes[0]->m_Vertices);
 }
 
-void Model::ProcessNode(
-    aiNode*                         node,
-    const aiScene*                  scene,
-    const Ref<DescriptorPool>&      pool,
-    const Ref<DescriptorSetLayout>& layout)
+void Model::ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout)
 {
     // process all the node's meshes (if any)
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
@@ -95,11 +85,7 @@ void Model::ProcessNode(
         ProcessNode(node->mChildren[i], scene, pool, layout);
     }
 }
-Mesh* Model::ProcessMesh(
-    aiMesh*                         mesh,
-    const aiScene*                  scene,
-    const Ref<DescriptorPool>&      pool,
-    const Ref<DescriptorSetLayout>& layout)
+Mesh* Model::ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout)
 {
     std::vector<float>    vertices;
     std::vector<uint32_t> indices;
@@ -198,21 +184,10 @@ Mesh* Model::ProcessMesh(
         diffuseTexture           = LoadMaterialTextures(material, aiTextureType_DIFFUSE, m_AlbedoCache); // Load Albedo.
         normalTexture            = LoadMaterialTextures(material, aiTextureType_NORMALS,
                                              m_NormalsCache); // Load Normal map.
-        roughnessMetallicTexture = LoadMaterialTextures(
-            material,
-            aiTextureType_UNKNOWN,
-            m_RoughnessMetallicCache); // Load RoughnessMetallic (.gltf) texture
+        roughnessMetallicTexture = LoadMaterialTextures(material, aiTextureType_UNKNOWN,
+                                                        m_RoughnessMetallicCache); // Load RoughnessMetallic (.gltf) texture
     }
-    return new Mesh(
-        vertices,
-        indices,
-        diffuseTexture,
-        normalTexture,
-        roughnessMetallicTexture,
-        pool,
-        layout,
-        m_DefaultShadowMap,
-        m_DefaultPointShadowMaps);
+    return new Mesh(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, pool, layout, m_DefaultShadowMap, m_DefaultPointShadowMaps);
 }
 
 Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache)
@@ -239,9 +214,8 @@ Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std:
     {
         if (!textureName.empty())
         {
-            Ref<Image> texture = make_s<Image>(
-                std::vector{ (m_Directory + "\\" + textureName) },
-                type == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
+            Ref<Image> texture =
+                make_s<Image>(std::vector{ (m_Directory + "\\" + textureName) }, type == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
             textureOUT = texture;
             cache.push_back(texture);
         }
@@ -268,8 +242,7 @@ void Model::DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLa
 
     for (int i = 0; i < m_Meshes.size(); i++)
     {
-        vkCmdBindDescriptorSets(
-            commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[i]->GetDescriptorSet(), 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[i]->GetDescriptorSet(), 0, nullptr);
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
         vkCmdBindIndexBuffer(commandBuffer, m_IBO->GetVKBuffer(), indexOffset, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(commandBuffer, GetMeshes()[i]->GetIndexCount(), 1, 0, 0, 0);
@@ -283,8 +256,7 @@ void Model::Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& p
 {
     // Currently used only to draw skyboxes/cubes. Extend if you need it.
     VkDeviceSize vertexOffset = 0;
-    vkCmdBindDescriptorSets(
-        commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[0]->GetDescriptorSet(), 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[0]->GetDescriptorSet(), 0, nullptr);
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
     vkCmdDraw(commandBuffer, 36, 1, 0, 0);
 }

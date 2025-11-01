@@ -7,6 +7,7 @@ layout(location = 0) out vec4 FragColor;
 
 layout (binding = 0) uniform sampler2D scene;
 layout (binding = 1) uniform sampler2D bloom;
+layout (binding = 2) uniform sampler2D cloud;
 
 
 vec3 aces(vec3 color) {
@@ -37,10 +38,11 @@ void main()
 	//vec2 uv;
 	//uv.y = 1 - v_UV.y;
 	//uv.x = v_UV.x;
-	vec3 color = texture(scene, v_UV).rgb; 
-	vec3 color2 = texture(bloom, v_UV).rgb; 
+    vec3 sceneColor = texture(scene, v_UV).rgb;
+    vec3 bloomColor = texture(bloom, v_UV).rgb;
+    vec3 cloudColor = texture(cloud, v_UV).rgb;
 
-	vec3 finalColor = aces(color2) + color;
+	vec3 finalColor = aces(bloomColor) + sceneColor + cloudColor;
 
    FragColor = vec4(finalColor, 1.0);
 }  

@@ -23,10 +23,9 @@ void EngineInternal::Init()
 
     _Swapchain = make_s<Swapchain>(*_Context);
 
-    _Camera =
-        make_s<Camera>(45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
+    _Camera    = make_s<Camera>(45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
 
-    _Renderer = make_u<ForwardRenderer>(*_Context, _Swapchain, _Camera);
+    _Renderer  = make_u<ForwardRenderer>(*_Context, _Swapchain, _Camera);
     _Renderer->Init();
     // TODO: Move out of renderer into UI layer.
     _Renderer->InitImGui();
@@ -123,12 +122,8 @@ void EngineInternal::CreateSynchronizationPrimitives()
 
     for (int i = 0; i < GFrameSync.ConcurrentAllowedFrameCount; i++)
     {
-        ENSURE(
-            vkCreateFence(device, &fenceCreateInfo, nullptr, &GFrameSync.InFlightFences[i]) == VK_SUCCESS,
-            "Failed to create is rendering fence.");
-        ENSURE(
-            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &GFrameSync.AcquireFinishedSemaphores[i]) == VK_SUCCESS,
-            "Failed to create image available semaphore.");
+        ENSURE(vkCreateFence(device, &fenceCreateInfo, nullptr, &GFrameSync.InFlightFences[i]) == VK_SUCCESS, "Failed to create is rendering fence.");
+        ENSURE(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &GFrameSync.AcquireFinishedSemaphores[i]) == VK_SUCCESS, "Failed to create image available semaphore.");
     }
 }
 

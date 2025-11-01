@@ -1,7 +1,7 @@
 #include "CommandBuffer.h"
+#include "Device.h"
 #include "EngineInternal.h"
 #include "Image.h"
-#include "Device.h"
 #include "PhysicalDevice.h"
 #include "Utils.h"
 #include "VulkanContext.h"
@@ -64,22 +64,13 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
         m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
     }
 
-    SetupImage(
-        m_Width,
-        m_Height,
-        m_ImageFormat,
-        (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
-        ImageType::COLOR);
+    SetupImage(m_Width, m_Height, m_ImageFormat, (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), ImageType::COLOR);
 
     // Prep the staging buffer.
     VkBuffer       stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
     Utils::CreateVKBuffer(
-        m_ImageSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
+        m_ImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
     // Copy the Texture data to the staging buffer.
     void* data;
@@ -128,8 +119,7 @@ Image::Image(std::vector<std::string> textures, VkFormat imageFormat) : m_ImageF
     }
 }
 
-Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType)
-    : m_ImageFormat(imageFormat)
+Image::Image(uint32_t width, uint32_t height, VkFormat imageFormat, VkImageUsageFlags usageFlags, ImageType imageType) : m_ImageFormat(imageFormat)
 {
     m_Width  = width;
     m_Height = height;
@@ -248,13 +238,7 @@ void Image::CopyBufferToImage(const VkBuffer& buffer, uint32_t width, uint32_t h
 
     if (m_IsCubemap)
     {
-        vkCmdCopyBufferToImage(
-            singleCmdBuffer,
-            buffer,
-            m_Image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            bufferCopyRegions.size(),
-            bufferCopyRegions.data());
+        vkCmdCopyBufferToImage(singleCmdBuffer, buffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
     }
     else
     {
@@ -304,9 +288,7 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     imageCreateInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.flags         = flags;
 
-    ENSURE(
-        vkCreateImage(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &imageCreateInfo, nullptr, &m_Image) == VK_SUCCESS,
-        "Failed to create image!");
+    ENSURE(vkCreateImage(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &imageCreateInfo, nullptr, &m_Image) == VK_SUCCESS, "Failed to create image!");
 
     // Mem allocation.
     VkMemoryRequirements memRequirements;
@@ -317,8 +299,7 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     allocInfo.memoryTypeIndex = Utils::FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     ENSURE(
-        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &m_ImageMemory) == VK_SUCCESS,
-        "Failed to allocate image memory!");
+        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &m_ImageMemory) == VK_SUCCESS, "Failed to allocate image memory!");
     vkBindImageMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), m_Image, m_ImageMemory, 0);
 
     // Create image view to access the texture.
@@ -328,9 +309,8 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
     viewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
     viewInfo.viewType   = viewType;
     viewInfo.format     = imageFormat;
-    viewInfo.subresourceRange.aspectMask     = imageType == ImageType::COLOR ?
-            VK_IMAGE_ASPECT_COLOR_BIT :
-            VK_IMAGE_ASPECT_DEPTH_BIT; // This part also changes when shadowmapping.
+    viewInfo.subresourceRange.aspectMask =
+        imageType == ImageType::COLOR ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT; // This part also changes when shadowmapping.
     viewInfo.subresourceRange.baseMipLevel   = 0;
     viewInfo.subresourceRange.levelCount     = m_MipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -344,12 +324,9 @@ void Image::SetupImage(uint32_t width, uint32_t height, VkFormat imageFormat, Vk
 void Image::GenerateMipmaps()
 {
     VkFormatProperties formatProperties;
-    vkGetPhysicalDeviceFormatProperties(
-        EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), m_ImageFormat, &formatProperties);
+    vkGetPhysicalDeviceFormatProperties(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), m_ImageFormat, &formatProperties);
 
-    ENSURE(
-        formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT,
-        "Texture image format does not support linear blitting!");
+    ENSURE(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT, "Texture image format does not support linear blitting!");
 
     VkCommandBuffer cmdBuffer;
     VkCommandPool   cmdPool;
@@ -378,8 +355,7 @@ void Image::GenerateMipmaps()
         barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask                 = VK_ACCESS_TRANSFER_READ_BIT;
 
-        vkCmdPipelineBarrier(
-            cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
         VkImageBlit blit{};
         blit.srcOffsets[0]                 = { 0, 0, 0 };
@@ -395,32 +371,14 @@ void Image::GenerateMipmaps()
         blit.dstSubresource.baseArrayLayer = 0;
         blit.dstSubresource.layerCount     = 1;
 
-        vkCmdBlitImage(
-            cmdBuffer,
-            m_Image,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            m_Image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &blit,
-            VK_FILTER_LINEAR);
+        vkCmdBlitImage(cmdBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
         barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-        vkCmdPipelineBarrier(
-            cmdBuffer,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            0,
-            0,
-            nullptr,
-            0,
-            nullptr,
-            1,
-            &barrier);
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
         if (mipWidth > 1)
             mipWidth /= 2;
@@ -434,8 +392,7 @@ void Image::GenerateMipmaps()
     barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask                 = VK_ACCESS_SHADER_READ_BIT;
 
-    vkCmdPipelineBarrier(
-        cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     CommandBuffer::EndRecording(cmdBuffer);
     CommandBuffer::Submit(cmdBuffer, EngineInternal::GetContext().GetDevice()->GetTransferQueue());

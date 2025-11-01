@@ -68,9 +68,7 @@ Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensi
     }
 
     // Check Anisotrophy support.
-    ENSURE(
-        EngineInternal::GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy,
-        "Anisotropy is not supported on your GPU.");
+    ENSURE(EngineInternal::GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
 
     // Enable Anisotropy.
     VkPhysicalDeviceFeatures deviceFeatures{};
@@ -105,8 +103,7 @@ Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensi
     }
 
     ENSURE(
-        vkCreateDevice(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) ==
-            VK_SUCCESS,
+        vkCreateDevice(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &CI, nullptr, &m_Device) == VK_SUCCESS,
         "Failed to create logical device!");
 
     int queueIndex = 0;
@@ -158,12 +155,10 @@ VkQueueFamilyProperties Device::GetQueueFamilyProps(uint64_t queueFamilyIndex)
 {
     std::vector<VkQueueFamilyProperties> props;
     uint32_t                             propertyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(
-        EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, nullptr);
 
     props.resize(propertyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(
-        EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, props.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), &propertyCount, props.data());
 
     return props[queueFamilyIndex];
 }

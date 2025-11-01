@@ -1,8 +1,8 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
-#include "EngineInternal.h"
 #include "Device.h"
+#include "EngineInternal.h"
 #include "PhysicalDevice.h"
 #include "Utils.h"
 #include "VulkanContext.h"
@@ -18,11 +18,7 @@ VertexBuffer::VertexBuffer(const std::vector<float>& vertices) : m_Vertices(vert
     VkDeviceMemory stagingBufferMemory;
 
     Utils::CreateVKBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
+        bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
     void* data;
     vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
@@ -39,11 +35,7 @@ VertexBuffer::VertexBuffer(const std::vector<float>& vertices) : m_Vertices(vert
 
     // The following buffer is not visible to CPU.
     Utils::CreateVKBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        m_Buffer,
-        m_BufferMemory);
+        bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
     Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
@@ -58,11 +50,7 @@ VertexBuffer::VertexBuffer(const float* vertices, size_t bufferSize)
     VkDeviceMemory stagingBufferMemory;
 
     Utils::CreateVKBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
+        bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
     void* data;
     vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
@@ -79,11 +67,7 @@ VertexBuffer::VertexBuffer(const float* vertices, size_t bufferSize)
 
     // The following buffer is not visible to CPU.
     Utils::CreateVKBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        m_Buffer,
-        m_BufferMemory);
+        bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
     Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 
@@ -104,23 +88,14 @@ IndexBuffer::IndexBuffer(const std::vector<uint32_t>& indices) : m_Indices(indic
     VkBuffer       stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
     Utils::CreateVKBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
+        bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
     void* data;
     vkMapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, m_Indices.data(), (size_t)bufferSize);
     vkUnmapMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), stagingBufferMemory);
 
-    Utils::CreateVKBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        m_Buffer,
-        m_BufferMemory);
+    Utils::CreateVKBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Buffer, m_BufferMemory);
 
     Utils::CopyBuffer(stagingBuffer, m_Buffer, bufferSize);
 

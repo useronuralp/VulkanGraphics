@@ -8,16 +8,14 @@
 
 #include <fstream>
 #include <iostream>
-void Utils::PopulateDebugMessengerCreateInfo(
-    VkDebugUtilsMessengerCreateInfoEXT&  createInfo,
-    PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC)
+void Utils::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo, PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC)
 {
-    createInfo                 = {};
-    createInfo.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo       = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity =
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo.messageType =
+        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = callbackFNC;
 }
 std::string Utils::NormalizePath(std::string path)
@@ -57,12 +55,7 @@ std::vector<char> Utils::ReadFile(const std::string& filePath)
     return buffer;
 }
 
-void Utils::CreateVKBuffer(
-    VkDeviceSize          size,
-    VkBufferUsageFlags    usage,
-    VkMemoryPropertyFlags properties,
-    VkBuffer&             buffer,
-    VkDeviceMemory&       bufferMemory)
+void Utils::CreateVKBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -70,9 +63,7 @@ void Utils::CreateVKBuffer(
     bufferInfo.usage       = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // TO DO: What does this do check
 
-    ENSURE(
-        vkCreateBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &bufferInfo, nullptr, &buffer) == VK_SUCCESS,
-        "Failed to create vertex buffer");
+    ENSURE(vkCreateBuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &bufferInfo, nullptr, &buffer) == VK_SUCCESS, "Failed to create vertex buffer");
 
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(EngineInternal::GetContext().GetDevice()->GetVKDevice(), buffer, &memRequirements);
@@ -82,17 +73,15 @@ void Utils::CreateVKBuffer(
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
     ENSURE(
-        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) ==
-            VK_SUCCESS,
+        vkAllocateMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, nullptr, &bufferMemory) == VK_SUCCESS,
         "Failed to allocate vertex buffer memory!");
     vkBindBufferMemory(EngineInternal::GetContext().GetDevice()->GetVKDevice(), buffer, bufferMemory, 0);
 }
 
 uint32_t Utils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
-    VkPhysicalDeviceMemoryProperties memProperties =
-        EngineInternal::GetContext().GetPhysicalDevice()->GetVKDeviceMemoryProperties();
-    uint32_t memoryTypeIndex = -1;
+    VkPhysicalDeviceMemoryProperties memProperties   = EngineInternal::GetContext().GetPhysicalDevice()->GetVKDeviceMemoryProperties();
+    uint32_t                         memoryTypeIndex = -1;
 
     // TO DO: Understand this part and the bit shift.
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
@@ -135,13 +124,7 @@ void Utils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
-VkSampler Utils::CreateSampler(
-    Ref<Image>           image,
-    ImageType            imageType,
-    VkFilter             magFilter,
-    VkFilter             minFilter,
-    VkSamplerAddressMode addressMode,
-    VkBool32             anisotrophy)
+VkSampler Utils::CreateSampler(Ref<Image> image, ImageType imageType, VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode, VkBool32 anisotrophy)
 {
     VkSampler           sampler;
     VkSamplerCreateInfo samplerInfo{};
@@ -153,12 +136,11 @@ VkSampler Utils::CreateSampler(
     {
         // Repeats the texture when going out of the sampling range. You might
         // wanna expose this variable during ImageBufferCreation.
-        samplerInfo.addressModeU     = addressMode;
-        samplerInfo.addressModeV     = addressMode;
-        samplerInfo.addressModeW     = addressMode;
-        samplerInfo.anisotropyEnable = anisotrophy;
-        samplerInfo.maxAnisotropy =
-            anisotrophy ? EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy : 0;
+        samplerInfo.addressModeU            = addressMode;
+        samplerInfo.addressModeV            = addressMode;
+        samplerInfo.addressModeW            = addressMode;
+        samplerInfo.anisotropyEnable        = anisotrophy;
+        samplerInfo.maxAnisotropy           = anisotrophy ? EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy : 0;
         samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
         samplerInfo.compareEnable           = VK_FALSE;
@@ -171,9 +153,7 @@ VkSampler Utils::CreateSampler(
         samplerInfo.minFilter               = minFilter;
 
         ENSURE(
-            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) ==
-                VK_SUCCESS,
-            "Failed to create texture sampler!");
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS, "Failed to create texture sampler!");
     }
     else // Depth
     {
@@ -190,9 +170,59 @@ VkSampler Utils::CreateSampler(
         samplerInfo.borderColor   = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
         ENSURE(
-            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) ==
-                VK_SUCCESS,
-            "Failed to create texture sampler!");
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS, "Failed to create texture sampler!");
+    }
+
+    return sampler;
+}
+
+VkSampler Utils::CreateSampler(ImageType imageType, VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode, VkBool32 anisotrophy)
+{
+    VkSampler           sampler;
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType     = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+
+    if (imageType == ImageType::COLOR)
+    {
+        // Repeats the texture when going out of the sampling range. You might
+        // wanna expose this variable during ImageBufferCreation.
+        samplerInfo.addressModeU            = addressMode;
+        samplerInfo.addressModeV            = addressMode;
+        samplerInfo.addressModeW            = addressMode;
+        samplerInfo.anisotropyEnable        = anisotrophy;
+        samplerInfo.maxAnisotropy           = anisotrophy ? EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy : 0;
+        samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.compareEnable           = VK_FALSE;
+        samplerInfo.compareOp               = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.mipLodBias              = 0.0f;
+        samplerInfo.minLod                  = 0.0f;
+        samplerInfo.maxLod                  = 1;
+        samplerInfo.magFilter               = magFilter;
+        samplerInfo.minFilter               = minFilter;
+
+        ENSURE(
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS, "Failed to create texture sampler!");
+    }
+    else // Depth
+    {
+        samplerInfo.magFilter     = magFilter;
+        samplerInfo.minFilter     = minFilter;
+        samplerInfo.mipmapMode    = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.addressModeU  = addressMode;
+        samplerInfo.addressModeV  = addressMode;
+        samplerInfo.addressModeW  = addressMode;
+        samplerInfo.mipLodBias    = 0.0f;
+        samplerInfo.maxAnisotropy = 1.0f;
+        samplerInfo.minLod        = 0.0f;
+        samplerInfo.maxLod        = 1.0f;
+        samplerInfo.borderColor   = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+        ENSURE(
+            vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS, "Failed to create texture sampler!");
     }
 
     return sampler;
@@ -208,12 +238,12 @@ VkSampler Utils::CreateCubemapSampler()
 
     // Repeats the texture when going out of the sampling range. You might wanna
     // expose this variable during ImageBufferCreation.
-    samplerInfo.addressModeU     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor   = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable        = VK_TRUE;
+    samplerInfo.maxAnisotropy           = EngineInternal::GetContext().GetPhysicalDevice()->GetVKProperties().limits.maxSamplerAnisotropy;
+    samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable           = VK_TRUE;
     samplerInfo.compareOp               = VK_COMPARE_OP_ALWAYS;
@@ -222,9 +252,7 @@ VkSampler Utils::CreateCubemapSampler()
     samplerInfo.minLod                  = 0.0f;
     samplerInfo.maxLod                  = 0.0f;
 
-    ENSURE(
-        vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
-        "Failed to create texture sampler!");
+    ENSURE(vkCreateSampler(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &samplerInfo, nullptr, &sampler) == VK_SUCCESS, "Failed to create texture sampler!");
 
     return sampler;
 }
@@ -232,9 +260,7 @@ VkSampler Utils::CreateCubemapSampler()
 VkFormat Utils::FindDepthFormat()
 {
     return FindSupportedFormat(
-        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
 VkFormat Utils::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
@@ -242,8 +268,7 @@ VkFormat Utils::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkI
     for (VkFormat format : candidates)
     {
         VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(
-            EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), format, &props);
+        vkGetPhysicalDeviceFormatProperties(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), format, &props);
 
         if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
         {
@@ -279,12 +304,7 @@ void Utils::UpdateDescriptorSet(
     descriptorWrite.pImageInfo      = &imageInfo;
     vkUpdateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
 }
-void Utils::UpdateDescriptorSet(
-    const VkDescriptorSet& dscSet,
-    const VkBuffer&        buffer,
-    VkDeviceSize           offset,
-    VkDeviceSize           range,
-    uint32_t               bindingIndex)
+void Utils::UpdateDescriptorSet(const VkDescriptorSet& dscSet, const VkBuffer& buffer, VkDeviceSize offset, VkDeviceSize range, uint32_t bindingIndex)
 {
     // Write the descriptor set.
     VkWriteDescriptorSet   descriptorWrite{};
@@ -305,4 +325,17 @@ void Utils::UpdateDescriptorSet(
     descriptorWrite.pTexelBufferView = nullptr; // Optional
 
     vkUpdateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), 1, &descriptorWrite, 0, nullptr);
+}
+
+void SetObjectName(VkDevice device, uint64_t objectHandle, VkObjectType objectType, const char* name)
+{
+    VkDebugUtilsObjectNameInfoEXT nameInfo{};
+    nameInfo.sType        = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+    nameInfo.objectHandle = objectHandle;
+    nameInfo.objectType   = objectType;
+    nameInfo.pObjectName  = name;
+
+    auto func             = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
+    if (func)
+        func(device, &nameInfo);
 }

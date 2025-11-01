@@ -44,7 +44,7 @@ void Pipeline::Init()
     // Shader stages
     // ------------------------------------------------------------------------
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-    auto loadShader = [&](const std::string& path, VkShaderStageFlagBits stage) -> VkShaderModule
+    auto                                         loadShader = [&](const std::string& path, VkShaderStageFlagBits stage) -> VkShaderModule
     {
         if (path.empty() || path == "None")
             return VK_NULL_HANDLE;
@@ -108,11 +108,9 @@ void Pipeline::Init()
     }
 
     VkRect2D scissorDummy{};
-    scissorDummy.offset = { 0, 0 };
-    scissorDummy.extent.width =
-        _Specs.ViewportWidth == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().width : _Specs.ViewportWidth;
-    scissorDummy.extent.height =
-        _Specs.ViewportHeight == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().height : _Specs.ViewportHeight;
+    scissorDummy.offset        = { 0, 0 };
+    scissorDummy.extent.width  = _Specs.ViewportWidth == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().width : _Specs.ViewportWidth;
+    scissorDummy.extent.height = _Specs.ViewportHeight == UINT32_MAX ? _Context.GetSurface()->GetVKExtent().height : _Specs.ViewportHeight;
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -208,9 +206,7 @@ void Pipeline::Init()
         pipelineLayoutInfo.pPushConstantRanges    = nullptr; // Optional
     }
 
-    ENSURE(
-        vkCreatePipelineLayout(_Context.GetDevice()->GetVKDevice(), &pipelineLayoutInfo, nullptr, &_PipelineLayout) == VK_SUCCESS,
-        "Failed to create pipeline layout");
+    ENSURE(vkCreatePipelineLayout(_Context.GetDevice()->GetVKDevice(), &pipelineLayoutInfo, nullptr, &_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout");
 
     // ------------------------------------------------------------------------
     // Graphics pipeline creation
@@ -235,8 +231,7 @@ void Pipeline::Init()
     pipelineInfo.basePipelineIndex   = -1; // Optional
 
     ENSURE(
-        vkCreateGraphicsPipelines(_Context.GetDevice()->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_Pipeline) ==
-            VK_SUCCESS,
+        vkCreateGraphicsPipelines(_Context.GetDevice()->GetVKDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_Pipeline) == VK_SUCCESS,
         "Failed to create graphics pipeline!");
 
     // ------------------------------------------------------------------------
@@ -264,9 +259,7 @@ VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& InShaderCod
     createInfo.pCode    = reinterpret_cast<const uint32_t*>(InShaderCode.data());
 
     VkShaderModule shaderModule;
-    ENSURE(
-        vkCreateShaderModule(_Context.GetDevice()->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS,
-        "Failed to create shader module!");
+    ENSURE(vkCreateShaderModule(_Context.GetDevice()->GetVKDevice(), &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");
 
     return shaderModule;
 }

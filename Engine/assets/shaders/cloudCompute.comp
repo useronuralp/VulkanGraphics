@@ -1,0 +1,147 @@
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(push_constant) uniform PushConstants {
+    mat4 invViewProj;
+    vec3 cameraPos;
+    float time;
+    vec3 sunDirection;
+    int frameCount;
+} pc;
+
+layout(binding = 0, rgba16f) uniform writeonly image2D outColor;
+layout(binding = 1, rgba16f) uniform writeonly image2D outTransmittance;
+
+layout(binding = 2) uniform sampler3D baseNoise;   // high-res noise
+layout(binding = 3) uniform sampler3D detailNoise; // low-res noise
+layout(binding = 4) uniform sampler2D weatherMap;
+layout(binding = 5) uniform sampler2D phaseLUT; // Used as blue noise for now misleading name.
+layout(binding = 6) uniform sampler2D multiScatterLUT;
+
+#define MAX_STEPS 100
+#define MARCH_SIZE 0.05
+
+// ---- Helpers ----
+float sdSphere(vec3 p, float radius) {
+    return length(p) - radius;
+}
+
+float sdBox(vec3 p, vec3 b) {
+    // b = half-size of the box (e.g. vec3(50.0, 5.0, 50.0) for a big cloud layer)
+    vec3 d = abs(p) - b;
+    return length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
+}
+
+float noise(vec3 x) {
+    vec3 p = floor(x);
+    vec3 f = fract(x);
+    vec3 u = f * f * (3. - 2. * f);
+
+    vec2 uv = (p.xy + vec2(37.0,239.0)*p.z) + u.xy;
+    vec2 tex = textureLod(weatherMap,(uv+0.5)/256.0,0.0).yx;
+
+    return mix(tex.x, tex.y, u.z) * 2.0 - 1.0;
+}
+
+float fbm(vec3 p) {
+    vec3 q = p + pc.time * 0.5 * vec3(1.0, -0.2, -1.0);
+    float g = noise(q);
+    float f = 0.0;
+    float scale = 0.5;
+    float factor = 2.02;
+
+    for (int i = 0; i < 6; i++) {
+        f += scale * noise(q);
+        q *= factor;
+        factor += 0.21;
+        scale *= 0.5;
+    }
+
+    return f;
+}
+
+float sceneFunc(vec3 p) {
+    float d = sdBox(p, vec3(7.0, 0.4, 7.0));
+
+    // Base low-frequency structure
+    //float base = fbm(p * 1.0);
+    // Higher-frequency detail for erosion
+    //float detail = fbm(p * 4.0);
+
+    // Erosion factor — eats away at the edges of the base noise
+    //float erosion = pow(1.0 - base, 3.0) * detail * 0.15;
+
+    float f = fbm(p);
+
+    // Combine with sphere shape
+    return -d + f;
+}
+
+vec4 raymarch(vec3 rayOrigin, vec3 rayDirection, float offset) {
+    float depth = 0.0;
+    depth += MARCH_SIZE * offset;
+    vec3 p = rayOrigin + depth * rayDirection;
+  
+    vec4 res = vec4(0.0);
+
+    vec3 sunDirection = normalize(vec3(0.0, sin(radians(20.0)), cos(radians(20.0))));
+
+    for (int i = 0; i < MAX_STEPS; i++) {
+        float density = sceneFunc(p);
+
+        if (density > 0.0) {
+            // For fast diffuse lighting
+
+            float diffuse = clamp((sceneFunc(p) - sceneFunc(p + 0.3 * sunDirection)) / 0.3, 0.0, 1.0 );
+
+            vec3 lin = vec3(0.60,0.60,0.75) * 1.1 + 0.8 * vec3(1.0,0.6,0.3) * diffuse;
+
+            vec4 color = vec4(mix(vec3(1.0), vec3(0.0), density), density);
+            color.rgb *= lin;
+
+            color.rgb *= color.a;
+            res += color * (1.0 - res.a);
+        }
+
+        depth += MARCH_SIZE * (0.5 + 0.5 * offset);
+        p = rayOrigin + depth * rayDirection - vec3(0.0, 20.0, 0.0);
+
+        if (res.a > 0.99) break; // early exit if fully opaque
+    }
+
+    return res;
+}
+
+// ---- Main ----
+void main() {
+    // ---- Camera-based ray generation ----
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(outColor);
+    if (pixel.x >= size.x || pixel.y >= size.y) return;
+    
+    vec2 ndc = (vec2(pixel) / vec2(size)) * 2.0 - 1.0; // Normalized Device Coordinates [-1,1]
+    
+    vec4 clipNear = vec4(ndc, -1.0, 1.0);  // near plane
+    vec4 clipFar  = vec4(ndc,  1.0, 1.0);  // far plane
+    
+    vec4 worldNear = pc.invViewProj * clipNear;
+    worldNear /= worldNear.w;
+    
+    vec4 worldFar = pc.invViewProj * clipFar;
+    worldFar /= worldFar.w;
+    
+    vec3 ro = worldNear.xyz;
+    vec3 rd = normalize(worldFar.xyz - ro);
+
+    const float blueNoiseSize = 1289.0;
+    vec2 noiseUV = vec2(pixel) / blueNoiseSize;
+    
+    float blueNoise = texture(phaseLUT, noiseUV).r;
+    float offset = fract(blueNoise);
+  
+    vec4 res = raymarch(ro, rd * 5, offset);
+    vec3 color = res.rgb;
+
+    imageStore(outColor, pixel, vec4(color, 1.0));
+}

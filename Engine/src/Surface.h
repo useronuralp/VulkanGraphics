@@ -11,10 +11,7 @@ class PhysicalDevice;
 class Surface
 {
    public:
-    Surface(
-        Ref<Instance>       InInstance,
-        Ref<Window>         InWindow,
-        Ref<PhysicalDevice> InPhysicalDevice);
+    Surface(Ref<Instance> InInstance, Ref<Window> InWindow, Ref<PhysicalDevice> InPhysicalDevice);
     Surface();
     ~Surface();
 

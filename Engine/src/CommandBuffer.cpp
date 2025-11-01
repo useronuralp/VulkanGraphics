@@ -1,9 +1,9 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
+#include "Device.h"
 #include "EngineInternal.h"
 #include "Framebuffer.h"
-#include "Device.h"
 #include "Pipeline.h"
 #include "Surface.h"
 #include "Swapchain.h"
@@ -21,8 +21,7 @@ void CommandBuffer::CreateCommandBuffer(VkCommandBuffer& outCmdBuffer, const VkC
     allocInfo.commandBufferCount = 1;
 
     ENSURE(
-        vkAllocateCommandBuffers(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &outCmdBuffer) ==
-            VK_SUCCESS,
+        vkAllocateCommandBuffers(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &outCmdBuffer) == VK_SUCCESS,
         "Failed to allocate command buffer memory");
 }
 void CommandBuffer::CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool)
@@ -34,10 +33,7 @@ void CommandBuffer::CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommand
                                                   // must be submitted to a queue allocated from this
                                                   // queueFamilyIndex.
 
-    ENSURE(
-        vkCreateCommandPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &outCmdPool) ==
-            VK_SUCCESS,
-        "Failed to create command pool!");
+    ENSURE(vkCreateCommandPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &outCmdPool) == VK_SUCCESS, "Failed to create command pool!");
 }
 void CommandBuffer::BeginRecording(const VkCommandBuffer& cmdBuffer)
 {
@@ -52,10 +48,7 @@ void CommandBuffer::EndRecording(const VkCommandBuffer& cmdBuffer)
 {
     ENSURE(vkEndCommandBuffer(cmdBuffer) == VK_SUCCESS, "Failed to record command buffer");
 }
-void CommandBuffer::BeginRenderPass(
-    VkCommandBuffer              cmdBuffer,
-    const VkRenderPassBeginInfo& renderPassBeginInfo,
-    VkSubpassContents            contents)
+void CommandBuffer::BeginRenderPass(VkCommandBuffer cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo, VkSubpassContents contents)
 {
     vkCmdBeginRenderPass(cmdBuffer, &renderPassBeginInfo, contents);
 }
@@ -67,12 +60,7 @@ void CommandBuffer::BindPipeline(const VkCommandBuffer& cmdBuffer, VkPipelineBin
 {
     vkCmdBindPipeline(cmdBuffer, bindPoint, pipeline->GetHandle());
 }
-void CommandBuffer::BindVertexBuffer(
-    const VkCommandBuffer& cmdBuffer,
-    uint32_t               firstBinding,
-    uint32_t               bindingCount,
-    const VkBuffer&        VBO,
-    const VkDeviceSize&    offset)
+void CommandBuffer::BindVertexBuffer(const VkCommandBuffer& cmdBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer& VBO, const VkDeviceSize& offset)
 {
     vkCmdBindVertexBuffers(cmdBuffer, firstBinding, bindingCount, &VBO, &offset);
 }
@@ -94,10 +82,7 @@ void CommandBuffer::Draw(const VkCommandBuffer& cmdBuffer, uint32_t vertexCount)
 {
     vkCmdDraw(cmdBuffer, vertexCount, 1, 0, 0);
 }
-void CommandBuffer::FreeCommandBuffer(
-    const VkCommandBuffer& cmdBuffer,
-    const VkCommandPool&   cmdPool,
-    const VkQueue&         queueToWaitFor)
+void CommandBuffer::FreeCommandBuffer(const VkCommandBuffer& cmdBuffer, const VkCommandPool& cmdPool, const VkQueue& queueToWaitFor)
 {
     vkQueueWaitIdle(queueToWaitFor);
     vkFreeCommandBuffers(EngineInternal::GetContext().GetDevice()->GetVKDevice(), cmdPool, 1, &cmdBuffer);

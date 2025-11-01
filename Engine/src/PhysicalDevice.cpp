@@ -2,8 +2,7 @@
 #include "PhysicalDevice.h"
 
 #include <string>
-PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevice& physicalDevice)
-    : m_PhysicalDevice(physicalDevice)
+PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevice& physicalDevice) : m_PhysicalDevice(physicalDevice)
 {
     // Enumerate neccessary properties.
     vkGetPhysicalDeviceProperties(m_PhysicalDevice, &m_Properties);
@@ -38,8 +37,7 @@ PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevic
 
     // Store the supported extenions in the member variable.
     ENSURE(
-        vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, m_SupportedExtensions.data()) ==
-            VK_SUCCESS,
+        vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, m_SupportedExtensions.data()) == VK_SUCCESS,
         "Failed to enumerate device extension properties.");
 
     // for (const auto& str : m_SupportedExtensions)

@@ -64,12 +64,7 @@ class Mesh
         Ref<DescriptorSetLayout>     layout,
         const Ref<Image>&            shadowMap    = nullptr,
         std::vector<Ref<Image>>      pointShadows = std::vector<Ref<Image>>());
-    Mesh(
-        const float*             vertices,
-        uint32_t                 vertexCount,
-        const Ref<Image>&        cubemapTex,
-        Ref<DescriptorPool>      pool,
-        Ref<DescriptorSetLayout> layout);
+    Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout);
     ~Mesh();
 
    private:

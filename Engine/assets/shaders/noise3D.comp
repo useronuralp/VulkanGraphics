@@ -1,0 +1,68 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+// Storage image to write to
+layout(binding = 0, r16f) uniform writeonly image3D noiseTex;
+
+// Push constant for seed
+layout(push_constant) uniform SeedPush {
+    float seed;
+} pc;
+
+// Simple hash function
+float hash(vec3 p) {
+    p += pc.seed;
+    return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+
+// Smooth interpolation
+float smoothNoise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+
+    float c000 = hash(i + vec3(0,0,0));
+    float c100 = hash(i + vec3(1,0,0));
+    float c010 = hash(i + vec3(0,1,0));
+    float c110 = hash(i + vec3(1,1,0));
+    float c001 = hash(i + vec3(0,0,1));
+    float c101 = hash(i + vec3(1,0,1));
+    float c011 = hash(i + vec3(0,1,1));
+    float c111 = hash(i + vec3(1,1,1));
+
+    vec3 u = f * f * (3.0 - 2.0 * f);
+
+    float nx00 = mix(c000, c100, u.x);
+    float nx01 = mix(c001, c101, u.x);
+    float nx10 = mix(c010, c110, u.x);
+    float nx11 = mix(c011, c111, u.x);
+
+    float nxy0 = mix(nx00, nx10, u.y);
+    float nxy1 = mix(nx01, nx11, u.y);
+
+    return mix(nxy0, nxy1, u.z);
+}
+
+// Fractional Brownian Motion (FBM)
+float fbm(vec3 p, int octaves) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+
+    for(int i = 0; i < octaves; i++) {
+        value += amplitude * smoothNoise(p * frequency);
+        frequency *= 2.0;
+        amplitude *= 0.5;
+    }
+    return value;
+}
+
+void main() {
+    ivec3 id = ivec3(gl_GlobalInvocationID);
+    if (any(greaterThanEqual(id, ivec3(128)))) return;
+
+    vec3 pos = vec3(id) / 128.0;
+
+    float n = fbm(pos * 8.0, 4); // adjust frequency for base/detail externally
+
+    imageStore(noiseTex, id, vec4(n));
+}

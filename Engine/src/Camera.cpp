@@ -148,9 +148,8 @@ void Camera::OnMouseScroll(float X, float Y, float deltaTime)
 
 bool Camera::IsKeyDown(int keyCode)
 {
-    return glfwGetKey(
-        EngineInternal::GetContext().GetWindow()->GetNativeWindow(),
-        keyCode); // GLFW_RELEASE equals to 0 thats why this works.
+    return glfwGetKey(EngineInternal::GetContext().GetWindow()->GetNativeWindow(),
+                      keyCode); // GLFW_RELEASE equals to 0 thats why this works.
 }
 
 bool Camera::IsMouseButtonDown(int keyCode)

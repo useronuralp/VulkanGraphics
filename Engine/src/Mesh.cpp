@@ -32,8 +32,7 @@ Mesh::Mesh(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt =
-        vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt                = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())
@@ -41,60 +40,26 @@ Mesh::Mesh(
         VkSampler sampler;
         if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_NORMAL)
         {
-            sampler = Utils::CreateSampler(
-                m_Normals, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
-            Utils::UpdateDescriptorSet(
-                m_DescriptorSet,
-                sampler,
-                m_Normals->GetImageView(),
-                bindingSpecs.Binding,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            sampler = Utils::CreateSampler(m_Normals, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+            Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_Normals->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
         }
         else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE)
         {
-            sampler = Utils::CreateSampler(
-                m_Albedo, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
-            Utils::UpdateDescriptorSet(
-                m_DescriptorSet,
-                sampler,
-                m_Albedo->GetImageView(),
-                bindingSpecs.Binding,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            sampler = Utils::CreateSampler(m_Albedo, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+            Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_Albedo->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
         }
         else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC)
         {
-            sampler = Utils::CreateSampler(
-                m_RoughnessMetallic,
-                ImageType::COLOR,
-                VK_FILTER_NEAREST,
-                VK_FILTER_NEAREST,
-                VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                VK_TRUE);
-            Utils::UpdateDescriptorSet(
-                m_DescriptorSet,
-                sampler,
-                m_RoughnessMetallic->GetImageView(),
-                bindingSpecs.Binding,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            sampler = Utils::CreateSampler(m_RoughnessMetallic, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+            Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_RoughnessMetallic->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
         }
         else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_SHADOWMAP)
         {
-            sampler = Utils::CreateSampler(
-                m_ShadowMap,
-                ImageType::DEPTH,
-                VK_FILTER_NEAREST,
-                VK_FILTER_NEAREST,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                VK_FALSE);
-            Utils::UpdateDescriptorSet(
-                m_DescriptorSet,
-                sampler,
-                m_ShadowMap->GetImageView(),
-                bindingSpecs.Binding,
-                VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+            sampler = Utils::CreateSampler(m_ShadowMap, ImageType::DEPTH, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+            Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_ShadowMap->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
         }
         else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_POINTSHADOWMAP)
@@ -103,24 +68,14 @@ Mesh::Mesh(
             {
                 sampler = Utils::CreateCubemapSampler();
                 Utils::UpdateDescriptorSet(
-                    m_DescriptorSet,
-                    sampler,
-                    m_PointShadows[i]->GetImageView(),
-                    bindingSpecs.Binding,
-                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-                    i);
+                    m_DescriptorSet, sampler, m_PointShadows[i]->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, i);
                 m_Samplers.push_back(sampler);
             }
         }
     }
 }
 
-Mesh::Mesh(
-    const float*             vertices,
-    uint32_t                 vertexCount,
-    const Ref<Image>&        cubemapTex,
-    Ref<DescriptorPool>      pool,
-    Ref<DescriptorSetLayout> layout)
+Mesh::Mesh(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout)
     : m_CubemapTexture(cubemapTex)
 {
     // Fill up the vector.
@@ -135,8 +90,7 @@ Mesh::Mesh(
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout->GetDescriptorLayout();
 
-    VkResult rslt =
-        vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
+    VkResult rslt                = vkAllocateDescriptorSets(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &allocInfo, &m_DescriptorSet);
     ENSURE(rslt == VK_SUCCESS, "Failed to allocate descriptor sets!");
 
     for (const auto& bindingSpecs : layout->GetBindingSpecs())
@@ -145,12 +99,7 @@ Mesh::Mesh(
         if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_CUBEMAP)
         {
             sampler = Utils::CreateCubemapSampler();
-            Utils::UpdateDescriptorSet(
-                m_DescriptorSet,
-                sampler,
-                m_CubemapTexture->GetImageView(),
-                bindingSpecs.Binding,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
         }
         /*This constructor was only reserved for cubemap creations but I figured
@@ -160,19 +109,8 @@ Mesh::Mesh(
         later maybe?*/
         else if (bindingSpecs.Type == Type::TEXTURE_SAMPLER_DIFFUSE)
         {
-            sampler = Utils::CreateSampler(
-                m_CubemapTexture,
-                ImageType::COLOR,
-                VK_FILTER_NEAREST,
-                VK_FILTER_NEAREST,
-                VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                VK_TRUE);
-            Utils::UpdateDescriptorSet(
-                m_DescriptorSet,
-                sampler,
-                m_CubemapTexture->GetImageView(),
-                bindingSpecs.Binding,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            sampler = Utils::CreateSampler(m_CubemapTexture, ImageType::COLOR, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE);
+            Utils::UpdateDescriptorSet(m_DescriptorSet, sampler, m_CubemapTexture->GetImageView(), bindingSpecs.Binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             m_Samplers.push_back(sampler);
         }
     }

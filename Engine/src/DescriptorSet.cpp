@@ -13,7 +13,7 @@ DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDe
     for (int i = 0; i < types.size(); i++)
     {
         poolSizes[i].type            = types[i];
-        poolSizes[i].descriptorCount = 1; // TO DO: What does this variable do?
+        poolSizes[i].descriptorCount = 50; // TO DO: What does this variable do?
     }
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -24,8 +24,7 @@ DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDe
     // poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
     ENSURE(
-        vkCreateDescriptorPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) ==
-            VK_SUCCESS,
+        vkCreateDescriptorPool(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &poolInfo, nullptr, &m_DescriptorPool) == VK_SUCCESS,
         "Failed to create descriptor pool!");
 }
 DescriptorPool::~DescriptorPool()
@@ -61,8 +60,7 @@ DescriptorSetLayout::DescriptorSetLayout(const std::vector<DescriptorSetBindingS
     layoutInfo.pBindings    = bindings.data();
 
     ENSURE(
-        vkCreateDescriptorSetLayout(
-            EngineInternal::GetContext().GetDevice()->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS,
+        vkCreateDescriptorSetLayout(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) == VK_SUCCESS,
         "Failed to create descriptor set layout!");
 }
 

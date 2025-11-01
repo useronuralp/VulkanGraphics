@@ -17,18 +17,10 @@ class CommandBuffer
     static void CreateCommandBufferPool(uint32_t queueFamilyIndex, VkCommandPool& outCmdPool);
     static void BeginRecording(const VkCommandBuffer& cmdBuffer);
     static void EndRecording(const VkCommandBuffer& cmdBuffer);
-    static void BeginRenderPass(
-        VkCommandBuffer              cmdBuffer,
-        const VkRenderPassBeginInfo& renderPassBeginInfo,
-        VkSubpassContents            contents);
+    static void BeginRenderPass(VkCommandBuffer cmdBuffer, const VkRenderPassBeginInfo& renderPassBeginInfo, VkSubpassContents contents);
     static void EndRenderPass(const VkCommandBuffer& cmdBuffer);
     static void BindPipeline(const VkCommandBuffer& cmdBuffer, VkPipelineBindPoint bindPoint, const Ref<Pipeline>& pipeline);
-    static void BindVertexBuffer(
-        const VkCommandBuffer& cmdBuffer,
-        uint32_t               firstBinding,
-        uint32_t               bindingCount,
-        const VkBuffer&        VBO,
-        const VkDeviceSize&    offset);
+    static void BindVertexBuffer(const VkCommandBuffer& cmdBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer& VBO, const VkDeviceSize& offset);
     static void BindIndexBuffer(const VkCommandBuffer& cmdBuffer, uint32_t offset, const VkBuffer& IBO, VkIndexType indexType);
     // static void BindDescriptorSets(const VkCommandBuffer& cmdBuffer,
     // VkPipelineBindPoint bindPoint, uint32_t firstSet, uint32_t descCount,

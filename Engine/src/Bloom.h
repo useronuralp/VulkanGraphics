@@ -10,6 +10,7 @@ class Image;
 class Pipeline;
 class DescriptorSetLayout;
 class DescriptorPool;
+class CloudPass;
 class Bloom
 {
    public:
@@ -18,7 +19,7 @@ class Bloom
 
    public:
     void       ApplyBloom(const VkCommandBuffer& cmdBuffer);
-    void       ConnectImageResourceToAddBloomTo(const Ref<Image>& frame);
+    void       ConnectImageResourceToAddBloomTo(const Ref<Image>& frame, Ref<CloudPass> cloudpass);
     Ref<Image> GetPostProcessedImage()
     {
         return m_MergeColorBuffer;
@@ -30,6 +31,7 @@ class Bloom
     Ref<DescriptorSetLayout> m_TwoSamplerLayout;
     Unique<DescriptorPool>   m_DescriptorPool;
     Ref<DescriptorSetLayout> m_OneSamplerLayout;
+    Ref<DescriptorSetLayout> m_ThreeSamplerLayout;
     bool                     m_FirstPassEver = true;
 
     // Brigtness filtering resources.
@@ -68,6 +70,8 @@ class Bloom
     Unique<Framebuffer>   m_MergeFramebuffer;
     VkRenderPassBeginInfo m_MergeRenderPassBeginInfo;
     Ref<Image>            m_MergeColorBuffer = nullptr;
+
+    VkSampler cloudSampler;
 
    private:
     void CreateRenderPasses();

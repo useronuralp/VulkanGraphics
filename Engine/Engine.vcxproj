@@ -170,6 +170,7 @@
     <ClInclude Include="src\Bloom.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\CloudPass.h" />
     <ClInclude Include="src\CommandBuffer.h" />
     <ClInclude Include="src\DescriptorSet.h" />
     <ClInclude Include="src\EngineInternal.h" />
@@ -207,6 +208,7 @@
     <ClCompile Include="src\Bloom.cpp" />
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\CloudPass.cpp" />
     <ClCompile Include="src\CommandBuffer.cpp" />
     <ClCompile Include="src\DescriptorSet.cpp" />
     <ClCompile Include="src\Engine.cpp" />

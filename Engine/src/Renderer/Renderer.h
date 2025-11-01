@@ -3,11 +3,13 @@
 #include "core.h"
 #include "RenderPass.h"
 
+#include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 #include <random>
 
+class CloudPass;
 class RenderPass;
 class VulkanContext;
 class Swapchain;
@@ -97,9 +99,6 @@ class ForwardRenderer : public RendererInterface
     Ref<DescriptorSetLayout> skyboxLayout;
     Ref<DescriptorSetLayout> cubeLayout;
     Ref<DescriptorSetLayout> particleSystemLayout;
-
-    // Descriptor Pools
-    Ref<DescriptorPool> pool;
 
     // Pipelines
     Ref<Pipeline> EmissiveObjectPipeline;
@@ -247,6 +246,16 @@ class ForwardRenderer : public RendererInterface
     VkRect2D   _DynamicScissor;
 
     uint32_t _CurrentSwapchainImageIndex = 0;
+
+    Ref<CloudPass> _CloudPass;
+
+    // Descriptor Pools
+    Ref<DescriptorPool>                   pool;
+    std::chrono::steady_clock::time_point startTime;
+
+    Unique<RenderGraph> _Graph;
+
+    int _FrameCount = 0;
 
     float _DeltaTime;
 };

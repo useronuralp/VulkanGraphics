@@ -49,10 +49,7 @@ VkResult Instance::CreateDebugUtilsMessengerEXT(
     }
 }
 // A function pointer caller that destroys a DebugMessengar object.
-void Instance::DestroyDebugUtilsMessengerEXT(
-    VkInstance                   instance,
-    VkDebugUtilsMessengerEXT     debugMessenger,
-    const VkAllocationCallbacks* pAllocator)
+void Instance::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
 {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr)

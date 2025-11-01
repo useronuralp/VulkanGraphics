@@ -1,16 +1,11 @@
+#include "Device.h"
 #include "EngineInternal.h"
 #include "Framebuffer.h"
-#include "Device.h"
 #include "Surface.h"
 #include "VulkanContext.h"
 
 #include <iostream>
-Framebuffer::Framebuffer(
-    const VkRenderPass&            InRenderPass,
-    const std::vector<VkImageView> InAttachments,
-    uint32_t                       InWidth,
-    uint32_t                       InHeight,
-    int                            InLayerCount)
+Framebuffer::Framebuffer(const VkRenderPass& InRenderPass, const std::vector<VkImageView> InAttachments, uint32_t InWidth, uint32_t InHeight, int InLayerCount)
     : _Width(InWidth), _Height(InHeight)
 {
     VkFramebufferCreateInfo framebufferInfo{};
@@ -23,8 +18,7 @@ Framebuffer::Framebuffer(
     framebufferInfo.layers          = InLayerCount;
 
     ENSURE(
-        vkCreateFramebuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) ==
-            VK_SUCCESS,
+        vkCreateFramebuffer(EngineInternal::GetContext().GetDevice()->GetVKDevice(), &framebufferInfo, nullptr, &_Framebuffer) == VK_SUCCESS,
         "Failed to create framebuffer!");
 }
 

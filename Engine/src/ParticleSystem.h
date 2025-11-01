@@ -57,11 +57,7 @@ class ParticleSystem
     float ColumnCellSize = 1.0f;
 
    public:
-    ParticleSystem(
-        const ParticleSpecs&            specs,
-        Ref<Image>                      texture,
-        const Ref<DescriptorSetLayout>& layout,
-        const Ref<DescriptorPool>&      pool);
+    ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorSetLayout>& layout, const Ref<DescriptorPool>& pool);
     ~ParticleSystem();
 
    private:

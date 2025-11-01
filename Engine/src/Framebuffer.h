@@ -7,12 +7,7 @@ class Framebuffer
 {
    public:
     Framebuffer() = default;
-    Framebuffer(
-        const VkRenderPass&      InRenderPass,
-        std::vector<VkImageView> InAtachments,
-        uint32_t                 InWidth,
-        uint32_t                 InHeight,
-        int                      InLayerCount = 1);
+    Framebuffer(const VkRenderPass& InRenderPass, std::vector<VkImageView> InAtachments, uint32_t InWidth, uint32_t InHeight, int InLayerCount = 1);
     ~Framebuffer();
     const uint32_t&      GetWidth();
     const uint32_t&      GetHeight();

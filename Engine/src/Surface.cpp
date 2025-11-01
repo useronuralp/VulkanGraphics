@@ -5,10 +5,7 @@
 #include "Window.h"
 
 #include <algorithm>
-Surface::Surface(
-    Ref<Instance>       InInstance,
-    Ref<Window>         InWindow,
-    Ref<PhysicalDevice> InPhysicalDevice)
+Surface::Surface(Ref<Instance> InInstance, Ref<Window> InWindow, Ref<PhysicalDevice> InPhysicalDevice)
     : _Instance(InInstance), _Window(InWindow), _PhysicalDevice(InPhysicalDevice)
 {
     // 1. Create the Vulkan surface for the given window
@@ -47,9 +44,7 @@ Surface::Surface(
 }
 Surface::Surface()
 {
-    ENSURE(
-        glfwCreateWindowSurface(_Instance->GetVkInstance(), _Window->GetNativeWindow(), nullptr, &_Surface) == VK_SUCCESS,
-        "Failed to create a window surface");
+    ENSURE(glfwCreateWindowSurface(_Instance->GetVkInstance(), _Window->GetNativeWindow(), nullptr, &_Surface) == VK_SUCCESS, "Failed to create a window surface");
 
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &_Capabilities);
 
@@ -61,8 +56,7 @@ Surface::Surface()
     if (formatCount != 0)
     {
         surfaceFormats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(
-            _PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, surfaceFormats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(_PhysicalDevice->GetVKPhysicalDevice(), _Surface, &formatCount, surfaceFormats.data());
     }
 
     bool found = false;
@@ -102,10 +96,8 @@ VkExtent2D Surface::GetVKExtent()
 
         VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 
-        actualExtent.width =
-            std::clamp(actualExtent.width, _Capabilities.minImageExtent.width, _Capabilities.maxImageExtent.width);
-        actualExtent.height =
-            std::clamp(actualExtent.height, _Capabilities.minImageExtent.height, _Capabilities.maxImageExtent.height);
+        actualExtent.width      = std::clamp(actualExtent.width, _Capabilities.minImageExtent.width, _Capabilities.maxImageExtent.width);
+        actualExtent.height     = std::clamp(actualExtent.height, _Capabilities.minImageExtent.height, _Capabilities.maxImageExtent.height);
 
         return actualExtent;
     }

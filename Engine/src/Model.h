@@ -55,12 +55,7 @@ class Model
         Ref<Image>               shadowMap    = nullptr,
         std::vector<Ref<Image>>  pointShadows = std::vector<Ref<Image>>());
     // This constructor is used to construct a single meshed model (skybox).
-    Model(
-        const float*             vertices,
-        uint32_t                 vertexCount,
-        const Ref<Image>&        cubemapTex,
-        Ref<DescriptorPool>      pool,
-        Ref<DescriptorSetLayout> layout);
+    Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout);
 
     const std::vector<Mesh*>& GetMeshes()
     {
@@ -91,12 +86,8 @@ class Model
     void Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
 
    private:
-    void ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout);
-    Mesh* ProcessMesh(
-        aiMesh*                         mesh,
-        const aiScene*                  scene,
-        const Ref<DescriptorPool>&      pool,
-        const Ref<DescriptorSetLayout>& layout);
+    void       ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout);
+    Mesh*      ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout);
     Ref<Image> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache);
 
    private:
@@ -120,13 +111,8 @@ class Model
     std::vector<Ref<Image>> m_DefaultPointShadowMaps;
     Ref<Image>              m_DefaultShadowMap = nullptr;
     Ref<Image>              m_DefaultCubeMap   = nullptr;
-    Ref<Image>              m_DefaultAlbedo    = make_s<Image>(
-        std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/Magenta_ERROR.png") },
-        VK_FORMAT_R8G8B8A8_SRGB);
-    Ref<Image> m_DefaultNormal = make_s<Image>(
-        std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/NormalMAP_ERROR.png") },
-        VK_FORMAT_R8G8B8A8_UNORM);
-    Ref<Image> m_DefaultRoughnessMetallic = make_s<Image>(
-        std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/White_Texture.png") },
-        VK_FORMAT_R8G8B8A8_SRGB);
+    Ref<Image> m_DefaultAlbedo = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/Magenta_ERROR.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+    Ref<Image> m_DefaultNormal = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/NormalMAP_ERROR.png") }, VK_FORMAT_R8G8B8A8_UNORM);
+    Ref<Image> m_DefaultRoughnessMetallic =
+        make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/White_Texture.png") }, VK_FORMAT_R8G8B8A8_SRGB);
 };

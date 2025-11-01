@@ -41,17 +41,13 @@ void Swapchain::Create()
 {
     // Query present modes
     uint32_t presentModeCount = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(
-        _Context.GetPhysicalDevice()->GetVKPhysicalDevice(), _Context.GetSurface()->GetVKSurface(), &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(_Context.GetPhysicalDevice()->GetVKPhysicalDevice(), _Context.GetSurface()->GetVKSurface(), &presentModeCount, nullptr);
 
     std::vector<VkPresentModeKHR> presentModes(presentModeCount);
     if (presentModeCount > 0)
     {
         vkGetPhysicalDeviceSurfacePresentModesKHR(
-            _Context.GetPhysicalDevice()->GetVKPhysicalDevice(),
-            _Context.GetSurface()->GetVKSurface(),
-            &presentModeCount,
-            presentModes.data());
+            _Context.GetPhysicalDevice()->GetVKPhysicalDevice(), _Context.GetSurface()->GetVKSurface(), &presentModeCount, presentModes.data());
     }
 
     _PresentMode = VK_PRESENT_MODE_FIFO_KHR; // fallback
@@ -87,9 +83,7 @@ void Swapchain::Create()
     ci.clipped          = VK_TRUE;
     ci.oldSwapchain     = VK_NULL_HANDLE;
 
-    ENSURE(
-        vkCreateSwapchainKHR(_Context.GetDevice()->GetVKDevice(), &ci, nullptr, &_Swapchain) == VK_SUCCESS,
-        "Failed to create swap chain!");
+    ENSURE(vkCreateSwapchainKHR(_Context.GetDevice()->GetVKDevice(), &ci, nullptr, &_Swapchain) == VK_SUCCESS, "Failed to create swap chain!");
     PrintInfo("Successfully created swapchain!");
 
     // Retrieve images
@@ -118,9 +112,7 @@ void Swapchain::Create()
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount     = 1;
 
-        ENSURE(
-            vkCreateImageView(_Context.GetDevice()->GetVKDevice(), &viewInfo, nullptr, &_ImageViews[i]) == VK_SUCCESS,
-            "Failed to create image view.");
+        ENSURE(vkCreateImageView(_Context.GetDevice()->GetVKDevice(), &viewInfo, nullptr, &_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
     }
 }
 void Swapchain::Cleanup()

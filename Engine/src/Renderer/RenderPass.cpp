@@ -1,11 +1,10 @@
 #include "core.h"
-#include "Framebuffer.h"
 #include "Device.h"
+#include "Framebuffer.h"
 #include "RenderPass.h"
 #include "Surface.h"
 #include "VulkanContext.h"
 
-#include <vulkan/vulkan.h>
 void RenderPass::CreateRenderPass()
 {
     std::vector<VkAttachmentDescription> attachments;
@@ -27,8 +26,7 @@ void RenderPass::CreateRenderPass()
 
         attachments.push_back(desc);
 
-        if (attachment.FinalLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
-            attachment.FinalLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+        if (attachment.FinalLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL || attachment.FinalLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
             depthRef = { index, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
         else
             colorRefs.push_back({ index, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
@@ -105,8 +103,9 @@ RenderPass::~RenderPass()
     Destroy();
 }
 
-void RenderPass::Begin(VkCommandBuffer InCmdBuffer, Framebuffer& InFramebuffer)
+void RenderPass::Begin(VkCommandBuffer InCmdBuffer, Framebuffer& InFramebuffer, const char* InDebugName /*= nullptr*/)
 {
+    _DebugName = InDebugName ? InDebugName : "";
     std::vector<VkClearValue> clearValues;
     for (auto& attachment : _Info.Attachments)
         clearValues.push_back(attachment.ClearValue);
@@ -122,14 +121,142 @@ void RenderPass::Begin(VkCommandBuffer InCmdBuffer, Framebuffer& InFramebuffer)
     beginInfo.pNext                    = nullptr;
 
     vkCmdBeginRenderPass(InCmdBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Automatically begin debug label if name is provided
+    if (!_DebugName.empty())
+    {
+        VkDebugUtilsLabelEXT label{};
+        label.sType         = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        label.pLabelName    = InDebugName;
+        label.color[0]      = 0.0f;
+        label.color[1]      = 1.0f;
+        label.color[2]      = 0.0f;
+        label.color[3]      = 1.0f;
+
+        auto funcBeginLabel = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetDeviceProcAddr(_Context.GetDevice()->GetVKDevice(), "vkCmdBeginDebugUtilsLabelEXT");
+        if (funcBeginLabel)
+        {
+            funcBeginLabel(InCmdBuffer, &label);
+        }
+    }
 }
 
 void RenderPass::End(VkCommandBuffer InCmdBuffer)
 {
+    // End debug label if needed
+    if (!_DebugName.empty())
+    {
+        auto funcEndLabel = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetDeviceProcAddr(_Context.GetDevice()->GetVKDevice(), "vkCmdEndDebugUtilsLabelEXT");
+        if (funcEndLabel)
+            funcEndLabel(InCmdBuffer);
+    }
+
     vkCmdEndRenderPass(InCmdBuffer);
 }
 
 VkRenderPass RenderPass::GetHandle() const
 {
     return _RenderPass;
+}
+
+RenderGraph::RenderGraph(VulkanContext& context) : _Context(context)
+{
+}
+
+// ------------------------------------------------
+// Resource Creation
+// ------------------------------------------------
+RGResource* RenderGraph::CreateTexture(const std::string& InName, VkImage InImage, VkFormat InFormat, uint32_t InWidth, uint32_t InHeight, bool InTransient)
+{
+    auto res             = std::make_unique<RGResource>();
+    res->Image           = InImage;
+    res->Name            = InName;
+    res->Format          = InFormat;
+    res->IsTransient     = InTransient;
+    res->Extent          = { InWidth, InHeight };
+
+    auto ptr             = res.get();
+    _ResourceMap[InName] = ptr;
+    _Resources.push_back(std::move(res));
+    return ptr;
+}
+
+// ------------------------------------------------
+// Pass Creation
+// ------------------------------------------------
+RGPass* RenderGraph::AddPass(const std::string& InName, std::function<void(RGPass&)> InSetup)
+{
+    auto pass  = std::make_unique<RGPass>();
+    pass->Name = InName;
+    InSetup(*pass);
+    _Passes.push_back(std::move(pass));
+    return _Passes.back().get();
+}
+
+// ------------------------------------------------
+// Compilation (ordering / future: barriers)
+// ------------------------------------------------
+void RenderGraph::Compile()
+{
+    // Simple: declared order = execution order.
+    // Later you can add DAG sorting, aliasing, etc.
+}
+
+// ------------------------------------------------
+// Execution
+// ------------------------------------------------
+void RenderGraph::Execute(VkCommandBuffer InCmd)
+{
+    for (auto& pass : _Passes)
+    {
+        if (pass->RecordFunc)
+        {
+            // In a future step, you’ll insert proper barriers here
+            pass->RecordFunc(InCmd);
+        }
+    }
+}
+
+RGResource* RenderGraph::GetResource(const std::string& InName)
+{
+    auto it = _ResourceMap.find(InName);
+    return it != _ResourceMap.end() ? it->second : nullptr;
+}
+
+void RenderGraph::Clear()
+{
+    _Passes.clear(); // Remove all passes
+    // Optionally clear transient resources
+    //_Resources.erase(std::remove_if(_Resources.begin(), _Resources.end(), [](const std::unique_ptr<RGResource>& res) { return res->IsTransient; }), _Resources.end());
+    //_ResourceMap.clear();
+}
+
+void RenderGraph::DebugPrint()
+{
+    PrintRenderGraph("======== Render Graph Debug ========");
+
+    for (auto& pass : _Passes)
+    {
+        PrintRenderGraph("Pass: " + pass->Name);
+
+        if (!pass->Reads.empty())
+        {
+            std::stringstream ss;
+            ss << "   Reads: ";
+            for (auto* r : pass->Reads)
+                ss << r->Name << ", ";
+            PrintRenderGraph(ss.str());
+        }
+
+        if (!pass->Writes.empty())
+        {
+            std::stringstream ss;
+            ss << "   Writes: ";
+            for (auto* r : pass->Writes)
+                ss << r->Name << ", ";
+            PrintRenderGraph(ss.str());
+        }
+    }
+
+    PrintRenderGraph("====================================");
 }
