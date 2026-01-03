@@ -44,6 +44,7 @@ vec2 rayBoxDst(vec3 boundsMin, vec3 boundsMax, vec3 rayOrigin, vec3 rayDir)
 
 void main()
 {		
+	// Flip once here when rendering to the swapchin to account for Vulkan upside down NDC.
 	vec2 uv;
 	uv.x = v_UV.x;
 	uv.y = 1 - v_UV.y;

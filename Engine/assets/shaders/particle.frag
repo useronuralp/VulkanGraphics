@@ -40,7 +40,8 @@ void main ()
     (1.0 - gl_PointCoord.y) * inColumnCellSize + (inColumnOffset - inColumnCellSize)
 	);
 	
-
+	//UV.y = 1 - UV.y;
+	//UV.x = UV.x;
 	// Flame
 	color = texture(samplerFire, UV);
 	color.a *= inAlpha;

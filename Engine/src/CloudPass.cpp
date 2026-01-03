@@ -20,7 +20,7 @@ inline CloudTexture LoadCloudTexture(VkDevice device, VkPhysicalDevice physicalD
     CloudTexture tex{};
 
     int texWidth, texHeight, texChannels;
-    stbi_set_flip_vertically_on_load(true);
+    //stbi_set_flip_vertically_on_load(true);
 
     bool  isHDR  = stbi_is_hdr(path.c_str()) != 0;
     void* pixels = nullptr;

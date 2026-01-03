@@ -37,6 +37,8 @@ const mat4 bias = mat4(
 void main()
 {
     v_UV                        = a_UV;
+    //v_UV.y = 1 - v_UV.y;
+	//v_UV.x = v_UV.x;
     v_Pos                       = vec3(modelMatrix * vec4(a_Position, 1.0));
     v_Normal                    = mat3(modelMatrix) * a_Normal;   
 
