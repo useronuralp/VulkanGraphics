@@ -1882,6 +1882,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     if (!printedDependencies)
     {
         _Graph->DebugPrint();
+        _Graph->Compile();
         printedDependencies = true;
     }
 

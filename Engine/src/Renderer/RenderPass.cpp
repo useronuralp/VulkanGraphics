@@ -5,6 +5,9 @@
 #include "Surface.h"
 #include "VulkanContext.h"
 
+#include <queue>
+#include <unordered_set>
+
 void RenderPass::CreateRenderPass()
 {
     std::vector<VkAttachmentDescription> attachments;
@@ -198,8 +201,95 @@ RGPass* RenderGraph::AddPass(const std::string& InName, std::function<void(RGPas
 // ------------------------------------------------
 void RenderGraph::Compile()
 {
-    // Simple: declared order = execution order.
-    // Later you can add DAG sorting, aliasing, etc.
+    /// Step 1: Build dependency map
+    std::unordered_map<RGPass*, std::unordered_set<RGPass*>> dependencies;
+    std::unordered_map<RGPass*, int>                         inDegree;
+
+    // Initialize
+    for (auto& pass : _Passes)
+    {
+        dependencies[pass.get()] = {};
+        inDegree[pass.get()]     = 0;
+    }
+
+    // Fill dependencies
+    for (auto& passA : _Passes)
+    {
+        for (auto* readRes : passA->Reads)
+        {
+            for (auto& passB : _Passes)
+            {
+                if (passB.get() == passA.get())
+                    continue;
+
+                // If passB writes the resource passA reads, passA depends on passB
+                auto it = std::find(passB->Writes.begin(), passB->Writes.end(), readRes);
+                if (it != passB->Writes.end())
+                {
+                    dependencies[passA.get()].insert(passB.get());
+                }
+            }
+        }
+    }
+
+    // Compute in-degree for topological sort
+    for (auto& [pass, deps] : dependencies)
+    {
+        inDegree[pass] = static_cast<int>(deps.size());
+    }
+
+    // Step 2: Kahn's algorithm for topological sort
+    std::vector<std::unique_ptr<RGPass>> sortedPasses;
+    std::queue<RGPass*>                  ready;
+
+    for (auto& [pass, deg] : inDegree)
+        if (deg == 0)
+            ready.push(pass);
+
+    while (!ready.empty())
+    {
+        RGPass* current = ready.front();
+        ready.pop();
+
+        // Move unique_ptr into sorted list
+        for (auto it = _Passes.begin(); it != _Passes.end(); ++it)
+        {
+            if (it->get() == current)
+            {
+                sortedPasses.push_back(std::move(*it));
+                _Passes.erase(it);
+                break;
+            }
+        }
+
+        // Decrease in-degree of dependent passes
+        for (auto& [pass, deps] : dependencies)
+        {
+            if (deps.find(current) != deps.end())
+            {
+                deps.erase(current);
+                inDegree[pass]--;
+                if (inDegree[pass] == 0)
+                    ready.push(pass);
+            }
+        }
+    }
+
+    // If _Passes is not empty, there is a cycle
+    if (!_Passes.empty())
+    {
+        PrintError("RenderGraph::Compile() detected a cyclic dependency!");
+        assert(false);
+    }
+
+    // Replace passes with sorted order
+    _Passes = std::move(sortedPasses);
+
+    PrintRenderGraph("RenderGraph compiled successfully. Pass execution order:");
+    for (auto& pass : _Passes)
+    {
+        PrintRenderGraph(" - " + pass->Name);
+    }
 }
 
 // ------------------------------------------------
