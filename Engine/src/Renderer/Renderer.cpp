@@ -340,484 +340,132 @@ void ForwardRenderer::Init()
 
 void ForwardRenderer::SetupPBRPipeline()
 {
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = PBRLayout;
-    specs.RenderPass              = _HDRRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_TRUE;
-    specs.EnableDepthWriting      = VK_TRUE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/PBRShaderVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/PBRShaderFRAG.spv";
-
-    VkPushConstantRange pcRange;
-    pcRange.offset           = 0;
-    pcRange.size             = sizeof(glm::mat4);
-    pcRange.stageFlags       = VK_SHADER_STAGE_VERTEX_BIT;
-
-    specs.PushConstantRanges = { pcRange };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bindingDescription.binding               = 0;
-    bindingDescription.stride                = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
-    bindingDescription.inputRate             = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions.resize(5);
-    attributeDescriptions[0].binding  = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset   = 0;
-
-    attributeDescriptions[1].binding  = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format   = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[1].offset   = sizeof(glm::vec3);
-
-    attributeDescriptions[2].binding  = 0;
-    attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[2].offset   = sizeof(glm::vec3) + sizeof(glm::vec2);
-
-    attributeDescriptions[3].binding  = 0;
-    attributeDescriptions[3].location = 3;
-    attributeDescriptions[3].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[3].offset   = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3);
-
-    attributeDescriptions[4].binding  = 0;
-    attributeDescriptions[4].location = 4;
-    attributeDescriptions[4].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[4].offset   = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3);
-
-    specs.VertexBindings              = { bindingDescription };
-    specs.VertexAttributes            = attributeDescriptions;
-
-    pipeline                          = make_s<Pipeline>(_Context, specs);
+    pipeline = PipelineBuilder(_Context)
+                   .SetRenderPass(_HDRRenderPass->GetHandle())
+                   .SetDescriptorSetLayout(PBRLayout)
+                   .SetVertexShader("assets/shaders/PBRShaderVERT.spv")
+                   .SetFragmentShader("assets/shaders/PBRShaderFRAG.spv")
+                   .AddPushConstant(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4))
+                   .SetVertexBindings({ { 0, sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) * 3, VK_VERTEX_INPUT_RATE_VERTEX } })
+                   .SetVertexAttributes(
+                       {
+                           { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
+                           { 1, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(glm::vec3) },
+                           { 2, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3) + sizeof(glm::vec2) },
+                           { 3, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) },
+                           { 4, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) * 2 },
+                       })
+                   .Build();
 }
+
 void ForwardRenderer::SetupFinalPassPipeline()
 {
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = swapchainLayout;
-    specs.RenderPass              = _SwapchainRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_TRUE;
-    specs.EnableDepthWriting      = VK_TRUE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/swapchainFRAG.spv";
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    finalPassPipeline                        = make_s<Pipeline>(_Context, specs);
+    finalPassPipeline = PipelineBuilder(_Context)
+                            .SetRenderPass(_SwapchainRenderPass->GetHandle())
+                            .SetDescriptorSetLayout(swapchainLayout)
+                            .SetVertexShader("assets/shaders/quadRenderVERT.spv")
+                            .SetFragmentShader("assets/shaders/swapchainFRAG.spv")
+                            .Build();
 }
 void ForwardRenderer::SetupShadowPassPipeline()
 {
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = PBRLayout;
-    specs.RenderPass              = _ShadowMapRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 1.25f;
-    specs.DepthBiasSlopeFactor    = 1.75f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = VK_TRUE;
-    specs.EnableDepthTesting      = VK_TRUE;
-    specs.EnableDepthWriting      = VK_TRUE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/shadowPassVERT.spv";
-    specs.ViewportHeight          = SHADOW_DIM;
-    specs.ViewportWidth           = SHADOW_DIM;
-    specs.EnableDynamicStates     = false;
-
-    VkPushConstantRange pcRange;
-    pcRange.offset           = 0;
-    pcRange.size             = sizeof(glm::mat4);
-    pcRange.stageFlags       = VK_SHADER_STAGE_VERTEX_BIT;
-
-    specs.PushConstantRanges = { pcRange };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bindingDescription2.binding              = 0;
-    bindingDescription2.stride               = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
-    bindingDescription2.inputRate            = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions2.resize(1);
-
-    attributeDescriptions2[0].binding  = 0;
-    attributeDescriptions2[0].location = 0;
-    attributeDescriptions2[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions2[0].offset   = 0;
-
-    specs.VertexBindings               = { bindingDescription2 };
-    specs.VertexAttributes             = attributeDescriptions2;
-
-    shadowPassPipeline                 = make_s<Pipeline>(_Context, specs);
+    shadowPassPipeline = PipelineBuilder(_Context)
+                             .SetRenderPass(_ShadowMapRenderPass->GetHandle())
+                             .SetDescriptorSetLayout(PBRLayout)
+                             .SetVertexShader("assets/shaders/shadowPassVERT.spv")
+                             .SetDepthBias(1.25f, 0.0f, 1.75f)
+                             .SetBlending(VK_FALSE)
+                             .SetFixedViewport(SHADOW_DIM, SHADOW_DIM)
+                             .AddPushConstant(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4))
+                             .SetVertexBindings({ { 0, sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) * 3, VK_VERTEX_INPUT_RATE_VERTEX } })
+                             .SetVertexAttributes({ { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 } })
+                             .SetDynamicStatesEnabled(false)
+                             .Build();
 }
 void ForwardRenderer::SetupPointShadowPassPipeline()
 {
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = PBRLayout;
-    specs.RenderPass              = _PointShadowRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 1.25f;
-    specs.DepthBiasSlopeFactor    = 1.75f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = VK_FALSE;
-    specs.EnableDepthTesting      = VK_TRUE;
-    specs.EnableDepthWriting      = VK_TRUE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/pointShadowPassVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/pointShadowPassFRAG.spv";
-    specs.GeometryShaderPath      = "assets/shaders/pointShadowPassGEOM.spv";
-    specs.ViewportHeight          = POUNT_SHADOW_DIM;
-    specs.ViewportWidth           = POUNT_SHADOW_DIM;
-    specs.EnableDynamicStates     = false;
-
-    VkPushConstantRange pcRange;
-    pcRange.offset     = 0;
-    pcRange.size       = sizeof(glm::mat4);
-    pcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkPushConstantRange pcRange2;
-    pcRange2.offset     = sizeof(glm::mat4);
-    pcRange2.size       = sizeof(glm::vec4);
-    pcRange2.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
-
-    VkPushConstantRange pcRange3;
-    pcRange3.offset          = sizeof(glm::mat4) + sizeof(glm::vec4);
-    pcRange3.size            = sizeof(glm::vec4) + sizeof(glm::vec4);
-    pcRange3.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    specs.PushConstantRanges = { pcRange, pcRange2, pcRange3 };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bindingDescription2.binding              = 0;
-    bindingDescription2.stride               = sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3);
-    bindingDescription2.inputRate            = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions2.resize(1);
-
-    attributeDescriptions2[0].binding  = 0;
-    attributeDescriptions2[0].location = 0;
-    attributeDescriptions2[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions2[0].offset   = 0;
-
-    specs.VertexBindings               = { bindingDescription2 };
-    specs.VertexAttributes             = attributeDescriptions2;
-
-    pointShadowPassPipeline            = make_s<Pipeline>(_Context, specs);
+    pointShadowPassPipeline = PipelineBuilder(_Context)
+                                  .SetRenderPass(_PointShadowRenderPass->GetHandle())
+                                  .SetDescriptorSetLayout(PBRLayout)
+                                  .SetVertexShader("assets/shaders/pointShadowPassVERT.spv")
+                                  .SetFragmentShader("assets/shaders/pointShadowPassFRAG.spv")
+                                  .SetGeometryShader("assets/shaders/pointShadowPassGEOM.spv")
+                                  .SetBlending(VK_FALSE)
+                                  .SetFixedViewport(POUNT_SHADOW_DIM, POUNT_SHADOW_DIM)
+                                  .AddPushConstant(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4))
+                                  .AddPushConstant(VK_SHADER_STAGE_GEOMETRY_BIT, sizeof(glm::mat4), sizeof(glm::vec4))
+                                  .AddPushConstant(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4) * 2)
+                                  .SetVertexBindings({ { 0, sizeof(glm::vec3) + sizeof(glm::vec2) + sizeof(glm::vec3) * 3, VK_VERTEX_INPUT_RATE_VERTEX } })
+                                  .SetVertexAttributes({ { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 } })
+                                  .SetDynamicStatesEnabled(false)
+                                  .Build();
 }
 void ForwardRenderer::SetupSkyboxPipeline()
 {
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = skyboxLayout;
-    specs.RenderPass              = _HDRRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_FALSE;
-    specs.EnableDepthWriting      = VK_FALSE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/cubemapVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/cubemapFRAG.spv";
-
-    VkPushConstantRange pcRange;
-    pcRange.offset           = 0;
-    pcRange.size             = sizeof(glm::mat4);
-    pcRange.stageFlags       = VK_SHADER_STAGE_VERTEX_BIT;
-
-    specs.PushConstantRanges = { pcRange };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bindingDescription3.binding              = 0;
-    bindingDescription3.stride               = sizeof(glm::vec3);
-    bindingDescription3.inputRate            = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions3.resize(1);
-    // For position
-    attributeDescriptions3[0].binding  = 0;
-    attributeDescriptions3[0].location = 0;
-    attributeDescriptions3[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions3[0].offset   = 0;
-
-    specs.VertexBindings               = { bindingDescription3 };
-    specs.VertexAttributes             = attributeDescriptions3;
-
-    skyboxPipeline                     = make_s<Pipeline>(_Context, specs);
+    skyboxPipeline = PipelineBuilder(_Context)
+                         .SetRenderPass(_HDRRenderPass->GetHandle())
+                         .SetDescriptorSetLayout(skyboxLayout)
+                         .SetVertexShader("assets/shaders/cubemapVERT.spv")
+                         .SetFragmentShader("assets/shaders/cubemapFRAG.spv")
+                         .SetDepthTest(VK_FALSE)
+                         .SetDepthWrite(VK_FALSE)
+                         .SetBlending(VK_FALSE)
+                         .AddPushConstant(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4))
+                         .SetVertexBindings({ { 0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX } })
+                         .SetVertexAttributes({ { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 } })
+                         .Build();
 }
 void ForwardRenderer::SetupCubePipeline()
 {
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = cubeLayout;
-    specs.RenderPass              = _HDRRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_TRUE;
-    specs.EnableDepthWriting      = VK_TRUE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/emissiveShaderVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/emissiveShaderFRAG.spv";
-
-    VkPushConstantRange pcRange;
-    pcRange.offset           = 0;
-    pcRange.size             = sizeof(glm::mat4) + sizeof(glm::vec4) + sizeof(glm::vec4);
-    pcRange.stageFlags       = VK_SHADER_STAGE_VERTEX_BIT;
-
-    specs.PushConstantRanges = { pcRange };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bindingDescription3.binding              = 0;
-    bindingDescription3.stride               = sizeof(glm::vec3);
-    bindingDescription3.inputRate            = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions3.resize(1);
-    // For position
-    attributeDescriptions3[0].binding  = 0;
-    attributeDescriptions3[0].location = 0;
-    attributeDescriptions3[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions3[0].offset   = 0;
-
-    specs.VertexBindings               = { bindingDescription3 };
-    specs.VertexAttributes             = attributeDescriptions3;
-
-    cubePipeline                       = make_s<Pipeline>(_Context, specs);
+    cubePipeline = PipelineBuilder(_Context)
+                       .SetRenderPass(_HDRRenderPass->GetHandle())
+                       .SetDescriptorSetLayout(cubeLayout)
+                       .SetVertexShader("assets/shaders/emissiveShaderVERT.spv")
+                       .SetFragmentShader("assets/shaders/emissiveShaderFRAG.spv")
+                       .SetBlending(VK_FALSE)
+                       .AddPushConstant(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4) * 2)
+                       .SetVertexBindings({ { 0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX } })
+                       .SetVertexAttributes({ { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 } })
+                       .Build();
 }
 
 void ForwardRenderer::SetupParticleSystemPipeline()
 {
-    Pipeline::Specs          particleSpecs{};
-    Ref<DescriptorSetLayout> layout       = particleSystemLayout;
-    particleSpecs.DescriptorSetLayout     = layout;
-    particleSpecs.RenderPass              = _HDRRenderPass->GetHandle();
-    particleSpecs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    particleSpecs.DepthBiasClamp          = 0.0f;
-    particleSpecs.DepthBiasConstantFactor = 0.0f;
-    particleSpecs.DepthBiasSlopeFactor    = 0.0f;
-    particleSpecs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    particleSpecs.EnableDepthBias         = false;
-    particleSpecs.EnableDepthTesting      = VK_TRUE;
-    particleSpecs.EnableDepthWriting      = VK_FALSE;
-    particleSpecs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    particleSpecs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    particleSpecs.VertexShaderPath        = "assets/shaders/particleVERT.spv";
-    particleSpecs.FragmentShaderPath      = "assets/shaders/particleFRAG.spv";
-    particleSpecs.PrimitiveTopology       = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-
-    VkPushConstantRange pcRange;
-    pcRange.offset                   = 0;
-    pcRange.size                     = sizeof(glm::vec4);
-    pcRange.stageFlags               = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    particleSpecs.PushConstantRanges = { pcRange };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    particleSpecs.ColorBlendAttachmentState  = colorBlendAttachment;
-
-    bindingDescription4.binding              = 0;
-    bindingDescription4.stride               = sizeof(Particle);
-    bindingDescription4.inputRate            = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions4.resize(9);
-    attributeDescriptions4[0].binding  = 0;
-    attributeDescriptions4[0].location = 0;
-    attributeDescriptions4[0].format   = VK_FORMAT_R32G32B32A32_SFLOAT;
-    attributeDescriptions4[0].offset   = offsetof(Particle, Position);
-
-    attributeDescriptions4[1].binding  = 0;
-    attributeDescriptions4[1].location = 1;
-    attributeDescriptions4[1].format   = VK_FORMAT_R32G32B32A32_SFLOAT;
-    attributeDescriptions4[1].offset   = offsetof(Particle, Color);
-
-    attributeDescriptions4[2].binding  = 0;
-    attributeDescriptions4[2].location = 2;
-    attributeDescriptions4[2].format   = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions4[2].offset   = offsetof(Particle, Alpha);
-
-    attributeDescriptions4[3].binding  = 0;
-    attributeDescriptions4[3].location = 3;
-    attributeDescriptions4[3].format   = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions4[3].offset   = offsetof(Particle, SizeRadius);
-
-    attributeDescriptions4[4].binding  = 0;
-    attributeDescriptions4[4].location = 4;
-    attributeDescriptions4[4].format   = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions4[4].offset   = offsetof(Particle, Rotation);
-
-    attributeDescriptions4[5].binding  = 0;
-    attributeDescriptions4[5].location = 5;
-    attributeDescriptions4[5].format   = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions4[5].offset   = offsetof(Particle, RowOffset);
-
-    attributeDescriptions4[6].binding  = 0;
-    attributeDescriptions4[6].location = 6;
-    attributeDescriptions4[6].format   = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions4[6].offset   = offsetof(Particle, ColumnOffset);
-
-    attributeDescriptions4[7].binding  = 0;
-    attributeDescriptions4[7].location = 7;
-    attributeDescriptions4[7].format   = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions4[7].offset   = offsetof(Particle, RowCellSize);
-
-    attributeDescriptions4[8].binding  = 0;
-    attributeDescriptions4[8].location = 8;
-    attributeDescriptions4[8].format   = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions4[8].offset   = offsetof(Particle, ColumnCellSize);
-
-    particleSpecs.VertexBindings       = { bindingDescription4 };
-    particleSpecs.VertexAttributes     = attributeDescriptions4;
-
-    particleSystemPipeline             = make_s<Pipeline>(_Context, particleSpecs);
+    particleSystemPipeline = PipelineBuilder(_Context)
+                                 .SetRenderPass(_HDRRenderPass->GetHandle())
+                                 .SetDescriptorSetLayout(particleSystemLayout)
+                                 .SetVertexShader("assets/shaders/particleVERT.spv")
+                                 .SetFragmentShader("assets/shaders/particleFRAG.spv")
+                                 .SetDepthWrite(VK_FALSE)
+                                 .SetTopology(VK_PRIMITIVE_TOPOLOGY_POINT_LIST)
+                                 .SetAlphaBlendFactors(VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ZERO)
+                                 .AddPushConstant(VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4))
+                                 .SetVertexBindings({ { 0, sizeof(Particle), VK_VERTEX_INPUT_RATE_VERTEX } })
+                                 .SetVertexAttributes(
+                                     {
+                                         { 0, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Particle, Position) },
+                                         { 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Particle, Color) },
+                                         { 2, 0, VK_FORMAT_R32_SFLOAT, offsetof(Particle, Alpha) },
+                                         { 3, 0, VK_FORMAT_R32_SFLOAT, offsetof(Particle, SizeRadius) },
+                                         { 4, 0, VK_FORMAT_R32_SFLOAT, offsetof(Particle, Rotation) },
+                                         { 5, 0, VK_FORMAT_R32_SFLOAT, offsetof(Particle, RowOffset) },
+                                         { 6, 0, VK_FORMAT_R32_SFLOAT, offsetof(Particle, ColumnOffset) },
+                                         { 7, 0, VK_FORMAT_R32_SFLOAT, offsetof(Particle, RowCellSize) },
+                                         { 8, 0, VK_FORMAT_R32_SFLOAT, offsetof(Particle, ColumnCellSize) },
+                                     })
+                                 .Build();
 }
 void ForwardRenderer::SetupEmissiveObjectPipeline()
 {
-    // Emissive object pipeline.
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout = emissiveLayout;
-    specs.RenderPass          = _HDRRenderPass->GetHandle();
-    specs.VertexShaderPath    = "assets/shaders/emissiveShaderVERT.spv";
-    specs.FragmentShaderPath  = "assets/shaders/emissiveShaderFRAG.spv";
-
-    VkPushConstantRange pcRange;
-    pcRange.offset                = 0;
-    pcRange.size                  = sizeof(glm::mat4) + sizeof(glm::vec4);
-    pcRange.stageFlags            = VK_SHADER_STAGE_VERTEX_BIT;
-
-    specs.PushConstantRanges      = { pcRange };
-
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_TRUE;
-    specs.EnableDepthWriting      = VK_TRUE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bindingDescription5.binding              = 0;
-    bindingDescription5.stride               = sizeof(glm::vec3);
-    bindingDescription5.inputRate            = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    attributeDescriptions5.resize(1);
-    attributeDescriptions5[0].binding  = 0;
-    attributeDescriptions5[0].location = 0;
-    attributeDescriptions5[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions5[0].offset   = 0;
-
-    specs.VertexBindings               = { bindingDescription5 };
-    specs.VertexAttributes             = attributeDescriptions5;
-
-    EmissiveObjectPipeline             = make_s<Pipeline>(_Context, specs);
+    EmissiveObjectPipeline = PipelineBuilder(_Context)
+                                 .SetRenderPass(_HDRRenderPass->GetHandle())
+                                 .SetDescriptorSetLayout(emissiveLayout)
+                                 .SetVertexShader("assets/shaders/emissiveShaderVERT.spv")
+                                 .SetFragmentShader("assets/shaders/emissiveShaderFRAG.spv")
+                                 .AddPushConstant(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4))
+                                 .SetVertexBindings({ { 0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX } })
+                                 .SetVertexAttributes({ { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 } })
+                                 .Build();
 }
 
 void ForwardRenderer::SetupParticleSystems()
@@ -1085,37 +733,15 @@ void ForwardRenderer::DisableDepthOfField()
 
 void ForwardRenderer::SetupBokehPassPipeline()
 {
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = bokehPassLayout;
-    specs.RenderPass              = bokehRenderPass->GetHandle();
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_FALSE;
-    specs.EnableDepthWriting      = VK_FALSE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/bokehPassFRAG.spv";
-    specs.ViewportHeight          = bokehPassFramebuffer->GetHeight();
-    specs.ViewportWidth           = bokehPassFramebuffer->GetWidth();
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    bokehPassPipeline                        = make_s<Pipeline>(_Context, specs);
+    bokehPassPipeline = PipelineBuilder(_Context)
+                            .SetRenderPass(bokehRenderPass->GetHandle())
+                            .SetDescriptorSetLayout(bokehPassLayout)
+                            .SetVertexShader("assets/shaders/quadRenderVERT.spv")
+                            .SetFragmentShader("assets/shaders/bokehPassFRAG.spv")
+                            .SetDepthTest(VK_FALSE)
+                            .SetDepthWrite(VK_FALSE)
+                            .SetFixedViewport(bokehPassFramebuffer->GetWidth(), bokehPassFramebuffer->GetHeight())
+                            .Build();
 }
 void ForwardRenderer::CreateBokehRenderPass()
 {
@@ -1626,16 +1252,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
                 CommandBuffer::PushConstants(cmd, cubePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &lightCubePC);
                 cube->Draw(cmd, cubePipeline->GetPipelineLayout());
-
-                // Drawing the clouds.
-                pushConst cloudsPC;
-                glm::mat4 cloudsMat = glm::mat4(1.0f);
-                glm::vec4 position  = glm::vec4(0, 10, 0, 0);
-                glm::vec4 scale     = glm::vec4(0.5f, 0.5f, 0.5f, 0.5f);
-                cloudsMat           = glm::translate(cloudsMat, glm::vec3(position.x, position.y, position.z));
-                cloudsMat           = glm::scale(cloudsMat, glm::vec3(scale.x, scale.y, scale.z));
-                cloudsPC.modelMat   = cloudsMat;
-                cloudsPC.color      = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
                 // Drawing the Sponza.
                 CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);

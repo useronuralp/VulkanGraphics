@@ -144,36 +144,24 @@ class ForwardRenderer : public RendererInterface
     std::mt19937                     gen; // seed the generator
     std::uniform_real_distribution<> distr;
 
-    VkVertexInputBindingDescription                bindingDescription{};
-    VkVertexInputBindingDescription                bindingDescription2{};
-    VkVertexInputBindingDescription                bindingDescription3{};
-    VkVertexInputBindingDescription                bindingDescription4{};
-    VkVertexInputBindingDescription                bindingDescription5{};
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions2{};
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions3{};
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions4{};
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions5{};
-
     glm::mat4 torch1modelMatrix{ 1.0 };
     glm::mat4 torch2modelMatrix{ 1.0 };
     glm::mat4 torch3modelMatrix{ 1.0 };
     glm::mat4 torch4modelMatrix{ 1.0 };
 
-    float     lightFlickerRate         = 0.07f;
-    float     aniamtionRate            = 0.013888888f;
-    int       currentAnimationFrame    = 0;
-    float     timer                    = 0.0f;
-    glm::vec4 directionalLightPosition = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
-    float     directionalNearPlane     = 1.0f;
-    float     directionalFarPlane      = 100.0f;
-    float     pointNearPlane           = 0.1f;
-    float     pointFarPlane            = 100.0f;
-    int       frameCount               = 0;
+    float     lightFlickerRate                 = 0.07f;
+    float     aniamtionRate                    = 0.013888888f;
+    int       currentAnimationFrame            = 0;
+    float     timer                            = 0.0f;
+    glm::vec4 directionalLightPosition         = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
+    float     directionalNearPlane             = 1.0f;
+    float     directionalFarPlane              = 100.0f;
+    float     pointNearPlane                   = 0.1f;
+    float     pointFarPlane                    = 100.0f;
+    int       frameCount                       = 0;
 
-    glm::mat4 directionalLightProjectionMatrix =
-        glm::perspective(glm::radians(45.0f), 1.0f, directionalNearPlane, directionalFarPlane);
-    glm::mat4 pointLightProjectionMatrix = glm::perspective(glm::radians(90.0f), 1.0f, pointNearPlane, pointFarPlane);
+    glm::mat4 directionalLightProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, directionalNearPlane, directionalFarPlane);
+    glm::mat4 pointLightProjectionMatrix       = glm::perspective(glm::radians(90.0f), 1.0f, pointNearPlane, pointFarPlane);
 
     // Experimental
     Ref<Image>            bokehPassImage;
@@ -216,13 +204,15 @@ class ForwardRenderer : public RendererInterface
    public:
     ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
 
-    void Init();
-    bool BeginFrame();
-    void RenderFrame(const float InDeltaTime);
-    void EndFrame();
-    void Cleanup();
-    void UpdateViewport_Scissor();
+    // RendererInterface overrides
+    void Init() override;
+    bool BeginFrame() override;
+    void RenderFrame(const float InDeltaTime) override;
+    void EndFrame() override;
+    void Cleanup() override;
+    // ~RendererInterface overrides
 
+    void UpdateViewport_Scissor();
     void InitImGui();
     void RenderImGui();
     void HandleWindowResize(VkResult InResult);

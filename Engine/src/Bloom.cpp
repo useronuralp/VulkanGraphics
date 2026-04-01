@@ -519,113 +519,51 @@ void Bloom::SetupDesciptorSets()
 
 void Bloom::SetupPipelines()
 {
-    // Brightness filter pipeline.
-    Pipeline::Specs specs{};
-    specs.DescriptorSetLayout     = m_OneSamplerLayout;
-    specs.RenderPass              = m_BrightnessIsolationPass;
-    specs.CullMode                = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp          = 0.0f;
-    specs.DepthBiasConstantFactor = 0.0f;
-    specs.DepthBiasSlopeFactor    = 0.0f;
-    specs.DepthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias         = false;
-    specs.EnableDepthTesting      = VK_FALSE;
-    specs.EnableDepthWriting      = VK_FALSE;
-    specs.FrontFace               = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode             = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath        = "assets/shaders/quadRenderVERT.spv";
-    specs.FragmentShaderPath      = "assets/shaders/brightnessFilterFRAG.spv";
-    specs.ViewportHeight          = m_BrightnessIsolatedFramebuffer->GetHeight();
-    specs.ViewportWidth           = m_BrightnessIsolatedFramebuffer->GetWidth();
-    specs.EnableDynamicStates     = false;
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    m_BrightnessFilterPipeline               = make_s<Pipeline>(EngineInternal::GetContext(), specs);
+    auto& context              = EngineInternal::GetContext();
+    m_BrightnessFilterPipeline = PipelineBuilder(context)
+                                     .SetRenderPass(m_BrightnessIsolationPass)
+                                     .SetDescriptorSetLayout(m_OneSamplerLayout)
+                                     .SetVertexShader("assets/shaders/quadRenderVERT.spv")
+                                     .SetFragmentShader("assets/shaders/brightnessFilterFRAG.spv")
+                                     .SetDepthTest(VK_FALSE)
+                                     .SetDepthWrite(VK_FALSE)
+                                     .SetFixedViewport(m_BrightnessIsolatedFramebuffer->GetWidth(), m_BrightnessIsolatedFramebuffer->GetHeight())
+                                     .SetDynamicStatesEnabled(false)
+                                     .Build();
 
     for (int i = 0; i < BLUR_PASS_COUNT; i++)
     {
-        // Blur downscaling passes
-        specs.DescriptorSetLayout                = m_OneSamplerLayout;
-        specs.RenderPass                         = m_BlurRenderPass;
-        specs.CullMode                           = VK_CULL_MODE_BACK_BIT;
-        specs.DepthBiasClamp                     = 0.0f;
-        specs.DepthBiasConstantFactor            = 0.0f;
-        specs.DepthBiasSlopeFactor               = 0.0f;
-        specs.DepthCompareOp                     = VK_COMPARE_OP_LESS_OR_EQUAL;
-        specs.EnableDepthBias                    = false;
-        specs.EnableDepthTesting                 = VK_FALSE;
-        specs.EnableDepthWriting                 = VK_FALSE;
-        specs.FrontFace                          = VK_FRONT_FACE_CLOCKWISE;
-        specs.PolygonMode                        = VK_POLYGON_MODE_FILL;
-        specs.VertexShaderPath                   = "assets/shaders/quadRenderVERT.spv";
-        specs.FragmentShaderPath                 = "assets/shaders/blurShaderFRAG.spv";
-        specs.ViewportHeight                     = m_BlurFramebuffers[i]->GetHeight();
-        specs.ViewportWidth                      = m_BlurFramebuffers[i]->GetWidth();
-        specs.EnableDynamicStates                = false;
+        m_BlurPipelines[i] = PipelineBuilder(context)
+                                 .SetRenderPass(m_BlurRenderPass)
+                                 .SetDescriptorSetLayout(m_OneSamplerLayout)
+                                 .SetVertexShader("assets/shaders/quadRenderVERT.spv")
+                                 .SetFragmentShader("assets/shaders/blurShaderFRAG.spv")
+                                 .SetDepthTest(VK_FALSE)
+                                 .SetDepthWrite(VK_FALSE)
+                                 .SetFixedViewport(m_BlurFramebuffers[i]->GetWidth(), m_BlurFramebuffers[i]->GetHeight())
+                                 .SetDynamicStatesEnabled(false)
+                                 .Build();
 
-        colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable         = VK_TRUE;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-        specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-        m_BlurPipelines[i]                       = make_s<Pipeline>(EngineInternal::GetContext(), specs);
-
-        // Blur upscaling passes.
-        specs.DescriptorSetLayout = m_TwoSamplerLayout;
-        specs.RenderPass          = m_BlurRenderPass;
-        specs.VertexShaderPath    = "assets/shaders/quadRenderVERT.spv";
-        specs.FragmentShaderPath  = "assets/shaders/upscaleShaderFRAG.spv";
-        specs.ViewportHeight      = m_UpscalingFramebuffers[i]->GetHeight();
-        specs.ViewportWidth       = m_UpscalingFramebuffers[i]->GetWidth();
-
-        m_UpscalingPipelines[i]   = make_s<Pipeline>(EngineInternal::GetContext(), specs);
+        m_UpscalingPipelines[i] = PipelineBuilder(context)
+                                      .SetRenderPass(m_BlurRenderPass)
+                                      .SetDescriptorSetLayout(m_TwoSamplerLayout)
+                                      .SetVertexShader("assets/shaders/quadRenderVERT.spv")
+                                      .SetFragmentShader("assets/shaders/upscaleShaderFRAG.spv")
+                                      .SetDepthTest(VK_FALSE)
+                                      .SetDepthWrite(VK_FALSE)
+                                      .SetFixedViewport(m_UpscalingFramebuffers[i]->GetWidth(), m_UpscalingFramebuffers[i]->GetHeight())
+                                      .SetDynamicStatesEnabled(false)
+                                      .Build();
     }
 
-    // Merge pipeline.
-    specs.DescriptorSetLayout                = m_ThreeSamplerLayout;
-    specs.RenderPass                         = m_MergeRenderPass;
-    specs.CullMode                           = VK_CULL_MODE_BACK_BIT;
-    specs.DepthBiasClamp                     = 0.0f;
-    specs.DepthBiasConstantFactor            = 0.0f;
-    specs.DepthBiasSlopeFactor               = 0.0f;
-    specs.DepthCompareOp                     = VK_COMPARE_OP_LESS_OR_EQUAL;
-    specs.EnableDepthBias                    = false;
-    specs.EnableDepthTesting                 = VK_FALSE;
-    specs.EnableDepthWriting                 = VK_FALSE;
-    specs.FrontFace                          = VK_FRONT_FACE_CLOCKWISE;
-    specs.PolygonMode                        = VK_POLYGON_MODE_FILL;
-    specs.VertexShaderPath                   = "assets/shaders/quadRenderVERT.spv";
-    specs.FragmentShaderPath                 = "assets/shaders/finalPassShaderFRAG.spv";
-    specs.ViewportHeight                     = m_MergeFramebuffer->GetHeight();
-    specs.ViewportWidth                      = m_MergeFramebuffer->GetWidth();
-
-    colorBlendAttachment.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
-
-    specs.ColorBlendAttachmentState          = colorBlendAttachment;
-
-    m_MergePipeline                          = make_u<Pipeline>(EngineInternal::GetContext(), specs);
+    m_MergePipeline = PipelineBuilder(context)
+                          .SetRenderPass(m_MergeRenderPass)
+                          .SetDescriptorSetLayout(m_ThreeSamplerLayout)
+                          .SetVertexShader("assets/shaders/quadRenderVERT.spv")
+                          .SetFragmentShader("assets/shaders/finalPassShaderFRAG.spv")
+                          .SetDepthTest(VK_FALSE)
+                          .SetDepthWrite(VK_FALSE)
+                          .SetFixedViewport(m_MergeFramebuffer->GetWidth(), m_MergeFramebuffer->GetHeight())
+                          .SetDynamicStatesEnabled(false)
+                          .Build();
 }
