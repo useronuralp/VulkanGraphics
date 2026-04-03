@@ -260,18 +260,3 @@ void Model::Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& p
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
     vkCmdDraw(commandBuffer, 36, 1, 0, 0);
 }
-
-void Model::Rotate(const float degree, const float& x, const float& y, const float& z)
-{
-    m_Transform = glm::rotate(m_Transform, glm::radians(degree), glm::vec3(x, y, z));
-}
-
-void Model::Translate(const float& x, const float& y, const float& z)
-{
-    m_Transform = glm::translate(m_Transform, glm::vec3(x, y, z));
-}
-
-void Model::Scale(const float& x, const float& y, const float& z)
-{
-    m_Transform = glm::scale(m_Transform, glm::vec3(x, y, z));
-}

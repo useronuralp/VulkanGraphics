@@ -178,6 +178,7 @@
     <ClInclude Include="src\Image.h" />
     <ClInclude Include="src\Instance.h" />
     <ClInclude Include="src\Device.h" />
+    <ClInclude Include="src\LightObject.h" />
     <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\Model.h" />
     <ClInclude Include="src\OVKLib.h" />
@@ -187,6 +188,8 @@
     <ClInclude Include="src\Renderer\Renderer.h" />
     <ClInclude Include="src\Renderer\RenderPass.h" />
     <ClInclude Include="include\Engine\Scene.h" />
+    <ClInclude Include="src\SceneObject.h" />
+    <ClInclude Include="src\StaticMeshObject.h" />
     <ClInclude Include="src\Surface.h" />
     <ClInclude Include="src\Swapchain.h" />
     <ClInclude Include="src\Utils.h" />
@@ -217,6 +220,7 @@
     <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\Instance.cpp" />
     <ClCompile Include="src\Device.cpp" />
+    <ClCompile Include="src\LightObject.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\ParticleSystem.cpp" />
@@ -225,6 +229,8 @@
     <ClCompile Include="src\Renderer\Renderer.cpp" />
     <ClCompile Include="src\Renderer\RenderPass.cpp" />
     <ClCompile Include="src\Scene.cpp" />
+    <ClCompile Include="src\SceneObject.cpp" />
+    <ClCompile Include="src\StaticMeshObject.cpp" />
     <ClCompile Include="src\Surface.cpp" />
     <ClCompile Include="src\Swapchain.cpp" />
     <ClCompile Include="src\Utils.cpp" />

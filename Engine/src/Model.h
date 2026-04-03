@@ -65,10 +65,6 @@ class Model
     {
         return m_Meshes.size();
     }
-    glm::mat4& GetTransform()
-    {
-        return m_Transform;
-    }
     const Unique<VertexBuffer>& GetVBO()
     {
         return m_VBO;
@@ -77,10 +73,6 @@ class Model
     {
         return m_IBO;
     }
-
-    void Rotate(const float degree, const float& x, const float& y, const float& z);
-    void Translate(const float& x, const float& y, const float& z);
-    void Scale(const float& x, const float& y, const float& z);
 
     void DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
     void Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
@@ -91,7 +83,6 @@ class Model
     Ref<Image> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache);
 
    private:
-    mutable glm::mat4  m_Transform = glm::mat4(1.0f);
     std::vector<Mesh*> m_Meshes;
     LoadingFlags       m_Flags;
 

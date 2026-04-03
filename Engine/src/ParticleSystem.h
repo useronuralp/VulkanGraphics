@@ -116,6 +116,10 @@ class ParticleSystem
     inline void SetEmitterPosition(const glm::vec3& pos)
     {
         m_EmitterPos = pos;
+        for (auto& particle : m_Particles)
+        {
+            particle.Position = glm::vec4(pos, 0.0f);
+        }
     }
     void Draw(const VkCommandBuffer& cmdBuffer, const VkPipelineLayout& pipelineLayout);
 };

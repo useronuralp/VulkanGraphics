@@ -19,7 +19,7 @@ enum class Type
 struct DescriptorSetBindingSpecs
 {
     Type               Type;
-    size_t             Size;
+    size_t             Size; // todo: this is unused. Remove later.
     int                Count;
     VkShaderStageFlags ShaderStage;
     uint32_t           Binding;

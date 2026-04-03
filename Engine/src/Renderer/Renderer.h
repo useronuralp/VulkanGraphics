@@ -1,7 +1,9 @@
 #pragma once
 
 #include "core.h"
+#include "LightObject.h"
 #include "RenderPass.h"
+#include "StaticMeshObject.h"
 
 #include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
@@ -51,6 +53,17 @@ class ForwardRenderer : public RendererInterface
     bool showDOFFocus       = false;
     bool enableDepthOfField = true;
 
+    std::random_device               rd; // obtain a random number from hardware
+    std::mt19937                     gen; // seed the generator
+    std::uniform_real_distribution<> distr;
+
+    float timer                = 0.0f;
+    float directionalNearPlane = 1.0f;
+    float directionalFarPlane  = 100.0f;
+    float pointNearPlane       = 0.1f;
+    float pointFarPlane        = 100.0f;
+    int   frameCount           = 0;
+
     struct GlobalParametersUBO
     {
         // The alignment in a struct equals to the largest base alignemnt of any
@@ -82,7 +95,12 @@ class ForwardRenderer : public RendererInterface
         glm::vec4 fstop;
     };
 
-    // Attachments. Each framebuffer can have multiple attachments.
+    LightObject              directionalLight;
+    std::vector<LightObject> torchLights;
+    LightObject              redLight;
+
+    // todo: couple with render passes.
+    //  Attachments. Each framebuffer can have multiple attachments.
     Ref<Image>              directionalShadowMapImage;
     Ref<Image>              HDRColorImage;
     Ref<Image>              HDRDepthImage;
@@ -100,69 +118,6 @@ class ForwardRenderer : public RendererInterface
     Ref<DescriptorSetLayout> cubeLayout;
     Ref<DescriptorSetLayout> particleSystemLayout;
 
-    // Pipelines
-    Ref<Pipeline> EmissiveObjectPipeline;
-    Ref<Pipeline> finalPassPipeline;
-    Ref<Pipeline> pipeline;
-    Ref<Pipeline> pointShadowPassPipeline;
-    Ref<Pipeline> shadowPassPipeline;
-    Ref<Pipeline> skyboxPipeline;
-    Ref<Pipeline> cubePipeline;
-    Ref<Pipeline> particleSystemPipeline;
-
-    // Models
-    Ref<Model> model;
-    Ref<Model> model2;
-    Ref<Model> model3;
-    Ref<Model> torch;
-    Ref<Model> skybox;
-    Ref<Model> cube;
-
-    Ref<ParticleSystem> fireBase;
-    Ref<ParticleSystem> fireBase2;
-    Ref<ParticleSystem> fireBase3;
-    Ref<ParticleSystem> fireBase4;
-    Ref<ParticleSystem> fireSparks;
-    Ref<ParticleSystem> fireSparks2;
-    Ref<ParticleSystem> fireSparks3;
-    Ref<ParticleSystem> fireSparks4;
-    Ref<ParticleSystem> ambientParticles;
-
-    GlobalParametersUBO globalParametersUBO;
-    VkBuffer            globalParametersUBOBuffer;
-    VkDeviceMemory      globalParametersUBOBufferMemory;
-    void*               mappedGlobalParametersModelUBOBuffer;
-
-    // Others
-    VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool   cmdPool;
-    Ref<Bloom>      bloomAgent;
-    VkSampler       finalPassSampler;
-    VkDescriptorSet finalPassDescriptorSet;
-
-    std::random_device               rd; // obtain a random number from hardware
-    std::mt19937                     gen; // seed the generator
-    std::uniform_real_distribution<> distr;
-
-    glm::mat4 torch1modelMatrix{ 1.0 };
-    glm::mat4 torch2modelMatrix{ 1.0 };
-    glm::mat4 torch3modelMatrix{ 1.0 };
-    glm::mat4 torch4modelMatrix{ 1.0 };
-
-    float     lightFlickerRate                 = 0.07f;
-    float     aniamtionRate                    = 0.013888888f;
-    int       currentAnimationFrame            = 0;
-    float     timer                            = 0.0f;
-    glm::vec4 directionalLightPosition         = glm::vec4(-10.0f, 35.0f, -22.0f, 1.0f);
-    float     directionalNearPlane             = 1.0f;
-    float     directionalFarPlane              = 100.0f;
-    float     pointNearPlane                   = 0.1f;
-    float     pointFarPlane                    = 100.0f;
-    int       frameCount                       = 0;
-
-    glm::mat4 directionalLightProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, directionalNearPlane, directionalFarPlane);
-    glm::mat4 pointLightProjectionMatrix       = glm::perspective(glm::radians(90.0f), 1.0f, pointNearPlane, pointFarPlane);
-
     // Experimental
     Ref<Image>            bokehPassImage;
     VkRenderPassBeginInfo bokehPassBeginInfo;
@@ -176,11 +131,73 @@ class ForwardRenderer : public RendererInterface
     VkDescriptorSet          bokehDescriptorSet;
     Ref<DescriptorSetLayout> bokehPassLayout;
 
+    // Pipelines
+    Ref<Pipeline> EmissiveObjectPipeline;
+    Ref<Pipeline> finalPassPipeline;
+    Ref<Pipeline> pipeline;
+    Ref<Pipeline> pointShadowPassPipeline;
+    Ref<Pipeline> shadowPassPipeline;
+    Ref<Pipeline> skyboxPipeline;
+    Ref<Pipeline> cubePipeline;
+    Ref<Pipeline> particleSystemPipeline;
+
+    // Models
+    StaticMeshObject sponza;
+    Ref<Model>       sponzaModel;
+
+    StaticMeshObject helmet;
+    Ref<Model>       helmetModel;
+
+    StaticMeshObject sword;
+    Ref<Model>       swordModel;
+
+    StaticMeshObject torch;
+    StaticMeshObject torch2;
+    StaticMeshObject torch3;
+    StaticMeshObject torch4;
+    Ref<Model>       torchModel;
+
+    StaticMeshObject skybox;
+    Ref<Model>       skyboxModel;
+
+    StaticMeshObject cube;
+    Ref<Model>       cubeModel;
+
+    Ref<ParticleSystem> fireBase;
+    Ref<ParticleSystem> fireBase2;
+    Ref<ParticleSystem> fireBase3;
+    Ref<ParticleSystem> fireBase4;
+    Ref<ParticleSystem> fireSparks;
+    Ref<ParticleSystem> fireSparks2;
+    Ref<ParticleSystem> fireSparks3;
+    Ref<ParticleSystem> fireSparks4;
+    Ref<ParticleSystem> ambientParticles;
+    float               lightFlickerRate      = 0.07f;
+    float               aniamtionRate         = 0.013888888f;
+    int                 currentAnimationFrame = 0;
+
+    GlobalParametersUBO globalParametersUBO;
+    VkBuffer            globalParametersUBOBuffer;
+    VkDeviceMemory      globalParametersUBOBufferMemory;
+    void*               mappedGlobalParametersModelUBOBuffer;
+
+    // Others
+    VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
+    VkCommandPool   cmdPool;
+    Ref<Bloom>      bloomAgent;
+    VkSampler       finalPassSampler;
+    VkDescriptorSet finalPassDescriptorSet;
+
+    glm::mat4 directionalLightProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, directionalNearPlane, directionalFarPlane);
+    glm::mat4 pointLightProjectionMatrix       = glm::perspective(glm::radians(90.0f), 1.0f, pointNearPlane, pointFarPlane);
+
    private:
+    // Framebuffer creations.
     void CreateHDRFramebuffer();
     void CreateSwapchainFramebuffers();
     void CreateBokehFramebuffer();
 
+    // Pipeline creations.
     void SetupPBRPipeline();
     void SetupFinalPassPipeline();
     void SetupShadowPassPipeline();
@@ -191,15 +208,18 @@ class ForwardRenderer : public RendererInterface
     void SetupParticleSystemPipeline();
     void SetupEmissiveObjectPipeline();
 
+    // Render pass creations.
     void CreateSwapchainRenderPass();
     void CreateBokehRenderPass();
     void CreateHDRRenderPass();
     void CreateShadowRenderPass();
     void CreatePointShadowRenderPass();
 
+    // Specific funcs.
     void SetupParticleSystems();
     void EnableDepthOfField();
     void DisableDepthOfField();
+    void SyncLightsToUBO();
 
    public:
     ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
