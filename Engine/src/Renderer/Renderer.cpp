@@ -7,6 +7,7 @@
 #include "EngineInternal.h"
 #include "Framebuffer.h"
 #include "Instance.h"
+#include "Material.h"
 #include "Mesh.h"
 #include "Model.h"
 #include "ParticleSystem.h"
@@ -53,13 +54,6 @@ void ForwardRenderer::Init()
     _CloudPass->Create(device, extent, pool->GetDescriptorPool());
 
     globalParametersUBO.pointLightCount = glm::vec4(5);
-
-    // Set the point light colors here.
-    globalParametersUBO.pointLightColors[0] = glm::vec4(0.97, 0.76, 0.46, 1.0);
-    globalParametersUBO.pointLightColors[1] = glm::vec4(0.97, 0.76, 0.46, 1.0);
-    globalParametersUBO.pointLightColors[2] = glm::vec4(0.97, 0.76, 0.46, 1.0);
-    globalParametersUBO.pointLightColors[3] = glm::vec4(0.97, 0.76, 0.46, 1.0);
-    globalParametersUBO.pointLightColors[4] = glm::vec4(1.0, 0.0, 0.0, 1.0);
 
     CurlNoise::SetCurlSettings(false, 4.0f, 6, 1.0, 0.0);
     pointShadowMaps.resize(globalParametersUBO.pointLightCount.x);
@@ -172,6 +166,12 @@ void ForwardRenderer::Init()
     SetupParticleSystemPipeline();
     SetupBokehPassPipeline();
 
+    // Materials.
+    pbrMaterial      = make_s<Material>("PBR", pipeline, PBRLayout);
+    emissiveMaterial = make_s<Material>("Emissive", EmissiveObjectPipeline, emissiveLayout);
+    skyboxMaterial   = make_s<Material>("Skybox", skyboxPipeline, skyboxLayout);
+    cubeMaterial     = make_s<Material>("Cube", cubePipeline, cubeLayout);
+
     // Directional light shadowmap framebuffer.
     std::vector<VkImageView> attachments = { directionalShadowMapImage->GetImageView() };
 
@@ -197,6 +197,7 @@ void ForwardRenderer::Init()
 
     sponza = StaticMeshObject("Sponza", sponzaModel);
     sponza.SetScale(glm::vec3(0.005f, 0.005f, 0.005f));
+    sponza.SetMaterial(pbrMaterial);
 
     for (int i = 0; i < sponzaModel->GetMeshCount(); i++)
     {
@@ -216,66 +217,14 @@ void ForwardRenderer::Init()
     helmet.SetPosition(glm::vec3(0.0, 2.0, 0.0));
     helmet.Rotate(90, glm::vec3(0, 1, 0));
     helmet.SetScale(glm::vec3(0.7, 0.7, 0.7));
+    helmet.SetMaterial(pbrMaterial);
 
     for (int i = 0; i < helmetModel->GetMeshCount(); i++)
     {
         Utils::UpdateDescriptorSet(helmetModel->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
     }
 
-    torchModel = make_s<Model>(
-        std::string(SOLUTION_DIR) + "Engine/assets/models/torch/scene.gltf",
-        LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
-        pool,
-        PBRLayout,
-        directionalShadowMapImage,
-        pointShadowMaps);
-
-    torch  = StaticMeshObject("Torch", torchModel);
-    torch2 = StaticMeshObject("Torch2", torchModel);
-    torch3 = StaticMeshObject("Torch3", torchModel);
-    torch4 = StaticMeshObject("Torch4", torchModel);
-
-    torch.SetPosition(glm::vec3(2.450, 1.3, 0.810));
-    torch.Rotate(90.0, glm::vec3(0, 1, 0));
-    torch.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
-
-    torch2.SetPosition(glm::vec3(0.610, 1.3, -1.170));
-    torch2.Rotate(-90.0, glm::vec3(0, 1, 0));
-    torch2.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
-
-    torch3.SetPosition(glm::vec3(0.610, 1.3, 0.81));
-    torch3.Rotate(90.0, glm::vec3(0, 1, 0));
-    torch3.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
-
-    torch4.SetPosition(glm::vec3(2.45, 1.3, -1.170));
-    torch4.Rotate(-90.0, glm::vec3(0, 1, 0));
-    torch4.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
-
-    std::vector<StaticMeshObject*> torches = {
-        { &torch },
-        { &torch2 },
-        { &torch3 },
-        { &torch4 },
-    };
-
-    for (int i = 0; i < torches.size(); i++)
-    {
-        auto& torch = *torches[i];
-
-        LightObject light("Torch Light " + std::to_string(i), LightType::Point);
-        light.SetPosition(glm::vec3(torch.GetPosition().x, torch.GetPosition().y + 0.22f, torch.GetPosition().z));
-        light.SetColor(glm::vec3(0.97f, 0.76f, 0.46f));
-        light.SetIntensity(25.0f);
-        light.SetCastsShadow(true);
-
-        torchLights.push_back(std::move(light));
-    }
-
-    for (int i = 0; i < torchModel->GetMeshCount(); i++)
-    {
-        Utils::UpdateDescriptorSet(torchModel->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
-    }
-
+    SetupTorchesAndLights();
     SetupParticleSystems();
 
     directionalLight = LightObject("Directional Light", LightType::Directional);
@@ -284,13 +233,12 @@ void ForwardRenderer::Init()
     directionalLight.SetColor(glm::vec3(1.0f));
     directionalLight.SetCastsShadow(true);
 
-    globalParametersUBO.cameraNearPlane           = glm::vec4(_Camera->GetNearClip());
-    globalParametersUBO.cameraFarPlane            = glm::vec4(_Camera->GetFarClip());
-    globalParametersUBO.focalDepth                = glm::vec4(1.5f);
-    globalParametersUBO.focalLength               = glm::vec4(15.0f);
-    globalParametersUBO.fstop                     = glm::vec4(6.0f);
-    globalParametersUBO.directionalLightIntensity = glm::vec4(directionalLight.GetIntensity());
-    globalParametersUBO.pointFarPlane             = glm::vec4(pointFarPlane);
+    globalParametersUBO.cameraNearPlane = glm::vec4(_Camera->GetNearClip());
+    globalParametersUBO.cameraFarPlane  = glm::vec4(_Camera->GetFarClip());
+    globalParametersUBO.focalDepth      = glm::vec4(1.5f);
+    globalParametersUBO.focalLength     = glm::vec4(15.0f);
+    globalParametersUBO.fstop           = glm::vec4(6.0f);
+    globalParametersUBO.pointFarPlane   = glm::vec4(pointFarPlane);
 
     swordModel = make_s<Model>(Utils::NormalizePath(std::string(SOLUTION_DIR) + "Engine/assets/models/sword/scene.gltf"), LOAD_VERTEX_POSITIONS, pool, emissiveLayout);
     sword      = StaticMeshObject("Torch", swordModel);
@@ -299,6 +247,7 @@ void ForwardRenderer::Init()
     sword.Rotate(54, glm::vec3(0, 0, 1));
     sword.Rotate(90, glm::vec3(0, 1, 0));
     sword.SetScale(glm::vec3(0.7, 0.7, 0.7));
+    sword.SetMaterial(emissiveMaterial);
 
     for (int i = 0; i < swordModel->GetMeshCount(); i++)
     {
@@ -336,6 +285,7 @@ void ForwardRenderer::Init()
     // Create the mesh for the skybox.
     skyboxModel = make_s<Model>(cubeVertices, vertexCount, cubemap, pool, skyboxLayout);
     skybox      = StaticMeshObject("Skybox", skyboxModel);
+    skybox.SetMaterial(skyboxMaterial);
     Utils::UpdateDescriptorSet(skyboxModel->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, sizeof(glm::mat4), sizeof(glm::mat4), 0);
 
     // A cube model to depict/debug point lights.
@@ -343,6 +293,7 @@ void ForwardRenderer::Init()
     cube      = StaticMeshObject("Cube", cubeModel);
     cube.SetPosition(glm::vec3(-0.3f, 3.190f, -0.180f));
     cube.SetScale(glm::vec3(0.05f));
+    cube.SetMaterial(cubeMaterial);
     Utils::UpdateDescriptorSet(cubeModel->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
     redLight = LightObject("Red Light", LightType::Point);
@@ -350,8 +301,6 @@ void ForwardRenderer::Init()
     redLight.SetColor(glm::vec3(1.0f, 0.0f, 0.0f));
     redLight.SetIntensity(500.0f);
     redLight.SetCastsShadow(true);
-    globalParametersUBO.pointLightPositions[4]   = glm::vec4(redLight.GetPosition(), 1.0);
-    globalParametersUBO.pointLightIntensities[4] = glm::vec4(redLight.GetIntensity());
 
     CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, cmdPool);
 
@@ -376,6 +325,67 @@ void ForwardRenderer::Init()
     Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
     Utils::UpdateDescriptorSet(bokehDescriptorSet, globalParametersUBOBuffer, offsetof(GlobalParametersUBO, DOFFramebufferSize), sizeof(glm::vec4) * 7, 2);
+}
+
+void ForwardRenderer::SetupTorchesAndLights()
+{
+    torchModel = make_s<Model>(
+        std::string(SOLUTION_DIR) + "Engine/assets/models/torch/scene.gltf",
+        LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
+        pool,
+        PBRLayout,
+        directionalShadowMapImage,
+        pointShadowMaps);
+
+    torch  = StaticMeshObject("Torch", torchModel);
+    torch2 = StaticMeshObject("Torch2", torchModel);
+    torch3 = StaticMeshObject("Torch3", torchModel);
+    torch4 = StaticMeshObject("Torch4", torchModel);
+
+    torch.SetPosition(glm::vec3(2.450, 1.3, 0.810));
+    torch.Rotate(90.0, glm::vec3(0, 1, 0));
+    torch.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    torch.SetMaterial(pbrMaterial);
+
+    torch2.SetPosition(glm::vec3(0.610, 1.3, -1.170));
+    torch2.Rotate(-90.0, glm::vec3(0, 1, 0));
+    torch2.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    torch2.SetMaterial(pbrMaterial);
+
+    torch3.SetPosition(glm::vec3(0.610, 1.3, 0.81));
+    torch3.Rotate(90.0, glm::vec3(0, 1, 0));
+    torch3.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    torch3.SetMaterial(pbrMaterial);
+
+    torch4.SetPosition(glm::vec3(2.45, 1.3, -1.170));
+    torch4.Rotate(-90.0, glm::vec3(0, 1, 0));
+    torch4.SetScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    torch4.SetMaterial(pbrMaterial);
+
+    std::vector<StaticMeshObject*> torches = {
+        { &torch },
+        { &torch2 },
+        { &torch3 },
+        { &torch4 },
+    };
+
+    for (int i = 0; i < torches.size(); i++)
+    {
+        auto& torch = *torches[i];
+
+        LightObject light("Torch Light " + std::to_string(i), LightType::Point);
+        light.SetPosition(glm::vec3(torch.GetPosition().x, torch.GetPosition().y + 0.22f, torch.GetPosition().z));
+        light.SetColor(glm::vec3(0.97f, 0.76f, 0.46f));
+        light.SetIntensity(25.0f);
+        light.SetCastsShadow(true);
+
+        torchLights.push_back(std::move(light));
+    }
+
+    for (int i = 0; i < torchModel->GetMeshCount(); i++)
+    {
+        Utils::UpdateDescriptorSet(torchModel->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
+    }
 }
 
 void ForwardRenderer::SetupPBRPipeline()
@@ -514,157 +524,66 @@ void ForwardRenderer::SetupParticleSystems()
     fireTexture     = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/fire_sprite_sheet.png") }, VK_FORMAT_R8G8B8A8_SRGB);
     dustTexture     = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/dust.png") }, VK_FORMAT_R8G8B8A8_SRGB);
 
-    ParticleSpecs specs{};
-    specs.ParticleCount       = 10;
-    specs.EnableNoise         = true;
-    specs.TrailLength         = 2;
-    specs.SphereRadius        = 0.05f;
-    specs.ImmortalParticle    = false;
-    specs.ParticleSize        = 0.5f;
-    specs.EmitterPos          = torch.GetPosition() + glm::vec3(0.0f, 0.22f, -0.02f);
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 3.0f;
-    specs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
-    specs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
+    std::vector<StaticMeshObject*> torches = { &torch, &torch2, &torch3, &torch4 };
+    std::vector<LightObject*>      lights  = { &torchLights[0], &torchLights[1], &torchLights[2], &torchLights[3] };
 
-    fireSparks                = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
-    fireSparks->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
+    for (int i = 0; i < torches.size(); i++)
+    {
+        glm::vec3 pos = torches[i]->GetPosition();
 
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 1.5f;
-    specs.SphereRadius        = 0.0f;
-    specs.TrailLength         = 0;
-    specs.ParticleCount       = 1;
-    specs.ImmortalParticle    = true;
-    specs.ParticleSize        = 13.0f;
-    specs.EnableNoise         = false;
-    specs.EmitterPos          = torch.GetPosition() + glm::vec3(0.0f, 0.28f, -0.03f);
-    specs.MinVel              = glm::vec4(0.0f);
-    specs.MaxVel              = glm::vec4(0.0f);
+        ParticleSpecs sparkSpecs{};
+        sparkSpecs.ParticleCount       = 10;
+        sparkSpecs.EnableNoise         = true;
+        sparkSpecs.TrailLength         = 2;
+        sparkSpecs.SphereRadius        = 0.05f;
+        sparkSpecs.ImmortalParticle    = false;
+        sparkSpecs.ParticleSize        = 0.5f;
+        sparkSpecs.EmitterPos          = pos + glm::vec3(0.0f, 0.22f, 0.0f);
+        sparkSpecs.ParticleMinLifetime = 0.1f;
+        sparkSpecs.ParticleMaxLifetime = 3.0f;
+        sparkSpecs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
+        sparkSpecs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
 
-    fireBase                  = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
-    fireBase->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-    fireBase->RowOffset       = 0.0f;
-    fireBase->RowCellSize     = 0.0833333333333333333333f;
-    fireBase->ColumnCellSize  = 0.166666666666666f;
-    fireBase->ColumnOffset    = 0.0f;
+        auto sparks                    = make_s<ParticleSystem>(sparkSpecs, particleTexture, particleSystemLayout, pool);
+        sparks->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 
-    specs.ParticleCount       = 10;
-    specs.EnableNoise         = true;
-    specs.TrailLength         = 2;
-    specs.SphereRadius        = 0.05f;
-    specs.ImmortalParticle    = false;
-    specs.ParticleSize        = 0.5f;
-    specs.EmitterPos          = torch2.GetPosition() + glm::vec3(0.0f, 0.22f, -0.02f);
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 3.0f;
-    specs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
-    specs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
+        ParticleSpecs flameSpecs{};
+        flameSpecs.ParticleCount       = 1;
+        flameSpecs.ImmortalParticle    = true;
+        flameSpecs.ParticleSize        = 13.0f;
+        flameSpecs.EnableNoise         = false;
+        flameSpecs.SphereRadius        = 0.0f;
+        flameSpecs.TrailLength         = 0;
+        flameSpecs.EmitterPos          = pos + glm::vec3(0.0f, 0.28f, 0.0f);
+        flameSpecs.ParticleMinLifetime = 0.1f;
+        flameSpecs.ParticleMaxLifetime = 1.5f;
+        flameSpecs.MinVel              = glm::vec3(0.0f);
+        flameSpecs.MaxVel              = glm::vec3(0.0f);
 
-    fireSparks2               = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
-    fireSparks2->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
+        auto flame                     = make_s<ParticleSystem>(flameSpecs, fireTexture, particleSystemLayout, pool);
+        flame->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
+        flame->RowOffset      = 0.0f;
+        flame->RowCellSize    = 0.0833333333333333333333f;
+        flame->ColumnCellSize = 0.166666666666666f;
+        flame->ColumnOffset   = 0.0f;
 
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 1.5f;
-    specs.SphereRadius        = 0.0f;
-    specs.TrailLength         = 0;
-    specs.ParticleCount       = 1;
-    specs.ImmortalParticle    = true;
-    specs.ParticleSize        = 13.0f;
-    specs.EnableNoise         = false;
-    specs.EmitterPos          = torch2.GetPosition() + glm::vec3(0.0f, 0.28f, 0.03f);
-    specs.MinVel              = glm::vec4(0.0f);
-    specs.MaxVel              = glm::vec4(0.0f);
+        torchGroups.push_back({ torches[i], lights[i], sparks, flame });
+    }
 
-    fireBase2                 = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
-    fireBase2->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-    fireBase2->RowOffset      = 0.0f;
-    fireBase2->RowCellSize    = 0.0833333333333333333333f;
-    fireBase2->ColumnCellSize = 0.166666666666666f;
-    fireBase2->ColumnOffset   = 0.0f;
+    ParticleSpecs ambientSpecs{};
+    ambientSpecs.ParticleCount       = 500;
+    ambientSpecs.EnableNoise         = true;
+    ambientSpecs.TrailLength         = 0;
+    ambientSpecs.SphereRadius        = 5.0f;
+    ambientSpecs.ImmortalParticle    = true;
+    ambientSpecs.ParticleSize        = 0.5f;
+    ambientSpecs.EmitterPos          = glm::vec3(0, 2.0f, 0);
+    ambientSpecs.ParticleMinLifetime = 5.0f;
+    ambientSpecs.ParticleMaxLifetime = 10.0f;
+    ambientSpecs.MinVel              = glm::vec3(-0.3f, -0.3f, -0.3f);
+    ambientSpecs.MaxVel              = glm::vec3(0.3f, 0.3f, 0.3f);
 
-    specs.ParticleCount       = 10;
-    specs.EnableNoise         = true;
-    specs.TrailLength         = 2;
-    specs.SphereRadius        = 0.05f;
-    specs.ImmortalParticle    = false;
-    specs.ParticleSize        = 0.5f;
-    specs.EmitterPos          = torch3.GetPosition() + glm::vec3(0.0f, 0.22f, -0.02f);
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 3.0f;
-    ;
-    specs.MinVel = glm::vec3(-1.0f, 0.1f, -1.0f);
-    specs.MaxVel = glm::vec3(1.0f, 2.0f, 1.0f);
-
-    fireSparks3  = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
-    fireSparks3->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 1.5f;
-    specs.SphereRadius        = 0.0f;
-    specs.TrailLength         = 0;
-    specs.ParticleCount       = 1;
-    specs.ImmortalParticle    = true;
-    specs.ParticleSize        = 13.0f;
-    specs.EnableNoise         = false;
-    specs.EmitterPos          = torch3.GetPosition() + glm::vec3(0.0f, 0.28f, -0.03f);
-    specs.MinVel              = glm::vec4(0.0f);
-    specs.MaxVel              = glm::vec4(0.0f);
-
-    fireBase3                 = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
-    fireBase3->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-    fireBase3->RowOffset      = 0.0f;
-    fireBase3->RowCellSize    = 0.0833333333333333333333f;
-    fireBase3->ColumnCellSize = 0.166666666666666f;
-    fireBase3->ColumnOffset   = 0.0f;
-
-    specs.ParticleCount       = 10;
-    specs.EnableNoise         = true;
-    specs.TrailLength         = 2;
-    specs.SphereRadius        = 0.05f;
-    specs.ImmortalParticle    = false;
-    specs.ParticleSize        = 0.5f;
-    specs.EmitterPos          = torch4.GetPosition() + glm::vec3(0.0f, 0.22f, -0.02f);
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 3.0f;
-    specs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
-    specs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
-
-    fireSparks4               = make_s<ParticleSystem>(specs, particleTexture, particleSystemLayout, pool);
-    fireSparks4->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-
-    specs.ParticleMinLifetime = 0.1f;
-    specs.ParticleMaxLifetime = 1.5f;
-    specs.SphereRadius        = 0.0f;
-    specs.TrailLength         = 0;
-    specs.ParticleCount       = 1;
-    specs.ImmortalParticle    = true;
-    specs.ParticleSize        = 13.0f;
-    specs.EnableNoise         = false;
-    specs.EmitterPos          = torch4.GetPosition() + glm::vec3(0.0f, 0.28f, 0.03f);
-    specs.MinVel              = glm::vec4(0.0f);
-    specs.MaxVel              = glm::vec4(0.0f);
-
-    fireBase4                 = make_s<ParticleSystem>(specs, fireTexture, particleSystemLayout, pool);
-    fireBase4->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-    fireBase4->RowOffset      = 0.0f;
-    fireBase4->RowCellSize    = 0.0833333333333333333333f;
-    fireBase4->ColumnCellSize = 0.166666666666666f;
-    fireBase4->ColumnOffset   = 0.0f;
-
-    specs.ParticleCount       = 500;
-    specs.EnableNoise         = true;
-    specs.TrailLength         = 0;
-    specs.SphereRadius        = 5.0f;
-    specs.ImmortalParticle    = true;
-    specs.ParticleSize        = 0.5f;
-    specs.EmitterPos          = glm::vec3(0, 2.0f, 0);
-    specs.ParticleMinLifetime = 5.0f;
-    specs.ParticleMaxLifetime = 10.0f;
-    specs.MinVel              = glm::vec3(-0.3f, -0.3f, -0.3f);
-    specs.MaxVel              = glm::vec3(0.3f, 0.3f, 0.3f);
-
-    ambientParticles          = make_s<ParticleSystem>(specs, dustTexture, particleSystemLayout, pool);
+    ambientParticles                 = make_s<ParticleSystem>(ambientSpecs, dustTexture, particleSystemLayout, pool);
     ambientParticles->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
 }
 
@@ -1027,15 +946,11 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     helmet.Rotate(2.0f * _DeltaTime, glm::vec3(0, 1, 0));
 
     // Update the particle systems.
-    fireSparks->UpdateParticles(_DeltaTime);
-    fireSparks2->UpdateParticles(_DeltaTime);
-    fireSparks3->UpdateParticles(_DeltaTime);
-    fireSparks4->UpdateParticles(_DeltaTime);
-    fireBase->UpdateParticles(_DeltaTime);
-    fireBase2->UpdateParticles(_DeltaTime);
-    fireBase3->UpdateParticles(_DeltaTime);
-    fireBase4->UpdateParticles(_DeltaTime);
-    ambientParticles->UpdateParticles(_DeltaTime);
+    for (auto& group : torchGroups)
+    {
+        group.Sparks->UpdateParticles(_DeltaTime);
+        group.Flame->UpdateParticles(_DeltaTime);
+    }
 
     // Animating the directional light
     glm::mat4 directionalLightMVP = directionalLightProjectionMatrix * glm::lookAt(directionalLight.GetPosition(), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -1199,18 +1114,12 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         {
             if (ct >= currentAnimationFrame)
             {
-                fireBase->RowOffset     = 0.0833333333333333333333f * j;
-                fireBase->ColumnOffset  = 0.166666666666666f * i;
-
-                fireBase2->RowOffset    = 0.0833333333333333333333f * j;
-                fireBase2->ColumnOffset = 0.166666666666666f * i;
-
-                fireBase3->RowOffset    = 0.0833333333333333333333f * j;
-                fireBase3->ColumnOffset = 0.166666666666666f * i;
-
-                fireBase4->RowOffset    = 0.0833333333333333333333f * j;
-                fireBase4->ColumnOffset = 0.166666666666666f * i;
-                done                    = true;
+                for (auto& group : torchGroups)
+                {
+                    group.Flame->RowOffset    = 0.0833333333333333333333f * j;
+                    group.Flame->ColumnOffset = 0.166666666666666f * i;
+                }
+                done = true;
                 break;
             }
             ct++;
@@ -1283,7 +1192,8 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 _HDRRenderPass->Begin(cmd, *_HDRFramebuffer, "HDR Pass");
                 //  Drawing the skybox.
                 glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
-                CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
+                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
+                skybox.GetMaterial()->Bind(cmd);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
 
@@ -1301,35 +1211,42 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 cube.SetPosition(redLight.GetPosition());
                 lightCubePC.modelMat = cube.GetTransform();
                 lightCubePC.color    = glm::vec4(4.5f, 1.0f, 1.0f, 1.0f);
-                CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
+                cube.GetMaterial()->Bind(cmd);
+                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
                 CommandBuffer::PushConstants(cmd, cubePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &lightCubePC);
                 cube.GetModel()->Draw(cmd, cubePipeline->GetPipelineLayout());
 
                 // Drawing the Sponza.
-                CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+                sponza.GetMaterial()->Bind(cmd);
+                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
                 CommandBuffer::PushConstants(cmd, pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
                 sponza.GetModel()->DrawIndexed(cmd, pipeline->GetPipelineLayout());
 
                 // Drawing the helmet.
+                helmet.GetMaterial()->Bind(cmd);
                 CommandBuffer::PushConstants(cmd, pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat2);
                 helmet.GetModel()->DrawIndexed(cmd, pipeline->GetPipelineLayout());
 
                 // Drawing 4 torches.
                 for (int i = 0; i < torch.GetModel()->GetMeshCount(); i++)
                 {
+                    torch.GetMaterial()->Bind(cmd);
                     CommandBuffer::PushConstants(cmd, pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch.GetTransform());
                     torch.GetModel()->DrawIndexed(cmd, pipeline->GetPipelineLayout());
 
+                    torch2.GetMaterial()->Bind(cmd);
                     CommandBuffer::PushConstants(cmd, pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch2.GetTransform());
                     torch2.GetModel()->DrawIndexed(cmd, pipeline->GetPipelineLayout());
 
+                    torch3.GetMaterial()->Bind(cmd);
                     CommandBuffer::PushConstants(cmd, pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch3.GetTransform());
                     torch3.GetModel()->DrawIndexed(cmd, pipeline->GetPipelineLayout());
 
+                    torch4.GetMaterial()->Bind(cmd);
                     CommandBuffer::PushConstants(cmd, pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &torch4.GetTransform());
                     torch4.GetModel()->DrawIndexed(cmd, pipeline->GetPipelineLayout());
                 }
@@ -1338,7 +1255,8 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 // Draw the emissive sword.
                 swordPC.modelMat = sword.GetTransform();
                 swordPC.color    = glm::vec4(0.1f, 3.0f, 0.1f, 1.0f);
-                CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
+                sword.GetMaterial()->Bind(cmd);
+                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
                 CommandBuffer::PushConstants(
@@ -1358,16 +1276,17 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 dustBrigthness.x = 1.0f;
 
                 CommandBuffer::PushConstants(cmd, particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &sparkBrigtness);
-                fireSparks->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
-                fireSparks2->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
-                fireSparks3->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
-                fireSparks4->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
+                for (auto& group : torchGroups)
+                {
+                    group.Sparks->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
+                }
 
                 CommandBuffer::PushConstants(cmd, particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &flameBrigthness);
-                fireBase->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
-                fireBase2->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
-                fireBase3->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
-                fireBase4->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
+
+                for (auto& group : torchGroups)
+                {
+                    group.Flame->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
+                }
 
                 CommandBuffer::PushConstants(cmd, particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &dustBrigthness);
                 ambientParticles->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
@@ -1479,40 +1398,17 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                     sword.SetPosition(swordPos);
                 }
 
-                glm::vec3 torchPos = torch.GetPosition();
-                if (ImGui::DragFloat3("Torch 1", &torchPos.x, 0.01f, -10, 10))
+                for (int i = 0; i < torchGroups.size(); i++)
                 {
-                    torch.SetPosition(torchPos);
-                    torchLights[0].SetPosition(torch.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireSparks->SetEmitterPosition(torch.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireBase->SetEmitterPosition(torch.GetPosition() + glm::vec3(0.0f, 0.28f, 0.0f));
-                }
-
-                glm::vec3 torch2Pos = torch2.GetPosition();
-                if (ImGui::DragFloat3("Torch 2", &torch2Pos.x, 0.01f, -10, 10))
-                {
-                    torch2.SetPosition(torch2Pos);
-                    torchLights[1].SetPosition(torch2.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireSparks2->SetEmitterPosition(torch2.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireBase2->SetEmitterPosition(torch2.GetPosition() + glm::vec3(0.0f, 0.28f, 0.0f));
-                }
-
-                glm::vec3 torch3Pos = torch3.GetPosition();
-                if (ImGui::DragFloat3("Torch 3", &torch3Pos.x, 0.01f, -10, 10))
-                {
-                    torch3.SetPosition(torch3Pos);
-                    torchLights[2].SetPosition(torch3.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireSparks3->SetEmitterPosition(torch3.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireBase3->SetEmitterPosition(torch3.GetPosition() + glm::vec3(0.0f, 0.28f, 0.0f));
-                }
-
-                glm::vec3 torch4Pos = torch4.GetPosition();
-                if (ImGui::DragFloat3("Torch 4", &torch4Pos.x, 0.01f, -10, 10))
-                {
-                    torch4.SetPosition(torch4Pos);
-                    torchLights[3].SetPosition(torch4.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireSparks4->SetEmitterPosition(torch4.GetPosition() + glm::vec3(0.0f, 0.22f, 0.0f));
-                    fireBase4->SetEmitterPosition(torch4.GetPosition() + glm::vec3(0.0f, 0.28f, 0.0f));
+                    auto&     group = torchGroups[i];
+                    glm::vec3 pos   = group.Torch->GetPosition();
+                    if (ImGui::DragFloat3(("Torch " + std::to_string(i + 1)).c_str(), &pos.x, 0.01f, -10, 10))
+                    {
+                        group.Torch->SetPosition(pos);
+                        group.Light->SetPosition(pos + glm::vec3(0.0f, 0.22f, 0.0f));
+                        group.Sparks->SetEmitterPosition(pos + glm::vec3(0.0f, 0.22f, 0.0f));
+                        group.Flame->SetEmitterPosition(pos + glm::vec3(0.0f, 0.28f, 0.0f));
+                    }
                 }
 
                 glm::vec3 redPos = redLight.GetPosition();

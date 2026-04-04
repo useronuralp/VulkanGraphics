@@ -45,6 +45,14 @@ class RendererInterface
 
 class ForwardRenderer : public RendererInterface
 {
+    struct TorchFireGroup
+    {
+        StaticMeshObject*   Torch;
+        LightObject*        Light;
+        Ref<ParticleSystem> Sparks;
+        Ref<ParticleSystem> Flame;
+    };
+
    public:
     VkDescriptorPool          imguiPool;
     ImGui_ImplVulkan_InitInfo init_info;
@@ -95,9 +103,10 @@ class ForwardRenderer : public RendererInterface
         glm::vec4 fstop;
     };
 
-    LightObject              directionalLight;
-    std::vector<LightObject> torchLights;
-    LightObject              redLight;
+    LightObject                 directionalLight;
+    std::vector<LightObject>    torchLights;
+    LightObject                 redLight;
+    std::vector<TorchFireGroup> torchGroups;
 
     // todo: couple with render passes.
     //  Attachments. Each framebuffer can have multiple attachments.
@@ -163,14 +172,6 @@ class ForwardRenderer : public RendererInterface
     StaticMeshObject cube;
     Ref<Model>       cubeModel;
 
-    Ref<ParticleSystem> fireBase;
-    Ref<ParticleSystem> fireBase2;
-    Ref<ParticleSystem> fireBase3;
-    Ref<ParticleSystem> fireBase4;
-    Ref<ParticleSystem> fireSparks;
-    Ref<ParticleSystem> fireSparks2;
-    Ref<ParticleSystem> fireSparks3;
-    Ref<ParticleSystem> fireSparks4;
     Ref<ParticleSystem> ambientParticles;
     float               lightFlickerRate      = 0.07f;
     float               aniamtionRate         = 0.013888888f;
@@ -180,6 +181,11 @@ class ForwardRenderer : public RendererInterface
     VkBuffer            globalParametersUBOBuffer;
     VkDeviceMemory      globalParametersUBOBufferMemory;
     void*               mappedGlobalParametersModelUBOBuffer;
+
+    Ref<Material> pbrMaterial;
+    Ref<Material> emissiveMaterial;
+    Ref<Material> skyboxMaterial;
+    Ref<Material> cubeMaterial;
 
     // Others
     VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
@@ -220,6 +226,7 @@ class ForwardRenderer : public RendererInterface
     void EnableDepthOfField();
     void DisableDepthOfField();
     void SyncLightsToUBO();
+    void SetupTorchesAndLights();
 
    public:
     ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
