@@ -17,19 +17,20 @@ Bloom::Bloom()
 {
     CreateRenderPasses();
     CreateFramebuffers();
-    std::vector<DescriptorSetBindingSpecs> layout{
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 },
+
+    std::vector<DescriptorBinding> layout{
+        { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
     };
 
-    std::vector<DescriptorSetBindingSpecs> layout2{
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
+    std::vector<DescriptorBinding> layout2{
+        { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
     };
 
-    std::vector<DescriptorSetBindingSpecs> layout3{
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 2 },
+    std::vector<DescriptorBinding> layout3{
+        { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+        { 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
     };
 
     std::vector<VkDescriptorType> types;

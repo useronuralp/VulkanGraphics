@@ -9,6 +9,7 @@
 #include "Instance.h"
 #include "Material.h"
 #include "Mesh.h"
+#include "MeshBindingHelper.h"
 #include "Model.h"
 #include "ParticleSystem.h"
 #include "PhysicalDevice.h"
@@ -23,6 +24,9 @@
 
 #include <Curl.h>
 #include <filesystem>
+#include <glm/gtc/matrix_transform.hpp>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
 #include <iostream>
 
 static bool printedDependencies = false;
@@ -59,38 +63,41 @@ void ForwardRenderer::Init()
     pointShadowMaps.resize(globalParametersUBO.pointLightCount.x);
     _PointShadowMapFramebuffers.resize(globalParametersUBO.pointLightCount.x);
 
-    std::vector<DescriptorSetBindingSpecs> hdrLayout{
-        DescriptorSetBindingSpecs{
-            Type::UNIFORM_BUFFER, sizeof(GlobalParametersUBO), 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_NORMAL, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 2 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_ROUGHNESSMETALLIC, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 3 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_SHADOWMAP, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 4 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_POINTSHADOWMAP, UINT64_MAX, 5, VK_SHADER_STAGE_FRAGMENT_BIT, 5 },
+    std::vector<DescriptorBinding> hdrLayout{
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
+        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }, // Diffuse
+        { 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }, // Normal
+        { 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }, // Roughness/Metallic
+        { 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }, // Shadow map
+        { 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5, VK_SHADER_STAGE_FRAGMENT_BIT }, // Point shadows
     };
 
-    std::vector<DescriptorSetBindingSpecs> SkyboxLayout{ DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, sizeof(glm::mat4), 1, VK_SHADER_STAGE_VERTEX_BIT, 0 },
-                                                         DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_CUBEMAP, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 } };
-
-    std::vector<DescriptorSetBindingSpecs> ParticleSystemLayout{
-        DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 1, VK_SHADER_STAGE_VERTEX_BIT, 0 }, // Index 0
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 }, // Index 3
+    std::vector<DescriptorBinding> SkyboxLayout{
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT },
+        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
     };
 
-    std::vector<DescriptorSetBindingSpecs> SwapchainLayout{ DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 } };
-
-    std::vector<DescriptorSetBindingSpecs> EmissiveLayout{
-        DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, sizeof(glm::mat4) * 2, 1, VK_SHADER_STAGE_VERTEX_BIT, 0 },
+    std::vector<DescriptorBinding> ParticleSystemLayout{
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT },
+        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
     };
 
-    std::vector<DescriptorSetBindingSpecs> CubeLayout{
-        DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, sizeof(glm::mat4) * 2, 1, VK_SHADER_STAGE_VERTEX_BIT, 0 },
+    std::vector<DescriptorBinding> SwapchainLayout{
+        { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
     };
 
-    std::vector<DescriptorSetBindingSpecs> BokehPassLayout{
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0 },
-        DescriptorSetBindingSpecs{ Type::TEXTURE_SAMPLER_DIFFUSE, UINT64_MAX, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 1 },
-        DescriptorSetBindingSpecs{ Type::UNIFORM_BUFFER, sizeof(glm::vec4) * 7, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 2 },
+    std::vector<DescriptorBinding> EmissiveLayout{
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT },
+    };
+
+    std::vector<DescriptorBinding> CubeLayout{
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT },
+    };
+
+    std::vector<DescriptorBinding> BokehPassLayout{
+        { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+        { 2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
     };
 
     // Descriptor Set Layouts
@@ -188,41 +195,23 @@ void ForwardRenderer::Init()
 
     // Loading the model Sponza
     sponzaModel = make_s<Model>(
-        std::string(SOLUTION_DIR) + "Engine/assets/models/Sponza/scene.gltf",
-        LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
-        pool,
-        PBRLayout,
-        directionalShadowMapImage,
-        pointShadowMaps);
+        std::string(SOLUTION_DIR) + "Engine/assets/models/Sponza/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+    MeshBinding::BindModelPBR(sponzaModel, pool, PBRLayout, globalParametersUBOBuffer, sizeof(GlobalParametersUBO), directionalShadowMapImage, pointShadowMaps);
 
     sponza = StaticMeshObject("Sponza", sponzaModel);
     sponza.SetScale(glm::vec3(0.005f, 0.005f, 0.005f));
     sponza.SetMaterial(pbrMaterial);
 
-    for (int i = 0; i < sponzaModel->GetMeshCount(); i++)
-    {
-        Utils::UpdateDescriptorSet(sponzaModel->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
-    }
-
     // Loading the model Malenia's Helmet.
     helmetModel = make_s<Model>(
-        std::string(SOLUTION_DIR) + "Engine/assets/models/MaleniaHelmet/scene.gltf",
-        LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
-        pool,
-        PBRLayout,
-        directionalShadowMapImage,
-        pointShadowMaps);
-    helmet = StaticMeshObject("MaleniaHelmet", helmetModel);
+        std::string(SOLUTION_DIR) + "Engine/assets/models/MaleniaHelmet/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+    MeshBinding::BindModelPBR(helmetModel, pool, PBRLayout, globalParametersUBOBuffer, sizeof(GlobalParametersUBO), directionalShadowMapImage, pointShadowMaps);
 
+    helmet = StaticMeshObject("MaleniaHelmet", helmetModel);
     helmet.SetPosition(glm::vec3(0.0, 2.0, 0.0));
     helmet.Rotate(90, glm::vec3(0, 1, 0));
     helmet.SetScale(glm::vec3(0.7, 0.7, 0.7));
     helmet.SetMaterial(pbrMaterial);
-
-    for (int i = 0; i < helmetModel->GetMeshCount(); i++)
-    {
-        Utils::UpdateDescriptorSet(helmetModel->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
-    }
 
     SetupTorchesAndLights();
     SetupParticleSystems();
@@ -240,19 +229,15 @@ void ForwardRenderer::Init()
     globalParametersUBO.fstop           = glm::vec4(6.0f);
     globalParametersUBO.pointFarPlane   = glm::vec4(pointFarPlane);
 
-    swordModel = make_s<Model>(Utils::NormalizePath(std::string(SOLUTION_DIR) + "Engine/assets/models/sword/scene.gltf"), LOAD_VERTEX_POSITIONS, pool, emissiveLayout);
-    sword      = StaticMeshObject("Torch", swordModel);
+    swordModel                          = make_s<Model>(Utils::NormalizePath(std::string(SOLUTION_DIR) + "Engine/assets/models/sword/scene.gltf"), LOAD_VERTEX_POSITIONS);
+    MeshBinding::BindModelSimple(swordModel, pool, emissiveLayout, globalParametersUBOBuffer, sizeof(glm::mat4) * 2);
 
+    sword = StaticMeshObject("Torch", swordModel);
     sword.SetPosition(glm::vec3(-2, 7, 0));
     sword.Rotate(54, glm::vec3(0, 0, 1));
     sword.Rotate(90, glm::vec3(0, 1, 0));
     sword.SetScale(glm::vec3(0.7, 0.7, 0.7));
     sword.SetMaterial(emissiveMaterial);
-
-    for (int i = 0; i < swordModel->GetMeshCount(); i++)
-    {
-        Utils::UpdateDescriptorSet(swordModel->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) * 2, 0);
-    }
 
     // Vertex data for the skybox.
     const uint32_t vertexCount               = 3 * 6 * 6;
@@ -283,18 +268,20 @@ void ForwardRenderer::Init()
     Ref<Image>               cubemap = make_s<Image>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
 
     // Create the mesh for the skybox.
-    skyboxModel = make_s<Model>(cubeVertices, vertexCount, cubemap, pool, skyboxLayout);
-    skybox      = StaticMeshObject("Skybox", skyboxModel);
+    skyboxModel = make_s<Model>(cubeVertices, vertexCount, cubemap);
+    MeshBinding::BindSkybox(skyboxModel->GetMeshes()[0], pool, skyboxLayout, globalParametersUBOBuffer);
+
+    skybox = StaticMeshObject("Skybox", skyboxModel);
     skybox.SetMaterial(skyboxMaterial);
-    Utils::UpdateDescriptorSet(skyboxModel->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, sizeof(glm::mat4), sizeof(glm::mat4), 0);
 
     // A cube model to depict/debug point lights.
-    cubeModel = make_s<Model>(cubeVertices, vertexCount, nullptr, pool, cubeLayout);
-    cube      = StaticMeshObject("Cube", cubeModel);
+    cubeModel = make_s<Model>(cubeVertices, vertexCount);
+    MeshBinding::BindSimple(cubeModel->GetMeshes()[0], pool, cubeLayout, globalParametersUBOBuffer, sizeof(glm::mat4) * 2);
+
+    cube = StaticMeshObject("Cube", cubeModel);
     cube.SetPosition(glm::vec3(-0.3f, 3.190f, -0.180f));
     cube.SetScale(glm::vec3(0.05f));
     cube.SetMaterial(cubeMaterial);
-    Utils::UpdateDescriptorSet(cubeModel->GetMeshes()[0]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(glm::mat4) + sizeof(glm::mat4), 0);
 
     redLight = LightObject("Red Light", LightType::Point);
     redLight.SetPosition(cube.GetPosition());
@@ -330,12 +317,8 @@ void ForwardRenderer::Init()
 void ForwardRenderer::SetupTorchesAndLights()
 {
     torchModel = make_s<Model>(
-        std::string(SOLUTION_DIR) + "Engine/assets/models/torch/scene.gltf",
-        LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV,
-        pool,
-        PBRLayout,
-        directionalShadowMapImage,
-        pointShadowMaps);
+        std::string(SOLUTION_DIR) + "Engine/assets/models/torch/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+    MeshBinding::BindModelPBR(torchModel, pool, PBRLayout, globalParametersUBOBuffer, sizeof(GlobalParametersUBO), directionalShadowMapImage, pointShadowMaps);
 
     torch  = StaticMeshObject("Torch", torchModel);
     torch2 = StaticMeshObject("Torch2", torchModel);
@@ -380,11 +363,6 @@ void ForwardRenderer::SetupTorchesAndLights()
         light.SetCastsShadow(true);
 
         torchLights.push_back(std::move(light));
-    }
-
-    for (int i = 0; i < torchModel->GetMeshCount(); i++)
-    {
-        Utils::UpdateDescriptorSet(torchModel->GetMeshes()[i]->GetDescriptorSet(), globalParametersUBOBuffer, 0, sizeof(GlobalParametersUBO), 0);
     }
 }
 
@@ -1192,7 +1170,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 _HDRRenderPass->Begin(cmd, *_HDRFramebuffer, "HDR Pass");
                 //  Drawing the skybox.
                 glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
-                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
                 skybox.GetMaterial()->Bind(cmd);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
@@ -1212,7 +1189,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 lightCubePC.modelMat = cube.GetTransform();
                 lightCubePC.color    = glm::vec4(4.5f, 1.0f, 1.0f, 1.0f);
                 cube.GetMaterial()->Bind(cmd);
-                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cubePipeline);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
                 CommandBuffer::PushConstants(cmd, cubePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4) + sizeof(glm::vec4), &lightCubePC);
@@ -1220,7 +1196,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
 
                 // Drawing the Sponza.
                 sponza.GetMaterial()->Bind(cmd);
-                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
                 CommandBuffer::PushConstants(cmd, pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &mat);
@@ -1256,7 +1231,6 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 swordPC.modelMat = sword.GetTransform();
                 swordPC.color    = glm::vec4(0.1f, 3.0f, 0.1f, 1.0f);
                 sword.GetMaterial()->Bind(cmd);
-                // CommandBuffer::BindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, EmissiveObjectPipeline);
                 vkCmdSetViewport(cmd, 0, 1, &_DynamicViewport);
                 vkCmdSetScissor(cmd, 0, 1, &_DynamicScissor);
                 CommandBuffer::PushConstants(

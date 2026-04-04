@@ -6,10 +6,7 @@
 #include "StaticMeshObject.h"
 
 #include <chrono>
-#include <glm/gtc/matrix_transform.hpp>
-#include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
-#include <random>
 
 class CloudPass;
 class RenderPass;
@@ -24,6 +21,7 @@ class ParticleSystem;
 class DescriptorSetLayout;
 class Bloom;
 class DescriptorPool;
+class Material;
 
 #define MAX_POINT_LIGHT_COUNT 10
 #define SHADOW_DIM            10000
@@ -34,13 +32,13 @@ class RendererInterface
    public:
     virtual ~RendererInterface()              = default;
 
-    virtual void Init()                       = 0; // Initialize renderer resources
-    virtual bool BeginFrame()                 = 0; // Start command buffer/frame
-    virtual void RenderFrame(float DeltaTime) = 0; // Render the main scene
-    virtual void EndFrame()                   = 0; // Submit frame
-    virtual void InitImGui()                  = 0; // Submit frame
-    virtual void RenderImGui()                = 0; // Submit frame
-    virtual void Cleanup()                    = 0; // Submit frame
+    virtual void Init()                       = 0;
+    virtual bool BeginFrame()                 = 0;
+    virtual void RenderFrame(float DeltaTime) = 0;
+    virtual void EndFrame()                   = 0;
+    virtual void InitImGui()                  = 0;
+    virtual void RenderImGui()                = 0;
+    virtual void Cleanup()                    = 0;
 };
 
 class ForwardRenderer : public RendererInterface

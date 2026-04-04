@@ -1,15 +1,15 @@
 #pragma once
 #include "core.h"
-// External
-#define GLM_ENABLE_EXPERIMENTAL
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-#include <glm/glm.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/matrix.hpp>
-#include <vector>
-#include <vulkan/vulkan.h>
+
+class Mesh;
+class Image;
+class VertexBuffer;
+class IndexBuffer;
+struct aiMaterial;
+struct aiMesh;
+struct aiNode;
+struct aiScene;
+enum aiTextureType;
 
 enum LoadingFlags
 {
@@ -30,80 +30,44 @@ inline LoadingFlags operator&(LoadingFlags a, LoadingFlags b)
     return static_cast<LoadingFlags>(static_cast<int>(a) & static_cast<int>(b));
 }
 
-class Mesh;
-class Image;
-class DescriptorSet;
-class VertexBuffer;
-class IndexBuffer;
-class DescriptorPool;
-class DescriptorSetLayout;
-class Pipeline;
-class CommandBuffer;
-enum class DescriptorPrimitive;
 class Model
 {
    public:
     Model() = default;
     ~Model();
-    // This constructor is used to construct a model that contains at least one
-    // mesh.
-    Model(
-        const std::string&       path,
-        LoadingFlags             flags,
-        Ref<DescriptorPool>      pool,
-        Ref<DescriptorSetLayout> layout,
-        Ref<Image>               shadowMap    = nullptr,
-        std::vector<Ref<Image>>  pointShadows = std::vector<Ref<Image>>());
-    // This constructor is used to construct a single meshed model (skybox).
-    Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout);
 
-    const std::vector<Mesh*>& GetMeshes()
-    {
-        return m_Meshes;
-    }
-    int GetMeshCount()
-    {
-        return m_Meshes.size();
-    }
-    const Unique<VertexBuffer>& GetVBO()
-    {
-        return m_VBO;
-    }
-    const Unique<IndexBuffer>& GetIBO()
-    {
-        return m_IBO;
-    }
+    Model(const std::string& InPath, LoadingFlags InFlags);
+    Model(const float* InVertices, uint32_t InVertexCount, const Ref<Image>& InTexture = nullptr);
 
-    void DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
-    void Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout);
+    const std::vector<Mesh*>&   GetMeshes() const;
+    int                         GetMeshCount() const;
+    const Unique<VertexBuffer>& GetVBO() const;
+    const Unique<IndexBuffer>&  GetIBO() const;
+
+    void DrawIndexed(const VkCommandBuffer& InCmd, const VkPipelineLayout& InLayout);
+    void Draw(const VkCommandBuffer& InCmd, const VkPipelineLayout& InLayout);
 
    private:
-    void       ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout);
-    Mesh*      ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout);
-    Ref<Image> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache);
+    void       ProcessNode(aiNode* InNode, const aiScene* InScene);
+    Mesh*      ProcessMesh(aiMesh* InMesh, const aiScene* InScene);
+    Ref<Image> LoadMaterialTextures(aiMaterial* InMat, aiTextureType InType, std::vector<Ref<Image>>& InCache);
 
-   private:
-    std::vector<Mesh*> m_Meshes;
-    LoadingFlags       m_Flags;
+    std::vector<Mesh*> _Meshes;
+    LoadingFlags       _Flags;
 
-    std::vector<Ref<Image>> m_AlbedoCache;
-    std::vector<Ref<Image>> m_NormalsCache;
-    std::vector<Ref<Image>> m_RoughnessMetallicCache;
+    std::vector<Ref<Image>> _AlbedoCache;
+    std::vector<Ref<Image>> _NormalsCache;
+    std::vector<Ref<Image>> _RoughnessMetallicCache;
 
-    // Vertex & Index Buffers
-    Unique<VertexBuffer> m_VBO = nullptr;
-    Unique<IndexBuffer>  m_IBO = nullptr;
+    Unique<VertexBuffer> _VBO = nullptr;
+    Unique<IndexBuffer>  _IBO = nullptr;
 
-    size_t m_VertexSize        = 0;
+    size_t      _VertexSize   = 0;
+    std::string _FullPath;
+    std::string _Directory;
 
-    std::string m_FullPath;
-    std::string m_Directory;
-
-    std::vector<Ref<Image>> m_DefaultPointShadowMaps;
-    Ref<Image>              m_DefaultShadowMap = nullptr;
-    Ref<Image>              m_DefaultCubeMap   = nullptr;
-    Ref<Image> m_DefaultAlbedo = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/Magenta_ERROR.png") }, VK_FORMAT_R8G8B8A8_SRGB);
-    Ref<Image> m_DefaultNormal = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/NormalMAP_ERROR.png") }, VK_FORMAT_R8G8B8A8_UNORM);
-    Ref<Image> m_DefaultRoughnessMetallic =
+    Ref<Image> _DefaultAlbedo = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/Magenta_ERROR.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+    Ref<Image> _DefaultNormal = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/NormalMAP_ERROR.png") }, VK_FORMAT_R8G8B8A8_UNORM);
+    Ref<Image> _DefaultRoughnessMetallic =
         make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/White_Texture.png") }, VK_FORMAT_R8G8B8A8_SRGB);
 };

@@ -1,91 +1,74 @@
-#include "Buffer.h",
-#include "CommandBuffer.h"
-#include "DescriptorSet.h"
-#include "Device.h"
-#include "Framebuffer.h"
+#define GLM_ENABLE_EXPERIMENTAL
+#include "Buffer.h"
 #include "Image.h"
 #include "Mesh.h"
 #include "Model.h"
-#include "PhysicalDevice.h"
-#include "Pipeline.h"
-#include "Surface.h"
-#include "Swapchain.h"
-#include "VulkanContext.h"
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-Model::~Model()
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
+Model::Model(const std::string& InPath, LoadingFlags InFlags) : _FullPath(InPath), _Flags(InFlags)
 {
-    for (int i = 0; i < m_Meshes.size(); i++)
-    {
-        delete m_Meshes[i];
-    }
-}
-Model::Model(
-    const std::string&       path,
-    LoadingFlags             flags,
-    Ref<DescriptorPool>      pool,
-    Ref<DescriptorSetLayout> layout,
-    Ref<Image>               shadowMap,
-    std::vector<Ref<Image>>  pointShadows)
-    : m_FullPath(path), m_Flags(flags), m_DefaultShadowMap(shadowMap), m_DefaultPointShadowMaps(pointShadows)
-{
-    m_Directory = std::string(m_FullPath).substr(0, std::string(m_FullPath).find_last_of("\\/"));
+    _Directory = _FullPath.substr(0, _FullPath.find_last_of("\\/"));
+
     Assimp::Importer importer;
-    const aiScene*   scene = importer.ReadFile(m_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
+    const aiScene*   scene = importer.ReadFile(_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 
     ENSURE(scene && ~scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE && scene->mRootNode, importer.GetErrorString());
 
-    // Process the model in a recursive way.
-    ProcessNode(scene->mRootNode, scene, pool, layout);
+    ProcessNode(scene->mRootNode, scene);
 
     std::vector<float>    verticesAll;
     std::vector<uint32_t> indicesAll;
 
-    // TO DO : There might be data copying in the vectors check it. Convert to
-    // pointers if that is the case.
-
-    for (const auto& mesh : m_Meshes)
+    for (const auto* mesh : _Meshes)
     {
-        for (const auto& data : mesh->m_Indices)
+        for (const auto& data : mesh->GetIndices())
         {
             indicesAll.push_back(data);
         }
-        for (const auto& data : mesh->m_Vertices)
+
+        for (const auto& data : mesh->GetVertices())
         {
             verticesAll.push_back(data);
         }
     }
 
-    // Create the VB and IB.
-    m_VBO = std::make_unique<VertexBuffer>(verticesAll);
-    m_IBO = std::make_unique<IndexBuffer>(indicesAll);
+    _VBO = std::make_unique<VertexBuffer>(verticesAll);
+    _IBO = std::make_unique<IndexBuffer>(indicesAll);
 }
 
-Model::Model(const float* vertices, uint32_t vertexCount, const Ref<Image>& cubemapTex, Ref<DescriptorPool> pool, Ref<DescriptorSetLayout> layout)
-    : m_FullPath("No path. Not loaded from a file"), m_DefaultCubeMap(cubemapTex), m_Flags(NONE)
+Model::Model(const float* InVertices, uint32_t InVertexCount, const Ref<Image>& InTexture) : _FullPath("No path. Not loaded from a file"), _Flags(NONE)
 {
-    m_Meshes.emplace_back(new Mesh(vertices, vertexCount, m_DefaultCubeMap, pool, layout));
-    m_VertexSize = sizeof(float);
-    m_VBO        = std::make_unique<VertexBuffer>(m_Meshes[0]->m_Vertices);
+    _Meshes.emplace_back(new Mesh(InVertices, InVertexCount, InTexture));
+    _VertexSize = sizeof(float);
+    _VBO        = std::make_unique<VertexBuffer>(_Meshes[0]->GetVertices());
 }
 
-void Model::ProcessNode(aiNode* node, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout)
+Model::~Model()
 {
-    // process all the node's meshes (if any)
-    for (unsigned int i = 0; i < node->mNumMeshes; i++)
+    for (auto* mesh : _Meshes)
     {
-        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        m_Meshes.emplace_back(ProcessMesh(mesh, scene, pool, layout));
-    }
-    // then do the same for each of its children
-    for (unsigned int i = 0; i < node->mNumChildren; i++)
-    {
-        ProcessNode(node->mChildren[i], scene, pool, layout);
+        delete mesh;
     }
 }
-Mesh* Model::ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<DescriptorPool>& pool, const Ref<DescriptorSetLayout>& layout)
+
+void Model::ProcessNode(aiNode* InNode, const aiScene* InScene)
+{
+    for (unsigned int i = 0; i < InNode->mNumMeshes; i++)
+    {
+        aiMesh* mesh = InScene->mMeshes[InNode->mMeshes[i]];
+        _Meshes.emplace_back(ProcessMesh(mesh, InScene));
+    }
+
+    for (unsigned int i = 0; i < InNode->mNumChildren; i++)
+    {
+        ProcessNode(InNode->mChildren[i], InScene);
+    }
+}
+
+Mesh* Model::ProcessMesh(aiMesh* InMesh, const aiScene* InScene)
 {
     std::vector<float>    vertices;
     std::vector<uint32_t> indices;
@@ -93,26 +76,23 @@ Mesh* Model::ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<Descripto
     Ref<Image>            normalTexture;
     Ref<Image>            roughnessMetallicTexture;
 
-    for (unsigned int i = 0; i < mesh->mNumVertices; i++)
+    for (unsigned int i = 0; i < InMesh->mNumVertices; i++)
     {
-        if (m_Flags & LOAD_VERTEX_POSITIONS)
+        if (_Flags & LOAD_VERTEX_POSITIONS)
         {
-            // Vertex Positions
-            vertices.push_back(mesh->mVertices[i].x);
-            vertices.push_back(mesh->mVertices[i].y);
-            vertices.push_back(mesh->mVertices[i].z);
-            m_VertexSize += sizeof(float) * 3;
+            vertices.push_back(InMesh->mVertices[i].x);
+            vertices.push_back(InMesh->mVertices[i].y);
+            vertices.push_back(InMesh->mVertices[i].z);
+            _VertexSize += sizeof(float) * 3;
         }
 
         bool dontCalcTangent = false;
-        if (m_Flags & LOAD_UV)
+        if (_Flags & LOAD_UV)
         {
-            // UV
-            if (mesh->mTextureCoords[0]) // does the mesh contain texture
-                                         // coordinates?
+            if (InMesh->mTextureCoords[0])
             {
-                vertices.push_back(mesh->mTextureCoords[0][i].x);
-                vertices.push_back(mesh->mTextureCoords[0][i].y);
+                vertices.push_back(InMesh->mTextureCoords[0][i].x);
+                vertices.push_back(InMesh->mTextureCoords[0][i].y);
             }
             else
             {
@@ -120,143 +100,161 @@ Mesh* Model::ProcessMesh(aiMesh* mesh, const aiScene* scene, const Ref<Descripto
                 vertices.push_back(0);
                 dontCalcTangent = true;
             }
-            m_VertexSize += sizeof(float) * 2;
+            _VertexSize += sizeof(float) * 2;
         }
 
-        if (m_Flags & LOAD_NORMALS)
+        if (_Flags & LOAD_NORMALS)
         {
-            // Normals
-            vertices.push_back(mesh->mNormals[i].x);
-            vertices.push_back(mesh->mNormals[i].y);
-            vertices.push_back(mesh->mNormals[i].z);
-            m_VertexSize += sizeof(float) * 3;
+            vertices.push_back(InMesh->mNormals[i].x);
+            vertices.push_back(InMesh->mNormals[i].y);
+            vertices.push_back(InMesh->mNormals[i].z);
+            _VertexSize += sizeof(float) * 3;
         }
 
-        if (m_Flags & LOAD_TANGENT)
+        if (_Flags & LOAD_TANGENT)
         {
             if (dontCalcTangent)
             {
-                // Tangnet
                 vertices.push_back(0);
                 vertices.push_back(0);
                 vertices.push_back(0);
             }
             else
             {
-                // Tangent
-                vertices.push_back(mesh->mTangents[i].x);
-                vertices.push_back(mesh->mTangents[i].y);
-                vertices.push_back(mesh->mTangents[i].z);
+                vertices.push_back(InMesh->mTangents[i].x);
+                vertices.push_back(InMesh->mTangents[i].y);
+                vertices.push_back(InMesh->mTangents[i].z);
             }
-            m_VertexSize += sizeof(float) * 3;
+            _VertexSize += sizeof(float) * 3;
         }
-        if (m_Flags & LOAD_BITANGENT)
+
+        if (_Flags & LOAD_BITANGENT)
         {
             if (dontCalcTangent)
             {
-                // Bitangent
                 vertices.push_back(0);
                 vertices.push_back(0);
                 vertices.push_back(0);
             }
             else
             {
-                // Bitangent
-                vertices.push_back(mesh->mBitangents[i].x);
-                vertices.push_back(mesh->mBitangents[i].y);
-                vertices.push_back(mesh->mBitangents[i].z);
+                vertices.push_back(InMesh->mBitangents[i].x);
+                vertices.push_back(InMesh->mBitangents[i].y);
+                vertices.push_back(InMesh->mBitangents[i].z);
             }
-            m_VertexSize += sizeof(float) * 3;
+            _VertexSize += sizeof(float) * 3;
         }
     }
 
-    // Process indices
-    for (unsigned int i = 0; i < mesh->mNumFaces; i++)
+    for (unsigned int i = 0; i < InMesh->mNumFaces; i++)
     {
-        aiFace face = mesh->mFaces[i];
+        aiFace face = InMesh->mFaces[i];
         for (unsigned int j = 0; j < face.mNumIndices; j++)
             indices.push_back((uint32_t)face.mIndices[j]);
     }
-    // Process materials (In our application only textures are loaded.)
-    if (mesh->mMaterialIndex >= 0)
+
+    if (InMesh->mMaterialIndex >= 0)
     {
-        aiMaterial* material     = scene->mMaterials[mesh->mMaterialIndex];
-        diffuseTexture           = LoadMaterialTextures(material, aiTextureType_DIFFUSE, m_AlbedoCache); // Load Albedo.
-        normalTexture            = LoadMaterialTextures(material, aiTextureType_NORMALS,
-                                             m_NormalsCache); // Load Normal map.
-        roughnessMetallicTexture = LoadMaterialTextures(material, aiTextureType_UNKNOWN,
-                                                        m_RoughnessMetallicCache); // Load RoughnessMetallic (.gltf) texture
+        aiMaterial* material     = InScene->mMaterials[InMesh->mMaterialIndex];
+        diffuseTexture           = LoadMaterialTextures(material, aiTextureType_DIFFUSE, _AlbedoCache);
+        normalTexture            = LoadMaterialTextures(material, aiTextureType_NORMALS, _NormalsCache);
+        roughnessMetallicTexture = LoadMaterialTextures(material, aiTextureType_METALNESS, _RoughnessMetallicCache);
     }
-    return new Mesh(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture, pool, layout, m_DefaultShadowMap, m_DefaultPointShadowMaps);
+
+    return new Mesh(vertices, indices, diffuseTexture, normalTexture, roughnessMetallicTexture);
 }
 
-Ref<Image> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::vector<Ref<Image>>& cache)
+Ref<Image> Model::LoadMaterialTextures(aiMaterial* InMat, aiTextureType InType, std::vector<Ref<Image>>& InCache)
 {
-    Ref<Image>  textureOUT;
-    std::string folderName = m_Directory.substr(m_Directory.find_last_of("\\/") + 1, m_Directory.length());
+    Ref<Image> textureOut;
 
     aiString str;
-    mat->GetTexture(type, 0, &str);
+    InMat->GetTexture(InType, 0, &str);
 
     std::string textureName(str.C_Str());
 
     bool skip = false;
-    for (unsigned int j = 0; j < cache.size(); j++)
+    for (unsigned int j = 0; j < InCache.size(); j++)
     {
-        if (std::strcmp(cache[j]->GetPath().c_str(), (m_Directory + "\\" + textureName).c_str()) == 0)
+        if (std::strcmp(InCache[j]->GetPath().c_str(), (_Directory + "\\" + textureName).c_str()) == 0)
         {
-            textureOUT = cache[j];
+            textureOut = InCache[j];
             skip       = true;
             break;
         }
     }
+
     if (!skip)
     {
         if (!textureName.empty())
         {
             Ref<Image> texture =
-                make_s<Image>(std::vector{ (m_Directory + "\\" + textureName) }, type == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
-            textureOUT = texture;
-            cache.push_back(texture);
+                make_s<Image>(std::vector{ (_Directory + "\\" + textureName) }, InType == aiTextureType_NORMALS ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB);
+            textureOut = texture;
+            InCache.push_back(texture);
         }
     }
 
-    // Handles the case which the loaded model doesnt contain the specific
-    // texture image. In that case, we send the default textures instead.
-    if (!textureOUT)
+    if (!textureOut)
     {
-        if (type == aiTextureType_DIFFUSE)
-            textureOUT = m_DefaultAlbedo;
-        else if (type == aiTextureType_NORMALS || aiTextureType_HEIGHT)
-            textureOUT = m_DefaultNormal;
-        else if (type == aiTextureType_DIFFUSE_ROUGHNESS)
-            textureOUT = m_DefaultRoughnessMetallic;
+        if (InType == aiTextureType_DIFFUSE)
+        {
+            textureOut = _DefaultAlbedo;
+        }
+        else if (InType == aiTextureType_NORMALS || InType == aiTextureType_HEIGHT)
+        {
+            textureOut = _DefaultNormal;
+        }
+        else
+        {
+            textureOut = _DefaultRoughnessMetallic;
+        }
     }
-    return textureOUT;
+
+    return textureOut;
 }
 
-void Model::DrawIndexed(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout)
+void Model::DrawIndexed(const VkCommandBuffer& InCmd, const VkPipelineLayout& InLayout)
 {
     VkDeviceSize vertexOffset = 0;
     VkDeviceSize indexOffset  = 0;
 
-    for (int i = 0; i < m_Meshes.size(); i++)
+    for (int i = 0; i < _Meshes.size(); i++)
     {
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[i]->GetDescriptorSet(), 0, nullptr);
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
-        vkCmdBindIndexBuffer(commandBuffer, m_IBO->GetVKBuffer(), indexOffset, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(commandBuffer, GetMeshes()[i]->GetIndexCount(), 1, 0, 0, 0);
+        vkCmdBindDescriptorSets(InCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, InLayout, 0, 1, &_Meshes[i]->GetDescriptorSet(), 0, nullptr);
+        vkCmdBindVertexBuffers(InCmd, 0, 1, &_VBO->GetVKBuffer(), &vertexOffset);
+        vkCmdBindIndexBuffer(InCmd, _IBO->GetVKBuffer(), indexOffset, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(InCmd, _Meshes[i]->GetIndexCount(), 1, 0, 0, 0);
 
-        vertexOffset += m_Meshes[i]->GetVertexCount() * sizeof(float);
-        indexOffset += m_Meshes[i]->GetIndexCount() * sizeof(uint32_t);
+        vertexOffset += _Meshes[i]->GetVertexCount() * sizeof(float);
+        indexOffset += _Meshes[i]->GetIndexCount() * sizeof(uint32_t);
     }
 }
 
-void Model::Draw(const VkCommandBuffer& commandBuffer, const VkPipelineLayout& pipelineLayout)
+void Model::Draw(const VkCommandBuffer& InCmd, const VkPipelineLayout& InLayout)
 {
-    // Currently used only to draw skyboxes/cubes. Extend if you need it.
     VkDeviceSize vertexOffset = 0;
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_Meshes[0]->GetDescriptorSet(), 0, nullptr);
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VBO->GetVKBuffer(), &vertexOffset);
-    vkCmdDraw(commandBuffer, 36, 1, 0, 0);
+    vkCmdBindDescriptorSets(InCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, InLayout, 0, 1, &_Meshes[0]->GetDescriptorSet(), 0, nullptr);
+    vkCmdBindVertexBuffers(InCmd, 0, 1, &_VBO->GetVKBuffer(), &vertexOffset);
+    vkCmdDraw(InCmd, 36, 1, 0, 0);
+}
+
+const std::vector<Mesh*>& Model::GetMeshes() const
+{
+    return _Meshes;
+}
+
+int Model::GetMeshCount() const
+{
+    return _Meshes.size();
+}
+
+const Unique<VertexBuffer>& Model::GetVBO() const
+{
+    return _VBO;
+}
+
+const Unique<IndexBuffer>& Model::GetIBO() const
+{
+    return _IBO;
 }
