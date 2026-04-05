@@ -66,7 +66,7 @@ class ForwardRenderer : public RendererInterface
     float timer                = 0.0f;
     float directionalNearPlane = 1.0f;
     float directionalFarPlane  = 100.0f;
-    float pointNearPlane       = 0.1f;
+    float pointNearPlane       = 0.0001f;
     float pointFarPlane        = 100.0f;
     int   frameCount           = 0;
 
