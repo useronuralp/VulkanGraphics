@@ -257,6 +257,8 @@
     <None Include="assets\shaders\bokehPassFRAG.spv" />
     <None Include="assets\shaders\BrightnessFilter.frag" />
     <None Include="assets\shaders\brightnessFilterFRAG.spv" />
+    <None Include="assets\shaders\cloudCompute.comp" />
+    <None Include="assets\shaders\cloudComputeCOMP.spv" />
     <None Include="assets\shaders\Clouds.frag" />
     <None Include="assets\shaders\Clouds.vert" />
     <None Include="assets\shaders\CloudsFRAG.spv" />
@@ -272,6 +274,8 @@
     <None Include="assets\shaders\emissiveShaderVERT.spv" />
     <None Include="assets\shaders\finalPassShader.frag" />
     <None Include="assets\shaders\finalPassShaderFRAG.spv" />
+    <None Include="assets\shaders\noise3D.comp" />
+    <None Include="assets\shaders\noise3DCOMP.spv" />
     <None Include="assets\shaders\particle.frag" />
     <None Include="assets\shaders\particle.vert" />
     <None Include="assets\shaders\particleFRAG.spv" />

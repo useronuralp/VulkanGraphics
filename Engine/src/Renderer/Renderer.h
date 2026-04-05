@@ -3,6 +3,7 @@
 #include "core.h"
 #include "LightObject.h"
 #include "RenderPass.h"
+#include "Scene.h"
 #include "StaticMeshObject.h"
 
 #include <chrono>
@@ -43,14 +44,6 @@ class RendererInterface
 
 class ForwardRenderer : public RendererInterface
 {
-    struct TorchFireGroup
-    {
-        StaticMeshObject*   Torch;
-        LightObject*        Light;
-        Ref<ParticleSystem> Sparks;
-        Ref<ParticleSystem> Flame;
-    };
-
    public:
     VkDescriptorPool          imguiPool;
     ImGui_ImplVulkan_InitInfo init_info;
@@ -101,11 +94,6 @@ class ForwardRenderer : public RendererInterface
         glm::vec4 fstop;
     };
 
-    LightObject                 directionalLight;
-    std::vector<LightObject>    torchLights;
-    LightObject                 redLight;
-    std::vector<TorchFireGroup> torchGroups;
-
     // todo: couple with render passes.
     //  Attachments. Each framebuffer can have multiple attachments.
     Ref<Image>              directionalShadowMapImage;
@@ -148,32 +136,9 @@ class ForwardRenderer : public RendererInterface
     Ref<Pipeline> cubePipeline;
     Ref<Pipeline> particleSystemPipeline;
 
-    // Models
-    StaticMeshObject sponza;
-    Ref<Model>       sponzaModel;
-
-    StaticMeshObject helmet;
-    Ref<Model>       helmetModel;
-
-    StaticMeshObject sword;
-    Ref<Model>       swordModel;
-
-    StaticMeshObject torch;
-    StaticMeshObject torch2;
-    StaticMeshObject torch3;
-    StaticMeshObject torch4;
-    Ref<Model>       torchModel;
-
-    StaticMeshObject skybox;
-    Ref<Model>       skyboxModel;
-
-    StaticMeshObject cube;
-    Ref<Model>       cubeModel;
-
-    Ref<ParticleSystem> ambientParticles;
-    float               lightFlickerRate      = 0.07f;
-    float               aniamtionRate         = 0.013888888f;
-    int                 currentAnimationFrame = 0;
+    float lightFlickerRate      = 0.07f;
+    float aniamtionRate         = 0.013888888f;
+    int   currentAnimationFrame = 0;
 
     GlobalParametersUBO globalParametersUBO;
     VkBuffer            globalParametersUBOBuffer;
@@ -220,11 +185,10 @@ class ForwardRenderer : public RendererInterface
     void CreatePointShadowRenderPass();
 
     // Specific funcs.
-    void SetupParticleSystems();
     void EnableDepthOfField();
     void DisableDepthOfField();
     void SyncLightsToUBO();
-    void SetupTorchesAndLights();
+    void SetupTorchesTorchLightsAndParticleSystems();
 
    public:
     ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
@@ -251,6 +215,8 @@ class ForwardRenderer : public RendererInterface
     Unique<RenderPass> _HDRRenderPass;
     Unique<RenderPass> _ShadowMapRenderPass;
     Unique<RenderPass> _SwapchainRenderPass;
+
+    Scene _Scene;
 
     Ref<Framebuffer>              _DirectionalShadowMapFramebuffer;
     Ref<Framebuffer>              _HDRFramebuffer;

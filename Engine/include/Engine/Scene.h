@@ -1,42 +1,21 @@
 // Scene.h
 #pragma once
 #include "core.h"
+#include "LightObject.h"
+#include "StaticMeshObject.h"
 
-#include <glm/glm.hpp>
 #include <string>
 #include <vector>
 
 class Camera;
-class Model;
 class ParticleSystem;
-class Image;
 
-struct DirectionalLight
+struct TorchFireGroup
 {
-    glm::vec4 Position    = glm::vec4(0.0f, 10.0f, 0.0f, 1.0f);
-    float     Intensity   = 10.0f;
-    bool      CastsShadow = true;
-};
-
-struct PointLight
-{
-    glm::vec3 Position    = glm::vec3(0.0f);
-    glm::vec3 Color       = glm::vec3(1.0f);
-    float     Intensity   = 1.0f;
-    bool      CastsShadow = true;
-};
-
-struct RenderObject
-{
-    Ref<Model> Model;
-    glm::mat4  Transform     = glm::mat4(1.0f);
-    glm::vec4  EmissiveColor = glm::vec4(0.0f); // non-zero = emissive
-};
-
-struct ParticleEmitterGroup
-{
-    Ref<ParticleSystem> Sparks;
-    Ref<ParticleSystem> FlameBase;
+    Ref<StaticMeshObject> Torch  = nullptr;
+    Ref<LightObject>      Light  = nullptr;
+    Ref<ParticleSystem>   Sparks = nullptr;
+    Ref<ParticleSystem>   Flame  = nullptr;
 };
 
 class Scene
@@ -45,44 +24,61 @@ class Scene
     Scene()  = default;
     ~Scene() = default;
 
-    void        SetCamera(Ref<Camera> InCamera);
+    // Camera
+    void        SetCamera(const Ref<Camera>& InCamera);
     Ref<Camera> GetCamera() const;
 
-    void                             AddRenderObject(const RenderObject& InObject);
-    const std::vector<RenderObject>& GetRenderObjects() const;
+    // Static mesh objects
+    void                                AddMeshObject(const Ref<StaticMeshObject>& InObject);
+    std::vector<Ref<StaticMeshObject>>& GetMeshObjects();
+    Ref<StaticMeshObject>               FindMeshObject(const std::string& InName) const;
 
-    void                             AddEmissiveObject(const RenderObject& InObject);
-    const std::vector<RenderObject>& GetEmissiveObjects() const;
+    // Emissive objects
+    void                                AddEmissiveObject(const Ref<StaticMeshObject>& InObject);
+    std::vector<Ref<StaticMeshObject>>& GetEmissiveObjects();
 
-    void                    SetDirectionalLight(const DirectionalLight& InLight);
-    const DirectionalLight& GetDirectionalLight() const;
+    // Debug objects
+    void                                AddDebugObject(const Ref<StaticMeshObject>& InObject);
+    std::vector<Ref<StaticMeshObject>>& GetDebugObjects();
 
-    void                           AddPointLight(const PointLight& InLight);
-    const std::vector<PointLight>& GetPointLights() const;
-    std::vector<PointLight>&       GetPointLightsMutable();
+    // Skybox
+    void                  SetSkybox(const Ref<StaticMeshObject>& InSkybox);
+    Ref<StaticMeshObject> GetSkybox() const;
 
-    void       SetSkybox(Ref<Model> InSkybox);
-    Ref<Model> GetSkybox() const;
+    // Lights
+    void             SetDirectionalLight(const Ref<LightObject>& InLight);
+    Ref<LightObject> GetDirectionalLight() const;
 
-    void                                     AddParticleEmitter(const ParticleEmitterGroup& InEmitter);
-    const std::vector<ParticleEmitterGroup>& GetParticleEmitters() const;
+    void                           AddPointLight(const Ref<LightObject>& InLight);
+    std::vector<Ref<LightObject>>& GetPointLights();
+    int                            GetPointLightCount() const;
 
-    void                SetAmbientParticles(Ref<ParticleSystem> InParticles);
+    // Torch fire groups
+    void AddTorchGroup(const Ref<StaticMeshObject>& InTorch, const Ref<LightObject>& InLight, const Ref<ParticleSystem>& InSparks, const Ref<ParticleSystem>& InFlame);
+    std::vector<Ref<TorchFireGroup>>& GetTorchGroups();
+
+    // Ambient particles
+    void                SetAmbientParticles(const Ref<ParticleSystem>& InParticles);
     Ref<ParticleSystem> GetAmbientParticles() const;
 
+    // Per-frame
     void Update(float InDeltaTime);
+
+    // Shadow casters
+    std::vector<Ref<StaticMeshObject>> GetShadowCasters() const;
 
    private:
     Ref<Camera> _Camera;
 
-    std::vector<RenderObject> _RenderObjects;
-    std::vector<RenderObject> _EmissiveObjects;
+    std::vector<Ref<StaticMeshObject>> _MeshObjects;
+    std::vector<Ref<StaticMeshObject>> _EmissiveObjects;
+    std::vector<Ref<StaticMeshObject>> _DebugObjects;
+    std::vector<Ref<LightObject>>      _PointLights;
+    std::vector<Ref<TorchFireGroup>>   _TorchGroups;
 
-    DirectionalLight        _DirectionalLight;
-    std::vector<PointLight> _PointLights;
+    Ref<ParticleSystem>   _AmbientParticles = nullptr;
+    Ref<LightObject>      _DirectionalLight = nullptr;
+    Ref<StaticMeshObject> _Skybox           = nullptr;
 
-    Ref<Model> _Skybox;
-
-    std::vector<ParticleEmitterGroup> _ParticleEmitters;
-    Ref<ParticleSystem>               _AmbientParticles;
+    bool _HasSkybox                         = false;
 };

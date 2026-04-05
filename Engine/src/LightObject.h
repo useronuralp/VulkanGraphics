@@ -23,9 +23,6 @@ class LightObject : public SceneObject
     void  SetIntensity(float InIntensity);
     float GetIntensity() const;
 
-    void SetCastsShadow(bool InCasts);
-    bool GetCastsShadow() const;
-
     // Spot light only
     void  SetInnerAngle(float InDegrees);
     void  SetOuterAngle(float InDegrees);
@@ -36,10 +33,9 @@ class LightObject : public SceneObject
     glm::vec3 GetDirection() const;
 
    private:
-    LightType _Type        = LightType::Point;
-    glm::vec3 _Color       = glm::vec3(1.0f);
-    float     _Intensity   = 1.0f;
-    bool      _CastsShadow = true;
+    LightType _Type      = LightType::Point;
+    glm::vec3 _Color     = glm::vec3(1.0f);
+    float     _Intensity = 1.0f;
 
     // Spot light params
     float _InnerAngle = 30.0f;

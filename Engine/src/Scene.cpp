@@ -4,7 +4,7 @@
 #include "ParticleSystem.h"
 #include "Scene.h"
 
-void Scene::SetCamera(Ref<Camera> InCamera)
+void Scene::SetCamera(const Ref<Camera>& InCamera)
 {
     _Camera = InCamera;
 }
@@ -14,72 +14,112 @@ Ref<Camera> Scene::GetCamera() const
     return _Camera;
 }
 
-void Scene::AddRenderObject(const RenderObject& InObject)
+void Scene::AddMeshObject(const Ref<StaticMeshObject>& InObject)
 {
-    _RenderObjects.push_back(InObject);
+    _MeshObjects.emplace_back(InObject);
 }
 
-const std::vector<RenderObject>& Scene::GetRenderObjects() const
+std::vector<Ref<StaticMeshObject>>& Scene::GetMeshObjects()
 {
-    return _RenderObjects;
+    return _MeshObjects;
 }
 
-void Scene::AddEmissiveObject(const RenderObject& InObject)
+Ref<StaticMeshObject> Scene::FindMeshObject(const std::string& InName) const
 {
-    _EmissiveObjects.push_back(InObject);
+    for (auto& obj : _MeshObjects)
+    {
+        if (obj->GetName() == InName)
+        {
+            return obj;
+        }
+    }
+
+    for (auto& obj : _EmissiveObjects)
+    {
+        if (obj->GetName() == InName)
+        {
+            return obj;
+        }
+    }
+
+    for (auto& obj : _DebugObjects)
+    {
+        if (obj->GetName() == InName)
+        {
+            return obj;
+        }
+    }
+
+    return nullptr;
 }
 
-const std::vector<RenderObject>& Scene::GetEmissiveObjects() const
+void Scene::AddEmissiveObject(const Ref<StaticMeshObject>& InObject)
+{
+    _EmissiveObjects.emplace_back(InObject);
+}
+
+std::vector<Ref<StaticMeshObject>>& Scene::GetEmissiveObjects()
 {
     return _EmissiveObjects;
 }
 
-void Scene::SetDirectionalLight(const DirectionalLight& InLight)
+void Scene::SetDirectionalLight(const Ref<LightObject>& InLight)
 {
     _DirectionalLight = InLight;
 }
 
-const DirectionalLight& Scene::GetDirectionalLight() const
+Ref<LightObject> Scene::GetDirectionalLight() const
 {
     return _DirectionalLight;
 }
 
-void Scene::AddPointLight(const PointLight& InLight)
+void Scene::AddPointLight(const Ref<LightObject>& InLight)
 {
-    _PointLights.push_back(InLight);
+    _PointLights.emplace_back(InLight);
 }
 
-const std::vector<PointLight>& Scene::GetPointLights() const
-{
-    return _PointLights;
-}
-
-std::vector<PointLight>& Scene::GetPointLightsMutable()
+std::vector<Ref<LightObject>>& Scene::GetPointLights()
 {
     return _PointLights;
 }
 
-void Scene::SetSkybox(Ref<Model> InSkybox)
+int Scene::GetPointLightCount() const
 {
-    _Skybox = InSkybox;
+    return static_cast<int>(_PointLights.size());
 }
 
-Ref<Model> Scene::GetSkybox() const
+void Scene::SetSkybox(const Ref<StaticMeshObject>& InSkybox)
 {
-    return _Skybox;
+    _Skybox    = InSkybox;
+    _HasSkybox = true;
 }
 
-void Scene::AddParticleEmitter(const ParticleEmitterGroup& InEmitter)
+Ref<StaticMeshObject> Scene::GetSkybox() const
 {
-    _ParticleEmitters.push_back(InEmitter);
+    return _HasSkybox ? _Skybox : nullptr;
 }
 
-const std::vector<ParticleEmitterGroup>& Scene::GetParticleEmitters() const
+void Scene::AddDebugObject(const Ref<StaticMeshObject>& InObject)
 {
-    return _ParticleEmitters;
+    _DebugObjects.emplace_back(InObject);
 }
 
-void Scene::SetAmbientParticles(Ref<ParticleSystem> InParticles)
+std::vector<Ref<StaticMeshObject>>& Scene::GetDebugObjects()
+{
+    return _DebugObjects;
+}
+
+void Scene::AddTorchGroup(const Ref<StaticMeshObject>& InTorch, const Ref<LightObject>& InLight, const Ref<ParticleSystem>& InSparks, const Ref<ParticleSystem>& InFlame)
+{
+    _TorchGroups.push_back(make_s<TorchFireGroup>(InTorch, InLight, InSparks, InFlame));
+}
+
+std::vector<Ref<TorchFireGroup>>& Scene::GetTorchGroups()
+{
+    return _TorchGroups;
+}
+
+void Scene::SetAmbientParticles(const Ref<ParticleSystem>& InParticles)
 {
     _AmbientParticles = InParticles;
 }
@@ -91,15 +131,15 @@ Ref<ParticleSystem> Scene::GetAmbientParticles() const
 
 void Scene::Update(float InDeltaTime)
 {
-    for (auto& emitter : _ParticleEmitters)
+    for (auto& group : _TorchGroups)
     {
-        if (emitter.Sparks)
+        if (group->Sparks)
         {
-            emitter.Sparks->UpdateParticles(InDeltaTime);
+            group->Sparks->UpdateParticles(InDeltaTime);
         }
-        if (emitter.FlameBase)
+        if (group->Flame)
         {
-            emitter.FlameBase->UpdateParticles(InDeltaTime);
+            group->Flame->UpdateParticles(InDeltaTime);
         }
     }
 
@@ -107,4 +147,19 @@ void Scene::Update(float InDeltaTime)
     {
         _AmbientParticles->UpdateParticles(InDeltaTime);
     }
+}
+
+std::vector<Ref<StaticMeshObject>> Scene::GetShadowCasters() const
+{
+    std::vector<Ref<StaticMeshObject>> casters;
+
+    for (auto obj : _MeshObjects)
+    {
+        if (obj->GetCastsShadow())
+        {
+            casters.push_back(obj);
+        }
+    }
+
+    return casters;
 }

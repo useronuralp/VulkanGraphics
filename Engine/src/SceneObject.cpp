@@ -35,12 +35,17 @@ void SceneObject::Rotate(float InAngleDeg, const glm::vec3& InAxis)
     MarkDirty();
 }
 
-const glm::vec3& SceneObject::GetPosition() const
+void SceneObject::SetCastsShadow(bool InCasts)
 {
-    return _Position;
+    _CastsShadow = InCasts;
 }
 
-glm::vec3& SceneObject::GetPositionMutable()
+bool SceneObject::GetCastsShadow() const
+{
+    return _CastsShadow;
+}
+
+const glm::vec3& SceneObject::GetPosition() const
 {
     return _Position;
 }
@@ -56,15 +61,6 @@ const glm::vec3& SceneObject::GetScale() const
 }
 
 const glm::mat4& SceneObject::GetTransform()
-{
-    if (_Dirty)
-    {
-        RecalculateTransform();
-    }
-    return _Transform;
-}
-
-glm::mat4& SceneObject::GetTransformMutable()
 {
     if (_Dirty)
     {

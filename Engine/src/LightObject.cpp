@@ -35,16 +35,6 @@ float LightObject::GetIntensity() const
     return _Intensity;
 }
 
-void LightObject::SetCastsShadow(bool InCasts)
-{
-    _CastsShadow = InCasts;
-}
-
-bool LightObject::GetCastsShadow() const
-{
-    return _CastsShadow;
-}
-
 void LightObject::SetInnerAngle(float InDegrees)
 {
     _InnerAngle = InDegrees;

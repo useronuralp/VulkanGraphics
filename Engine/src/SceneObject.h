@@ -15,22 +15,25 @@ class SceneObject
     void SetPosition(const glm::vec3& InPosition);
     void SetRotation(const glm::vec3& InEulerDegrees);
     void SetScale(const glm::vec3& InScale);
+    void SetCastsShadow(bool InCasts);
 
     void Translate(const glm::vec3& InDelta);
     void Rotate(float InAngleDeg, const glm::vec3& InAxis);
 
     const glm::vec3& GetPosition() const;
-    glm::vec3&       GetPositionMutable();
     const glm::vec3& GetRotation() const;
     const glm::vec3& GetScale() const;
     const glm::mat4& GetTransform();
-    glm::mat4&       GetTransformMutable();
+    bool             GetCastsShadow() const;
 
     void               SetName(const std::string& InName);
     const std::string& GetName() const;
 
    protected:
     void MarkDirty();
+
+   protected:
+    bool _CastsShadow = false;
 
    private:
     void RecalculateTransform();

@@ -310,5 +310,9 @@
     <None Include="assets\shaders\swapchainFRAG.spv" />
     <None Include="assets\shaders\upscaleShader.frag" />
     <None Include="assets\shaders\upscaleShaderFRAG.spv" />
+    <None Include="assets\shaders\cloudCompute.comp" />
+    <None Include="assets\shaders\cloudComputeCOMP.spv" />
+    <None Include="assets\shaders\noise3D.comp" />
+    <None Include="assets\shaders\noise3DCOMP.spv" />
   </ItemGroup>
 </Project>
