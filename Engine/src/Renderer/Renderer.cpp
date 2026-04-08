@@ -6,9 +6,10 @@
 #include "Device.h"
 #include "EngineInternal.h"
 #include "Framebuffer.h"
+#include "Image.h"
 #include "Instance.h"
+#include "LightObject.h"
 #include "Material.h"
-#include "Mesh.h"
 #include "MeshBindingHelper.h"
 #include "Model.h"
 #include "ParticleSystem.h"
@@ -16,6 +17,8 @@
 #include "Pipeline.h"
 #include "Renderer.h"
 #include "Renderer/RenderPass.h"
+#include "Scene.h"
+#include "StaticMeshObject.h"
 #include "Surface.h"
 #include "Swapchain.h"
 #include "Utils.h"
@@ -23,11 +26,8 @@
 #include "Window.h"
 
 #include <Curl.h>
-#include <filesystem>
-#include <glm/gtc/matrix_transform.hpp>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
-#include <iostream>
 
 #define POINT_LIGHT_COUNT 5 // todo: dynamically calculate this from actual point light number registered to the scene.
 
@@ -35,12 +35,332 @@ static bool printedDependencies = false;
 
 extern FrameSync GFrameSync;
 
-ForwardRenderer::ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
+// VulkanRenderer.cpp
+VulkanRenderer::VulkanRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
     : _Context(InContext), _Swapchain(InSwapchain), _Camera(InCamera)
 {
 }
 
-void ForwardRenderer::Init()
+bool VulkanRenderer::BeginFrame()
+{
+    auto device = _Context.GetDevice()->GetVKDevice();
+
+    vkWaitForFences(device, 1, &GFrameSync.InFlightFences[GFrameSync.CurrentBufferIndex], VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &GFrameSync.InFlightFences[GFrameSync.CurrentBufferIndex]);
+
+    VkResult result = vkAcquireNextImageKHR(
+        device, _Swapchain->GetHandle(), UINT64_MAX, GFrameSync.AcquireFinishedSemaphores[GFrameSync.CurrentBufferIndex], VK_NULL_HANDLE, &_CurrentSwapchainImageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _Context.GetWindow()->IsWindowResized())
+    {
+        HandleWindowResize(result);
+        return false;
+    }
+
+    ENSURE(result == VK_SUCCESS, "Failed to acquire next image.");
+    return true;
+}
+
+void VulkanRenderer::EndFrame()
+{
+    if (!ImGui::GetIO().WantCaptureMouse)
+    {
+        _Camera->OnUpdate(_DeltaTime);
+    }
+
+    auto queue                        = _Context.GetDevice()->GetGraphicsQueue();
+
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    VkSubmitInfo         submitInfo{};
+
+    submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount   = 1;
+    submitInfo.pWaitSemaphores      = &GFrameSync.AcquireFinishedSemaphores[GFrameSync.CurrentBufferIndex];
+    submitInfo.pWaitDstStageMask    = waitStages;
+    submitInfo.commandBufferCount   = 1;
+    submitInfo.pCommandBuffers      = &_CmdBuffers[GFrameSync.CurrentBufferIndex];
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores    = &GFrameSync.RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
+
+    ENSURE(vkQueueSubmit(queue, 1, &submitInfo, GFrameSync.InFlightFences[GFrameSync.CurrentBufferIndex]) == VK_SUCCESS, "Failed to submit draw command buffer!");
+
+    VkSwapchainKHR   swapchain = _Swapchain->GetHandle();
+    VkPresentInfoKHR presentInfo{};
+
+    presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores    = &GFrameSync.RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
+    presentInfo.swapchainCount     = 1;
+    presentInfo.pSwapchains        = &swapchain;
+    presentInfo.pImageIndices      = &_CurrentSwapchainImageIndex;
+    presentInfo.pResults           = nullptr;
+
+    VkResult result                = vkQueuePresentKHR(queue, &presentInfo);
+    ENSURE(result == VK_SUCCESS, "Failed to present swap chain image!");
+}
+
+void VulkanRenderer::InitImGui()
+{
+    VkDescriptorPoolSize pool_sizes[]    = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+                                             { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags                      = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets                    = 1000;
+    pool_info.poolSizeCount              = std::size(pool_sizes);
+    pool_info.pPoolSizes                 = pool_sizes;
+
+    ENSURE(vkCreateDescriptorPool(_Context.GetDevice()->GetVKDevice(), &pool_info, nullptr, &_ImGuiPool) == VK_SUCCESS, "Failed to initialize imgui pool");
+
+    ImGui::CreateContext();
+    ImGui_ImplGlfw_InitForVulkan(_Context.GetWindow()->GetNativeWindow(), true);
+
+    _ImGuiInitInfo.Instance       = _Context.GetInstance()->GetVkInstance();
+    _ImGuiInitInfo.PhysicalDevice = _Context.GetPhysicalDevice()->GetVKPhysicalDevice();
+    _ImGuiInitInfo.Device         = _Context.GetDevice()->GetVKDevice();
+    _ImGuiInitInfo.Queue          = _Context.GetDevice()->GetGraphicsQueue();
+    _ImGuiInitInfo.DescriptorPool = _ImGuiPool;
+    _ImGuiInitInfo.MinImageCount  = 3;
+    _ImGuiInitInfo.ImageCount     = 3;
+    _ImGuiInitInfo.MSAASamples    = VK_SAMPLE_COUNT_1_BIT;
+
+    ImGui_ImplVulkan_Init(&_ImGuiInitInfo, _SwapchainRenderPass->GetHandle());
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->AddFontFromFileTTF((std::string(SOLUTION_DIR) + "Engine/assets/resources/Open_Sans/static/OpenSans/OpenSans-Regular.ttf").c_str(), 30);
+
+    VkCommandBuffer singleCmdBuffer;
+    VkCommandPool   singleCmdPool;
+    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.TransferFamily, singleCmdPool);
+    CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
+    CommandBuffer::BeginRecording(singleCmdBuffer);
+
+    ImGui_ImplVulkan_CreateFontsTexture(singleCmdBuffer);
+
+    CommandBuffer::EndRecording(singleCmdBuffer);
+    CommandBuffer::Submit(singleCmdBuffer, _Context.GetDevice()->GetTransferQueue());
+    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, _Context.GetDevice()->GetTransferQueue());
+    CommandBuffer::DestroyCommandPool(singleCmdPool);
+}
+
+void VulkanRenderer::RenderImGui()
+{
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}
+
+void VulkanRenderer::Cleanup()
+{
+    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        CommandBuffer::FreeCommandBuffer(_CmdBuffers[i], _CmdPool, _Context.GetDevice()->GetGraphicsQueue());
+    }
+    CommandBuffer::DestroyCommandPool(_CmdPool);
+
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+    vkDestroyDescriptorPool(_Context.GetDevice()->GetVKDevice(), _ImGuiPool, nullptr);
+    ImGui_ImplVulkan_Shutdown();
+}
+
+void VulkanRenderer::SetScene(const Ref<Scene>& InScene)
+{
+    _Scene = InScene;
+}
+
+Ref<Scene> VulkanRenderer::GetScene() const
+{
+    return _Scene;
+}
+
+void VulkanRenderer::UpdateViewport_Scissor()
+{
+    _DynamicViewport.x            = 0.0f;
+    _DynamicViewport.y            = 0.0f;
+    _DynamicViewport.width        = (float)_Context.GetSurface()->GetVKExtent().width;
+    _DynamicViewport.height       = (float)_Context.GetSurface()->GetVKExtent().height;
+    _DynamicViewport.minDepth     = 0.0f;
+    _DynamicViewport.maxDepth     = 1.0f;
+
+    _DynamicScissor.offset        = { 0, 0 };
+    _DynamicScissor.extent.width  = _Context.GetSurface()->GetVKExtent().width;
+    _DynamicScissor.extent.height = _Context.GetSurface()->GetVKExtent().height;
+}
+
+void VulkanRenderer::CreateSwapchainRenderPass()
+{
+    RenderPass::AttachmentInfo colorAttachment{ _Context.GetSurface()->GetVKSurfaceFormat().format,
+                                                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                                VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                VK_ATTACHMENT_STORE_OP_STORE,
+                                                { 0.0f, 0.0f, 0.0f, 0.0f } };
+
+    VkSubpassDependency dep{};
+    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
+    dep.dstSubpass    = 0;
+    dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.srcAccessMask = 0;
+    dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    RenderPass::CreateInfo createInfo{ { colorAttachment }, { dep }, false, "Swapchain Render Pass" };
+
+    _SwapchainRenderPass = std::make_unique<RenderPass>(_Context, createInfo);
+}
+
+void VulkanRenderer::CreateSwapchainFramebuffers()
+{
+    _SwapchainFramebuffers.clear();
+
+    for (auto imageView : _Swapchain->GetImageViews())
+    {
+        std::vector<VkImageView> attachments = { imageView };
+        _SwapchainFramebuffers.push_back(
+            make_s<Framebuffer>(_SwapchainRenderPass->GetHandle(), attachments, _Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height));
+    }
+}
+
+void VulkanRenderer::HandleWindowResize(VkResult InResult)
+{
+    if (InResult == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || InResult == VK_SUBOPTIMAL_KHR)
+    {
+        vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
+        while (width == 0 || height == 0)
+        {
+            glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
+            glfwWaitEvents();
+        }
+
+        _Swapchain->Recreate();
+
+        UpdateViewport_Scissor();
+        CreateSwapchainFramebuffers();
+
+        // Subclass handles its own resize (HDR framebuffers, bloom, bokeh, etc.)
+        OnResize();
+
+        _Context.GetWindow()->OnResize();
+        _Camera->SetViewportSize(_Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
+        ImGui::EndFrame();
+    }
+}
+
+VulkanForwardRenderer::VulkanForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
+    : VulkanRenderer(InContext, InSwapchain, InCamera)
+{
+}
+
+void VulkanForwardRenderer::OnResize()
+{
+    CreateHDRFramebuffer();
+    CreateBokehFramebuffer();
+    SetupBokehPassPipeline();
+
+    bloomAgent = make_s<Bloom>();
+    bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage, _CloudPass);
+
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
+
+    finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+    Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    bokehPassSceneSampler =
+        Utils::CreateSampler(bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+    Utils::UpdateDescriptorSet(
+        bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    bokehPassDepthSampler = Utils::CreateSampler(HDRDepthImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
+    Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+}
+
+Ref<Model> VulkanForwardRenderer::LoadPBRModel(const std::string& InPath, LoadingFlags InFlags)
+{
+    auto model = make_s<Model>(InPath, InFlags);
+    MeshBinding::BindModelPBR(model, pool, PBRLayout, globalParametersUBOBuffer, sizeof(GlobalParametersUBO), directionalShadowMapImage, pointShadowMaps);
+    return model;
+}
+
+Ref<Model> VulkanForwardRenderer::LoadSimpleModel(const std::string& InPath, LoadingFlags InFlags)
+{
+    auto model = make_s<Model>(InPath, InFlags);
+    MeshBinding::BindModelSimple(model, pool, emissiveLayout, globalParametersUBOBuffer, sizeof(glm::mat4) * 2);
+    return model;
+}
+
+Ref<Model> VulkanForwardRenderer::LoadSkyboxModel(const float* InVertices, uint32_t InVertexCount, Ref<Image> InCubemap)
+{
+    auto model = make_s<Model>(InVertices, InVertexCount, InCubemap);
+    MeshBinding::BindSkybox(model->GetMeshes()[0], pool, skyboxLayout, globalParametersUBOBuffer);
+    return model;
+}
+
+Ref<Model> VulkanForwardRenderer::LoadDebugModel(const float* InVertices, uint32_t InVertexCount)
+{
+    auto model = make_s<Model>(InVertices, InVertexCount);
+    MeshBinding::BindSimple(model->GetMeshes()[0], pool, cubeLayout, globalParametersUBOBuffer, sizeof(glm::mat4) * 2);
+    return model;
+}
+
+Ref<Material> VulkanForwardRenderer::GetPBRMaterial() const
+{
+    return pbrMaterial;
+}
+
+Ref<Material> VulkanForwardRenderer::GetEmissiveMaterial() const
+{
+    return emissiveMaterial;
+}
+
+Ref<Material> VulkanForwardRenderer::GetSkyboxMaterial() const
+{
+    return skyboxMaterial;
+}
+
+Ref<Material> VulkanForwardRenderer::GetCubeMaterial() const
+{
+    return cubeMaterial;
+}
+
+Ref<ParticleSystem> VulkanForwardRenderer::CreateParticleSystem(const ParticleSpecs& InSpecs, const Ref<Image>& InTexture)
+{
+    auto ps = make_s<ParticleSystem>(InSpecs, InTexture, particleSystemLayout, pool);
+    ps->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
+    return ps;
+}
+
+void VulkanForwardRenderer::Cleanup()
+{
+    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
+
+    // Forward-renderer-specific cleanup
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
+    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
+    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
+    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
+
+    // Base class cleanup (command buffers, ImGui)
+    VulkanRenderer::Cleanup();
+}
+
+void VulkanForwardRenderer::Init()
 {
     _Graph    = make_u<RenderGraph>(_Context);
     startTime = std::chrono::high_resolution_clock::now();
@@ -177,43 +497,6 @@ void ForwardRenderer::Init()
         _PointShadowMapFramebuffers[i] = make_s<Framebuffer>(_PointShadowRenderPass->GetHandle(), attachments, POUNT_SHADOW_DIM, POUNT_SHADOW_DIM, 6);
     }
 
-    _Scene.SetCamera(_Camera);
-
-    // Sponza
-    auto sponzaModel = make_s<Model>(
-        std::string(SOLUTION_DIR) + "Engine/assets/models/Sponza/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-    MeshBinding::BindModelPBR(sponzaModel, pool, PBRLayout, globalParametersUBOBuffer, sizeof(GlobalParametersUBO), directionalShadowMapImage, pointShadowMaps);
-
-    auto sponza = make_s<StaticMeshObject>("Sponza", sponzaModel);
-    sponza->SetScale(glm::vec3(0.005f));
-    sponza->SetMaterial(pbrMaterial);
-    sponza->SetCastsShadow(true);
-    _Scene.AddMeshObject(sponza);
-
-    // Helmet
-    auto helmetModel = make_s<Model>(
-        std::string(SOLUTION_DIR) + "Engine/assets/models/MaleniaHelmet/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-    MeshBinding::BindModelPBR(helmetModel, pool, PBRLayout, globalParametersUBOBuffer, sizeof(GlobalParametersUBO), directionalShadowMapImage, pointShadowMaps);
-
-    auto helmet = make_s<StaticMeshObject>("Helmet", helmetModel);
-    helmet->SetPosition(glm::vec3(0.0f, 2.0f, 0.0f));
-    helmet->Rotate(90, glm::vec3(0, 1, 0));
-    helmet->SetScale(glm::vec3(0.7f));
-    helmet->SetMaterial(pbrMaterial);
-    helmet->SetCastsShadow(true);
-    _Scene.AddMeshObject(helmet);
-
-    // Torches, torch lights, and particles
-    SetupTorchesTorchLightsAndParticleSystems();
-
-    // Directional light
-    auto dirLight = make_s<LightObject>("Directional Light", LightType::Directional);
-    dirLight->SetPosition(glm::vec3(-10.0f, 35.0f, -22.0f));
-    dirLight->SetIntensity(10.0f);
-    dirLight->SetColor(glm::vec3(1.0f));
-    dirLight->SetCastsShadow(true);
-    _Scene.SetDirectionalLight(dirLight);
-
     // UBO constants
     globalParametersUBO.cameraNearPlane = glm::vec4(_Camera->GetNearClip());
     globalParametersUBO.cameraFarPlane  = glm::vec4(_Camera->GetFarClip());
@@ -223,68 +506,11 @@ void ForwardRenderer::Init()
     globalParametersUBO.pointFarPlane   = glm::vec4(pointFarPlane);
     globalParametersUBO.pointLightCount = glm::vec4(POINT_LIGHT_COUNT);
 
-    // Sword (emissive)
-    auto swordModel = make_s<Model>(Utils::NormalizePath(std::string(SOLUTION_DIR) + "Engine/assets/models/sword/scene.gltf"), LOAD_VERTEX_POSITIONS);
-    MeshBinding::BindModelSimple(swordModel, pool, emissiveLayout, globalParametersUBOBuffer, sizeof(glm::mat4) * 2);
-
-    auto sword = make_s<StaticMeshObject>("Sword", swordModel);
-    sword->SetPosition(glm::vec3(-2, 7, 0));
-    sword->Rotate(54, glm::vec3(0, 0, 1));
-    sword->Rotate(90, glm::vec3(0, 1, 0));
-    sword->SetScale(glm::vec3(0.7f));
-    sword->SetMaterial(emissiveMaterial);
-    _Scene.AddEmissiveObject(sword);
-
-    // Skybox
-    const uint32_t vertexCount               = 3 * 6 * 6;
-    const float    cubeVertices[vertexCount] = {
-        -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f, 1.0f,
-        1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f, 1.0f,
-        1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f, -1.0f,
-        1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,
-    };
-
-    std::string front  = std::string(SOLUTION_DIR) + "Engine/assets/textures/skybox/Night/front.png";
-    std::string back   = std::string(SOLUTION_DIR) + "Engine/assets/textures/skybox/Night/back.png";
-    std::string top    = std::string(SOLUTION_DIR) + "Engine/assets/textures/skybox/Night/top.png";
-    std::string bottom = std::string(SOLUTION_DIR) + "Engine/assets/textures/skybox/Night/bottom.png";
-    std::string right  = std::string(SOLUTION_DIR) + "Engine/assets/textures/skybox/Night/right.png";
-    std::string left   = std::string(SOLUTION_DIR) + "Engine/assets/textures/skybox/Night/left.png";
-
-    std::vector<std::string> skyboxTex{ right, left, top, bottom, front, back };
-    Ref<Image>               cubemap = make_s<Image>(skyboxTex, VK_FORMAT_R8G8B8A8_SRGB);
-
-    auto skyboxModel                 = make_s<Model>(cubeVertices, vertexCount, cubemap);
-    MeshBinding::BindSkybox(skyboxModel->GetMeshes()[0], pool, skyboxLayout, globalParametersUBOBuffer);
-
-    auto skybox = make_s<StaticMeshObject>("Skybox", skyboxModel);
-    skybox->SetMaterial(skyboxMaterial);
-    _Scene.SetSkybox(skybox);
-
-    // Debug light cube
-    auto cubeModel = make_s<Model>(cubeVertices, vertexCount);
-    MeshBinding::BindSimple(cubeModel->GetMeshes()[0], pool, cubeLayout, globalParametersUBOBuffer, sizeof(glm::mat4) * 2);
-
-    auto debugCube = make_s<StaticMeshObject>("Light Cube", cubeModel);
-    debugCube->SetPosition(glm::vec3(-0.3f, 3.190f, -0.180f));
-    debugCube->SetScale(glm::vec3(0.05f));
-    debugCube->SetMaterial(cubeMaterial);
-    _Scene.AddDebugObject(debugCube);
-
-    // Red point light
-    auto redLight = make_s<LightObject>("Red Light", LightType::Point);
-    redLight->SetPosition(glm::vec3(-0.3f, 3.190f, -0.180f));
-    redLight->SetColor(glm::vec3(1.0f, 0.0f, 0.0f));
-    redLight->SetIntensity(500.0f);
-    redLight->SetCastsShadow(true);
-    _Scene.AddPointLight(redLight);
-
     // ── Command Buffers ─────────────────────────────────────
 
-    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, cmdPool);
+    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, _CmdPool);
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        CommandBuffer::CreateCommandBuffer(cmdBuffers[i], cmdPool);
+        CommandBuffer::CreateCommandBuffer(_CmdBuffers[i], _CmdPool);
 
     // ── Post Processing ─────────────────────────────────────
 
@@ -305,106 +531,7 @@ void ForwardRenderer::Init()
     Utils::UpdateDescriptorSet(bokehDescriptorSet, globalParametersUBOBuffer, offsetof(GlobalParametersUBO, DOFFramebufferSize), sizeof(glm::vec4) * 7, 2);
 }
 
-void ForwardRenderer::SetupTorchesTorchLightsAndParticleSystems()
-{
-    auto torchModel = make_s<Model>(
-        std::string(SOLUTION_DIR) + "Engine/assets/models/torch/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
-    MeshBinding::BindModelPBR(torchModel, pool, PBRLayout, globalParametersUBOBuffer, sizeof(GlobalParametersUBO), directionalShadowMapImage, pointShadowMaps);
-
-    particleTexture = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/spark.png") }, VK_FORMAT_R8G8B8A8_SRGB);
-    fireTexture     = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/fire_sprite_sheet.png") }, VK_FORMAT_R8G8B8A8_SRGB);
-    dustTexture     = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/dust.png") }, VK_FORMAT_R8G8B8A8_SRGB);
-
-    struct TorchPlacement
-    {
-        glm::vec3 Position;
-        float     RotationDeg;
-    };
-
-    std::vector<TorchPlacement> torchPlacements = {
-        { { 2.450f, 1.3f, 0.810f }, 90.0f },
-        { { 0.610f, 1.3f, -1.170f }, -90.0f },
-        { { 0.610f, 1.3f, 0.810f }, 90.0f },
-        { { 2.450f, 1.3f, -1.170f }, -90.0f },
-    };
-
-    for (int i = 0; i < torchPlacements.size(); i++)
-    {
-        auto& placement = torchPlacements[i];
-
-        auto torchObj   = make_s<StaticMeshObject>("Torch " + std::to_string(i + 1), torchModel);
-        torchObj->SetPosition(placement.Position);
-        torchObj->Rotate(placement.RotationDeg, glm::vec3(0, 1, 0));
-        torchObj->SetScale(glm::vec3(0.3f));
-        torchObj->SetMaterial(pbrMaterial);
-        torchObj->SetCastsShadow(false);
-        _Scene.AddMeshObject(torchObj);
-
-        auto light = make_s<LightObject>("Torch Light " + std::to_string(i + 1), LightType::Point);
-        light->SetPosition(placement.Position + glm::vec3(0.0f, 0.22f, 0.0f));
-        light->SetColor(glm::vec3(0.97f, 0.76f, 0.46f));
-        light->SetIntensity(25.0f);
-        light->SetCastsShadow(true);
-        _Scene.AddPointLight(light);
-
-        ParticleSpecs sparkSpecs{};
-        sparkSpecs.ParticleCount       = 10;
-        sparkSpecs.EnableNoise         = true;
-        sparkSpecs.TrailLength         = 2;
-        sparkSpecs.SphereRadius        = 0.05f;
-        sparkSpecs.ImmortalParticle    = false;
-        sparkSpecs.ParticleSize        = 0.5f;
-        sparkSpecs.EmitterPos          = placement.Position + glm::vec3(0.0f, 0.22f, 0.0f);
-        sparkSpecs.ParticleMinLifetime = 0.1f;
-        sparkSpecs.ParticleMaxLifetime = 3.0f;
-        sparkSpecs.MinVel              = glm::vec3(-1.0f, 0.1f, -1.0f);
-        sparkSpecs.MaxVel              = glm::vec3(1.0f, 2.0f, 1.0f);
-
-        auto sparks                    = make_s<ParticleSystem>(sparkSpecs, particleTexture, particleSystemLayout, pool);
-        sparks->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-
-        ParticleSpecs flameSpecs{};
-        flameSpecs.ParticleCount       = 1;
-        flameSpecs.ImmortalParticle    = true;
-        flameSpecs.ParticleSize        = 13.0f;
-        flameSpecs.EnableNoise         = false;
-        flameSpecs.SphereRadius        = 0.0f;
-        flameSpecs.TrailLength         = 0;
-        flameSpecs.EmitterPos          = placement.Position + glm::vec3(0.0f, 0.28f, 0.0f);
-        flameSpecs.ParticleMinLifetime = 0.1f;
-        flameSpecs.ParticleMaxLifetime = 1.5f;
-        flameSpecs.MinVel              = glm::vec3(0.0f);
-        flameSpecs.MaxVel              = glm::vec3(0.0f);
-
-        auto flame                     = make_s<ParticleSystem>(flameSpecs, fireTexture, particleSystemLayout, pool);
-        flame->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-        flame->RowOffset      = 0.0f;
-        flame->RowCellSize    = 0.0833333333333333333333f;
-        flame->ColumnCellSize = 0.166666666666666f;
-        flame->ColumnOffset   = 0.0f;
-
-        _Scene.AddTorchGroup(torchObj, light, sparks, flame);
-    }
-
-    ParticleSpecs ambientSpecs{};
-    ambientSpecs.ParticleCount       = 500;
-    ambientSpecs.EnableNoise         = true;
-    ambientSpecs.TrailLength         = 0;
-    ambientSpecs.SphereRadius        = 5.0f;
-    ambientSpecs.ImmortalParticle    = true;
-    ambientSpecs.ParticleSize        = 0.5f;
-    ambientSpecs.EmitterPos          = glm::vec3(0, 2.0f, 0);
-    ambientSpecs.ParticleMinLifetime = 5.0f;
-    ambientSpecs.ParticleMaxLifetime = 10.0f;
-    ambientSpecs.MinVel              = glm::vec3(-0.3f, -0.3f, -0.3f);
-    ambientSpecs.MaxVel              = glm::vec3(0.3f, 0.3f, 0.3f);
-
-    auto ambientParticles            = make_s<ParticleSystem>(ambientSpecs, dustTexture, particleSystemLayout, pool);
-    ambientParticles->SetUBO(globalParametersUBOBuffer, (sizeof(glm::mat4) * 3) + (sizeof(glm::vec4) * 3), 0);
-    _Scene.SetAmbientParticles(ambientParticles);
-}
-
-void ForwardRenderer::SetupPBRPipeline()
+void VulkanForwardRenderer::SetupPBRPipeline()
 {
     pipeline = PipelineBuilder(_Context)
                    .SetRenderPass(_HDRRenderPass->GetHandle())
@@ -424,7 +551,7 @@ void ForwardRenderer::SetupPBRPipeline()
                    .Build();
 }
 
-void ForwardRenderer::SetupFinalPassPipeline()
+void VulkanForwardRenderer::SetupFinalPassPipeline()
 {
     finalPassPipeline = PipelineBuilder(_Context)
                             .SetRenderPass(_SwapchainRenderPass->GetHandle())
@@ -433,7 +560,7 @@ void ForwardRenderer::SetupFinalPassPipeline()
                             .SetFragmentShader("assets/shaders/swapchainFRAG.spv")
                             .Build();
 }
-void ForwardRenderer::SetupShadowPassPipeline()
+void VulkanForwardRenderer::SetupShadowPassPipeline()
 {
     shadowPassPipeline = PipelineBuilder(_Context)
                              .SetRenderPass(_ShadowMapRenderPass->GetHandle())
@@ -448,7 +575,7 @@ void ForwardRenderer::SetupShadowPassPipeline()
                              .SetDynamicStatesEnabled(false)
                              .Build();
 }
-void ForwardRenderer::SetupPointShadowPassPipeline()
+void VulkanForwardRenderer::SetupPointShadowPassPipeline()
 {
     pointShadowPassPipeline = PipelineBuilder(_Context)
                                   .SetRenderPass(_PointShadowRenderPass->GetHandle())
@@ -467,7 +594,7 @@ void ForwardRenderer::SetupPointShadowPassPipeline()
                                   .SetDynamicStatesEnabled(false)
                                   .Build();
 }
-void ForwardRenderer::SetupSkyboxPipeline()
+void VulkanForwardRenderer::SetupSkyboxPipeline()
 {
     skyboxPipeline = PipelineBuilder(_Context)
                          .SetRenderPass(_HDRRenderPass->GetHandle())
@@ -482,7 +609,7 @@ void ForwardRenderer::SetupSkyboxPipeline()
                          .SetVertexAttributes({ { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 } })
                          .Build();
 }
-void ForwardRenderer::SetupCubePipeline()
+void VulkanForwardRenderer::SetupCubePipeline()
 {
     cubePipeline = PipelineBuilder(_Context)
                        .SetRenderPass(_HDRRenderPass->GetHandle())
@@ -496,7 +623,7 @@ void ForwardRenderer::SetupCubePipeline()
                        .Build();
 }
 
-void ForwardRenderer::SetupParticleSystemPipeline()
+void VulkanForwardRenderer::SetupParticleSystemPipeline()
 {
     particleSystemPipeline = PipelineBuilder(_Context)
                                  .SetRenderPass(_HDRRenderPass->GetHandle())
@@ -522,7 +649,7 @@ void ForwardRenderer::SetupParticleSystemPipeline()
                                      })
                                  .Build();
 }
-void ForwardRenderer::SetupEmissiveObjectPipeline()
+void VulkanForwardRenderer::SetupEmissiveObjectPipeline()
 {
     EmissiveObjectPipeline = PipelineBuilder(_Context)
                                  .SetRenderPass(_HDRRenderPass->GetHandle())
@@ -535,28 +662,7 @@ void ForwardRenderer::SetupEmissiveObjectPipeline()
                                  .Build();
 }
 
-void ForwardRenderer::CreateSwapchainRenderPass()
-{
-    RenderPass::AttachmentInfo colorAttachment{ _Context.GetSurface()->GetVKSurfaceFormat().format,
-                                                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                                VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                VK_ATTACHMENT_STORE_OP_STORE,
-                                                { 0.0f, 0.0f, 0.0f, 0.0f } }; // Pass two clear values here if this is buggy.
-
-    VkSubpassDependency dep{};
-    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
-    dep.dstSubpass    = 0;
-    dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.srcAccessMask = 0;
-    dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    RenderPass::CreateInfo HDRCreateInfo{ { colorAttachment }, { dep }, false, "Swapchain Final Pass (rename)" };
-
-    _SwapchainRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
-}
-
-void ForwardRenderer::CreateHDRRenderPass()
+void VulkanForwardRenderer::CreateHDRRenderPass()
 {
     RenderPass::AttachmentInfo colorAttachment{
         VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, { 0.0f, 0.0f, 0.0f, 1.0f }
@@ -578,7 +684,7 @@ void ForwardRenderer::CreateHDRRenderPass()
 
     _HDRRenderPass = std::make_unique<RenderPass>(_Context, HDRCreateInfo);
 }
-void ForwardRenderer::CreateShadowRenderPass()
+void VulkanForwardRenderer::CreateShadowRenderPass()
 {
     RenderPass::AttachmentInfo depthAttachment{
         VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, { 1.0f, 0.0f }
@@ -598,7 +704,7 @@ void ForwardRenderer::CreateShadowRenderPass()
     _ShadowMapRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
 }
 
-void ForwardRenderer::CreatePointShadowRenderPass()
+void VulkanForwardRenderer::CreatePointShadowRenderPass()
 {
     RenderPass::AttachmentInfo depthAttachment{
         VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, { 1.0f, 0.0f }
@@ -618,7 +724,7 @@ void ForwardRenderer::CreatePointShadowRenderPass()
     _PointShadowRenderPass = std::make_unique<RenderPass>(_Context, shadowRenderPassInfo);
 }
 
-void ForwardRenderer::EnableDepthOfField()
+void VulkanForwardRenderer::EnableDepthOfField()
 {
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
@@ -627,7 +733,7 @@ void ForwardRenderer::EnableDepthOfField()
     Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 // Connects the bloom image to the final render pass.
-void ForwardRenderer::DisableDepthOfField()
+void VulkanForwardRenderer::DisableDepthOfField()
 {
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
     vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
@@ -638,7 +744,7 @@ void ForwardRenderer::DisableDepthOfField()
         finalPassDescriptorSet, finalPassSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void ForwardRenderer::SetupBokehPassPipeline()
+void VulkanForwardRenderer::SetupBokehPassPipeline()
 {
     bokehPassPipeline = PipelineBuilder(_Context)
                             .SetRenderPass(bokehRenderPass->GetHandle())
@@ -650,7 +756,7 @@ void ForwardRenderer::SetupBokehPassPipeline()
                             .SetFixedViewport(bokehPassFramebuffer->GetWidth(), bokehPassFramebuffer->GetHeight())
                             .Build();
 }
-void ForwardRenderer::CreateBokehRenderPass()
+void VulkanForwardRenderer::CreateBokehRenderPass()
 {
     RenderPass::AttachmentInfo colorAttachment{
         VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, { 0.0f, 0.0f, 0.0f, 1.0f }
@@ -670,26 +776,7 @@ void ForwardRenderer::CreateBokehRenderPass()
     bokehRenderPass = std::make_unique<RenderPass>(_Context, createInfo);
 }
 
-void ForwardRenderer::CreateSwapchainFramebuffers()
-{
-    if (_SwapchainFramebuffers.size() > 0)
-    {
-        _SwapchainFramebuffers.clear();
-    }
-
-    for (auto imageView : _Swapchain->GetImageViews())
-    {
-        // Creating a framebuffer for each swapchain image. The depth image is
-        // shared across the images.
-        std::vector<VkImageView> attachments = {
-            imageView,
-        };
-        _SwapchainFramebuffers.push_back(
-            make_s<Framebuffer>(_SwapchainRenderPass->GetHandle(), attachments, _Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height));
-    }
-}
-
-void ForwardRenderer::CreateHDRFramebuffer()
+void VulkanForwardRenderer::CreateHDRFramebuffer()
 {
     HDRColorImage = make_s<Image>(
         _Context.GetSurface()->GetVKExtent().width,
@@ -711,7 +798,7 @@ void ForwardRenderer::CreateHDRFramebuffer()
         make_s<Framebuffer>(_HDRRenderPass->GetHandle(), attachments, _Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
 }
 
-void ForwardRenderer::CreateBokehFramebuffer()
+void VulkanForwardRenderer::CreateBokehFramebuffer()
 {
     bokehPassImage = make_s<Image>(
         _Context.GetSurface()->GetVKExtent().width,
@@ -726,34 +813,13 @@ void ForwardRenderer::CreateBokehFramebuffer()
         make_s<Framebuffer>(bokehRenderPass->GetHandle(), attachments, _Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
 }
 
-void ForwardRenderer::Cleanup()
+void VulkanForwardRenderer::SyncLightsToUBO()
 {
-    vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        CommandBuffer::FreeCommandBuffer(cmdBuffers[i], cmdPool, _Context.GetDevice()->GetGraphicsQueue());
-    }
-    CommandBuffer::DestroyCommandPool(cmdPool);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
-    vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
-    vkFreeMemory(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBufferMemory, nullptr);
-    vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
-
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
-
-    vkDestroyDescriptorPool(_Context.GetDevice()->GetVKDevice(), imguiPool, nullptr);
-    ImGui_ImplVulkan_Shutdown();
-}
-
-void ForwardRenderer::SyncLightsToUBO()
-{
-    auto dirLight                                 = _Scene.GetDirectionalLight();
+    auto dirLight                                 = _Scene->GetDirectionalLight();
     globalParametersUBO.dirLightPos               = glm::vec4(dirLight->GetPosition(), 1.0f);
     globalParametersUBO.directionalLightIntensity = glm::vec4(dirLight->GetIntensity());
 
-    auto& pointLights                             = _Scene.GetPointLights();
+    auto& pointLights                             = _Scene->GetPointLights();
     int   pointIndex                              = 0;
 
     for (int i = 0; i < pointLights.size() && pointIndex < MAX_POINT_LIGHT_COUNT; i++, pointIndex++)
@@ -766,86 +832,13 @@ void ForwardRenderer::SyncLightsToUBO()
     globalParametersUBO.pointLightCount = glm::vec4(POINT_LIGHT_COUNT);
 }
 
-void ForwardRenderer::UpdateViewport_Scissor()
+void VulkanForwardRenderer::RenderFrame(const float InDeltaTime)
 {
-    _DynamicViewport.x            = 0.0f;
-    _DynamicViewport.y            = 0.0f;
-    _DynamicViewport.width        = (float)_Context.GetSurface()->GetVKExtent().width;
-    _DynamicViewport.height       = (float)_Context.GetSurface()->GetVKExtent().height;
-    _DynamicViewport.minDepth     = 0.0f;
-    _DynamicViewport.maxDepth     = 1.0f;
+    if (!ENSURE_CHECK(_Scene, "Scene wasn't valid, create a scene first to start rendering."))
+    {
+        return;
+    }
 
-    _DynamicScissor.offset        = { 0, 0 };
-    _DynamicScissor.extent.width  = _Context.GetSurface()->GetVKExtent().width;
-    _DynamicScissor.extent.height = _Context.GetSurface()->GetVKExtent().height;
-}
-
-void ForwardRenderer::InitImGui()
-{
-    VkDescriptorPoolSize pool_sizes[]    = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-                                             { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
-
-    VkDescriptorPoolCreateInfo pool_info = {};
-    pool_info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.flags                      = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets                    = 1000;
-    pool_info.poolSizeCount              = std::size(pool_sizes);
-    pool_info.pPoolSizes                 = pool_sizes;
-
-    ENSURE(vkCreateDescriptorPool(_Context.GetDevice()->GetVKDevice(), &pool_info, nullptr, &imguiPool) == VK_SUCCESS, "Failed to initialize imgui pool");
-
-    ImGui::CreateContext();
-
-    ImGui_ImplGlfw_InitForVulkan(_Context.GetWindow()->GetNativeWindow(), true);
-
-    init_info.Instance       = _Context.GetInstance()->GetVkInstance();
-    init_info.PhysicalDevice = _Context.GetPhysicalDevice()->GetVKPhysicalDevice();
-    init_info.Device         = _Context.GetDevice()->GetVKDevice();
-    init_info.Queue          = _Context.GetDevice()->GetGraphicsQueue();
-    init_info.DescriptorPool = imguiPool;
-    init_info.MinImageCount  = 3;
-    init_info.ImageCount     = 3;
-    init_info.MSAASamples    = VK_SAMPLE_COUNT_1_BIT;
-
-    ImGui_ImplVulkan_Init(&init_info, _SwapchainRenderPass->GetHandle());
-
-    // Loading a custom font here and scaling the the font so that it can work
-    // on a 4K display. TO DO: You should dynamically handle the DPI of the
-    // monitor that the application is running on rather than setting a fixed
-    // scale for the font.
-    ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF(
-        (std::string(SOLUTION_DIR) +
-         "Engine/assets/resources/Open_Sans/static/OpenSans/"
-         "OpenSans-Regular.ttf")
-            .c_str(),
-        30);
-
-    VkCommandBuffer singleCmdBuffer;
-    VkCommandPool   singleCmdPool;
-    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.TransferFamily, singleCmdPool);
-    CommandBuffer::CreateCommandBuffer(singleCmdBuffer, singleCmdPool);
-    CommandBuffer::BeginRecording(singleCmdBuffer);
-
-    ImGui_ImplVulkan_CreateFontsTexture(singleCmdBuffer);
-
-    CommandBuffer::EndRecording(singleCmdBuffer);
-    CommandBuffer::Submit(singleCmdBuffer, _Context.GetDevice()->GetTransferQueue());
-    CommandBuffer::FreeCommandBuffer(singleCmdBuffer, singleCmdPool, _Context.GetDevice()->GetTransferQueue());
-    CommandBuffer::DestroyCommandPool(singleCmdPool);
-}
-
-void ForwardRenderer::RenderFrame(const float InDeltaTime)
-{
     _DeltaTime = InDeltaTime;
 
     // Flicker torch light intensities
@@ -862,7 +855,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
             std::uniform_real_distribution<double>(12.5, 25.0),
         };
 
-        auto torchGroups = _Scene.GetTorchGroups();
+        auto torchGroups = _Scene->GetTorchGroups();
         for (int i = 0; i < torchGroups.size(); i++)
         {
             torchGroups[i]->Light->SetIntensity(distributions[i](gen));
@@ -872,9 +865,9 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     SyncLightsToUBO();
 
     // Update scene (particles)
-    _Scene.Update(_DeltaTime);
+    _Scene->Update(_DeltaTime);
 
-    CommandBuffer::BeginRecording(cmdBuffers[GFrameSync.CurrentBufferIndex]);
+    CommandBuffer::BeginRecording(_CmdBuffers[GFrameSync.CurrentBufferIndex]);
 
     timer += 7.0f * _DeltaTime;
 
@@ -882,12 +875,12 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     float time = std::chrono::duration<float>(now - startTime).count();
 
     // Rotate the helmet
-    auto helmet = _Scene.FindMeshObject("Helmet");
+    auto helmet = _Scene->FindMeshObject("Helmet");
     if (helmet)
         helmet->Rotate(2.0f * _DeltaTime, glm::vec3(0, 1, 0));
 
     // Directional light MVP
-    auto      dirLight            = _Scene.GetDirectionalLight();
+    auto      dirLight            = _Scene->GetDirectionalLight();
     glm::mat4 directionalLightMVP = directionalLightProjectionMatrix * glm::lookAt(dirLight->GetPosition(), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     // Camera data
@@ -905,7 +898,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
     globalParametersUBO.DOFFramebufferSize.x = bokehPassFramebuffer->GetWidth();
     globalParametersUBO.DOFFramebufferSize.y = bokehPassFramebuffer->GetHeight();
 
-    auto shadowCasters                       = _Scene.GetShadowCasters();
+    auto shadowCasters                       = _Scene->GetShadowCasters();
     auto dirShadowMap = _Graph->CreateTexture("DirectionalShadowMap", directionalShadowMapImage->GetVKImage(), VK_FORMAT_D32_SFLOAT, SHADOW_DIM, SHADOW_DIM, false);
     std::vector<RGResource*> pointShadowArray;
 
@@ -1026,7 +1019,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         {
             if (ct >= currentAnimationFrame)
             {
-                for (auto group : _Scene.GetTorchGroups())
+                for (auto group : _Scene->GetTorchGroups())
                 {
                     group->Flame->RowOffset    = 0.0833333333333333333333f * j;
                     group->Flame->ColumnOffset = 0.166666666666666f * i;
@@ -1074,6 +1067,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 _CloudPass->Record(cmd, pc);
             };
         });
+    // ~Cloud Pass ////////////////////////////////////// RDG
 
     auto SceneColorHDR = _Graph->CreateTexture(
         "SceneColorHDR",
@@ -1100,7 +1094,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 _HDRRenderPass->Begin(cmd, *_HDRFramebuffer, "HDR Pass");
 
                 // Skybox
-                auto skybox = _Scene.GetSkybox();
+                auto skybox = _Scene->GetSkybox();
                 if (skybox)
                 {
                     glm::mat4 skyBoxView = glm::mat4(glm::mat3(cameraView));
@@ -1112,12 +1106,12 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 }
 
                 // Debug objects (light cube)
-                for (auto obj : _Scene.GetDebugObjects())
+                for (auto obj : _Scene->GetDebugObjects())
                 {
                     // Follow the red light position
-                    if (obj->GetName() == "Light Cube" && _Scene.GetPointLightCount() > 0)
+                    if (obj->GetName() == "Light Cube" && _Scene->GetPointLightCount() > 0)
                     {
-                        auto& pointLights = _Scene.GetPointLights();
+                        auto& pointLights = _Scene->GetPointLights();
                         for (auto& light : pointLights)
                         {
                             if (light->GetName() == "Red Light")
@@ -1144,7 +1138,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
 
                 // PBR mesh objects
                 Ref<Material> currentMaterial = nullptr;
-                for (auto obj : _Scene.GetMeshObjects())
+                for (auto obj : _Scene->GetMeshObjects())
                 {
                     if (obj->GetMaterial() != currentMaterial)
                     {
@@ -1159,7 +1153,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 }
 
                 // Emissive objects
-                for (auto obj : _Scene.GetEmissiveObjects())
+                for (auto obj : _Scene->GetEmissiveObjects())
                 {
                     struct
                     {
@@ -1185,16 +1179,16 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 glm::vec4 dustBrightness  = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
 
                 CommandBuffer::PushConstants(cmd, particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &sparkBrightness);
-                for (auto& group : _Scene.GetTorchGroups())
+                for (auto& group : _Scene->GetTorchGroups())
                     group->Sparks->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
 
                 CommandBuffer::PushConstants(cmd, particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &flameBrightness);
-                for (auto& group : _Scene.GetTorchGroups())
+                for (auto& group : _Scene->GetTorchGroups())
                     group->Flame->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
 
                 CommandBuffer::PushConstants(cmd, particleSystemPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4), &dustBrightness);
-                if (_Scene.GetAmbientParticles())
-                    _Scene.GetAmbientParticles()->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
+                if (_Scene->GetAmbientParticles())
+                    _Scene->GetAmbientParticles()->Draw(cmd, particleSystemPipeline->GetPipelineLayout());
 
                 _HDRRenderPass->End(cmd);
             };
@@ -1209,6 +1203,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         _Context.GetSurface()->GetVKExtent().height,
         true);
 
+    // Bloom Pass ////////////////////////////////////// RDG
     _Graph->AddPass(
         "Bloom",
         [&](RGPass& pass)
@@ -1217,6 +1212,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
             pass.Writes     = { bloomOutput };
             pass.RecordFunc = [&](VkCommandBuffer cmd) { bloomAgent->ApplyBloom(cmd); };
         });
+    // ~Bloom Pass ////////////////////////////////////// RDG
 
     auto SceneColorHDRDoF = _Graph->CreateTexture(
         "SceneColorHDRDoF",
@@ -1226,6 +1222,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         _Context.GetSurface()->GetVKExtent().height,
         true);
 
+    // Bokeh Pass ////////////////////////////////////// RDG
     if (enableDepthOfField)
     {
         _Graph->AddPass(
@@ -1246,6 +1243,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 };
             });
     }
+    // ~Bokeh Pass ////////////////////////////////////// RDG
 
     auto swapchainOutput = _Graph->CreateTexture(
         "Swapchain Image",
@@ -1275,11 +1273,11 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                 // ImGui
                 ImGui::Begin("Hello, world!");
 
-                glm::vec3 dirPos = _Scene.GetDirectionalLight()->GetPosition();
+                glm::vec3 dirPos = _Scene->GetDirectionalLight()->GetPosition();
                 if (ImGui::DragFloat3("Directional Light", &dirPos.x, 0.1f, -50, 50))
-                    _Scene.GetDirectionalLight()->SetPosition(dirPos);
+                    _Scene->GetDirectionalLight()->SetPosition(dirPos);
 
-                auto helmetObj = _Scene.FindMeshObject("Helmet");
+                auto helmetObj = _Scene->FindMeshObject("Helmet");
                 if (helmetObj)
                 {
                     glm::vec3 helmetPos = helmetObj->GetPosition();
@@ -1287,16 +1285,16 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                         helmetObj->SetPosition(helmetPos);
                 }
 
-                for (auto emissive : _Scene.GetEmissiveObjects())
+                for (auto emissive : _Scene->GetEmissiveObjects())
                 {
                     glm::vec3 pos = emissive->GetPosition();
                     if (ImGui::DragFloat3(emissive->GetName().c_str(), &pos.x, 0.01f, -10, 10))
                         emissive->SetPosition(pos);
                 }
 
-                for (int i = 0; i < _Scene.GetTorchGroups().size(); i++)
+                for (int i = 0; i < _Scene->GetTorchGroups().size(); i++)
                 {
-                    auto      group = _Scene.GetTorchGroups()[i];
+                    auto      group = _Scene->GetTorchGroups()[i];
                     glm::vec3 pos   = group->Torch->GetPosition();
                     if (ImGui::DragFloat3(("Torch " + std::to_string(i + 1)).c_str(), &pos.x, 0.01f, -10, 10))
                     {
@@ -1307,7 +1305,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
                     }
                 }
 
-                for (auto light : _Scene.GetPointLights())
+                for (auto light : _Scene->GetPointLights())
                 {
                     if (light->GetName() == "Red Light")
                     {
@@ -1349,182 +1347,7 @@ void ForwardRenderer::RenderFrame(const float InDeltaTime)
         printedDependencies = true;
     }
 
-    _Graph->Execute(cmdBuffers[GFrameSync.CurrentBufferIndex]);
-    CommandBuffer::EndRecording(cmdBuffers[GFrameSync.CurrentBufferIndex]);
+    _Graph->Execute(_CmdBuffers[GFrameSync.CurrentBufferIndex]);
+    CommandBuffer::EndRecording(_CmdBuffers[GFrameSync.CurrentBufferIndex]);
     _Graph->Clear();
-}
-
-void ForwardRenderer::RenderImGui()
-{
-    // ImGui
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-    // ImGui::Begin("Shaders:");
-    //  bool breakFrame = false;
-    //  for (const auto& entry : std::filesystem::directory_iterator((std::string(SOLUTION_DIR) +
-    //  "/Engine/assets/shaders").c_str()))
-    //{
-    //      int         fullstopIndex  = entry.path().string().find_last_of('.');
-    //      int         lastSlashIndex = entry.path().string().find_last_of('\\');
-    //      std::string path           = entry.path().string();
-    //      std::string extension;
-    //      std::string shadersFolder = std::string(SOLUTION_DIR) + "Engine/assets/shaders/";
-    //      if (fullstopIndex != std::string::npos)
-    //      {
-    //          extension = path.substr(fullstopIndex, path.length() - fullstopIndex);
-    //      }
-    //      if (extension == ".frag" || extension == ".vert")
-    //      {
-    //          std::string shaderPath = path.substr(lastSlashIndex + 1, path.length() - lastSlashIndex);
-    //          std::string shaderName = path.substr(lastSlashIndex + 1, fullstopIndex - (lastSlashIndex + 1));
-    //          ImGui::PushID(shaderPath.c_str());
-    //          if (ImGui::Button("Compile"))
-    //          {
-    //              std::string extensionWithoutDot = extension.substr(1, extension.length() - 1);
-    //              for (int i = 0; i < extensionWithoutDot.length(); i++)
-    //              {
-    //                  extensionWithoutDot[i] = toupper(extensionWithoutDot[i]);
-    //              }
-    //
-    //              std::string outputName = shaderName + extensionWithoutDot + ".spv";
-    //              std::string command    = std::string(SOLUTION_DIR) + "Engine/vendor/VULKAN/1.4.328.1/bin/glslc.exe " +
-    //                  shadersFolder + shaderPath + " -o " + "shaders/" + outputName;
-    //              int success = system(command.c_str());
-    //
-    //              ImGui::PopID();
-    //              ImGui::End();
-    //              ImGui::EndFrame();
-    //              breakFrame = true;
-    //              break;
-    //          }
-    //          ImGui::PopID();
-    //          ImGui::SameLine();
-    //          ImGui::Text(shaderPath.c_str());
-    //      }
-    //  }
-    //
-    //  if (breakFrame)
-    //{
-    //      vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
-    //      // WindowResize(); // TODO: THis crashes due to swapchain.
-    //  }
-
-    // ImGui::End();
-}
-
-bool ForwardRenderer::BeginFrame()
-{
-    auto device = _Context.GetDevice()->GetVKDevice();
-
-    vkWaitForFences(device, 1, &GFrameSync.InFlightFences[GFrameSync.CurrentBufferIndex], VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &GFrameSync.InFlightFences[GFrameSync.CurrentBufferIndex]);
-
-    VkResult result;
-
-    result = vkAcquireNextImageKHR(
-        device, _Swapchain->GetHandle(), UINT64_MAX, GFrameSync.AcquireFinishedSemaphores[GFrameSync.CurrentBufferIndex], VK_NULL_HANDLE, &_CurrentSwapchainImageIndex);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _Context.GetWindow()->IsWindowResized())
-    {
-        HandleWindowResize(result);
-        return false;
-    }
-
-    ENSURE(result == VK_SUCCESS, "Failed to acquire next image.");
-    return true;
-}
-
-void ForwardRenderer::HandleWindowResize(VkResult InResult)
-{
-    if (InResult == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || InResult == VK_SUBOPTIMAL_KHR)
-    {
-        vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
-
-        // Wait if the window is minimized.
-        int width = 0, height = 0;
-        glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
-        while (width == 0 || height == 0)
-        {
-            glfwGetFramebufferSize(_Context.GetWindow()->GetNativeWindow(), &width, &height);
-            glfwWaitEvents();
-        }
-
-        _Swapchain->Recreate();
-
-        // WindowResize()
-        UpdateViewport_Scissor();
-        CreateSwapchainFramebuffers(); // Works?
-        CreateHDRFramebuffer();
-
-        // Experimental. TO DO: Carry this part into the post processing
-        // pipeline. Do it like how you did with Bloom.
-        // CreateBokehRenderPass();
-        CreateBokehFramebuffer();
-        SetupBokehPassPipeline();
-
-        bloomAgent = make_s<Bloom>();
-        bloomAgent->ConnectImageResourceToAddBloomTo(HDRColorImage, _CloudPass);
-
-        vkDestroySampler(_Context.GetDevice()->GetVKDevice(), finalPassSampler, nullptr);
-        vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassDepthSampler, nullptr);
-        vkDestroySampler(_Context.GetDevice()->GetVKDevice(), bokehPassSceneSampler, nullptr);
-
-        finalPassSampler = Utils::CreateSampler(bokehPassImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::UpdateDescriptorSet(finalPassDescriptorSet, finalPassSampler, bokehPassImage->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        bokehPassSceneSampler = Utils::CreateSampler(
-            bloomAgent->GetPostProcessedImage(), ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::UpdateDescriptorSet(
-            bokehDescriptorSet, bokehPassSceneSampler, bloomAgent->GetPostProcessedImage()->GetImageView(), 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        bokehPassDepthSampler =
-            Utils::CreateSampler(HDRDepthImage, ImageType::COLOR, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE);
-        Utils::UpdateDescriptorSet(bokehDescriptorSet, bokehPassDepthSampler, HDRDepthImage->GetImageView(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
-        // ~WindowResize()
-
-        _Context.GetWindow()->OnResize();
-        _Camera->SetViewportSize(_Context.GetSurface()->GetVKExtent().width, _Context.GetSurface()->GetVKExtent().height);
-        ImGui::EndFrame();
-    }
-}
-
-void ForwardRenderer::EndFrame()
-{
-    VkResult result;
-    if (!ImGui::GetIO().WantCaptureMouse)
-    {
-        _Camera->OnUpdate(_DeltaTime);
-    }
-
-    auto queue                        = _Context.GetDevice()->GetGraphicsQueue();
-    auto swapchainHandle              = _Swapchain->GetHandle();
-
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    VkSubmitInfo         submitInfo{};
-
-    submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount   = 1;
-    submitInfo.pWaitSemaphores      = &GFrameSync.AcquireFinishedSemaphores[GFrameSync.CurrentBufferIndex];
-    submitInfo.pWaitDstStageMask    = waitStages;
-    submitInfo.commandBufferCount   = 1;
-    submitInfo.pCommandBuffers      = &cmdBuffers[GFrameSync.CurrentBufferIndex];
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores    = &GFrameSync.RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
-
-    ENSURE(vkQueueSubmit(queue, 1, &submitInfo, GFrameSync.InFlightFences[GFrameSync.CurrentBufferIndex]) == VK_SUCCESS, "Failed to submit draw command buffer!");
-
-    VkSwapchainKHR   swapchain = swapchainHandle;
-    VkPresentInfoKHR presentInfo{};
-
-    presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores    = &GFrameSync.RenderingCompleteSemaphores[_CurrentSwapchainImageIndex];
-    presentInfo.swapchainCount     = 1;
-    presentInfo.pSwapchains        = &swapchain;
-    presentInfo.pImageIndices      = &_CurrentSwapchainImageIndex;
-    presentInfo.pResults           = nullptr;
-
-    result                         = vkQueuePresentKHR(queue, &presentInfo);
-    ENSURE(result == VK_SUCCESS, "Failed to present swap chain image!");
 }

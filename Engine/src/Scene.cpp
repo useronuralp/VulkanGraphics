@@ -1,8 +1,9 @@
 // Scene.cpp
 #include "Camera.h"
-#include "Model.h"
+#include "LightObject.h"
 #include "ParticleSystem.h"
 #include "Scene.h"
+#include "StaticMeshObject.h"
 
 void Scene::SetCamera(const Ref<Camera>& InCamera)
 {

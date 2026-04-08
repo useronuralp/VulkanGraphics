@@ -1,6 +1,7 @@
 #pragma once
-
 #include "core.h"
+
+#include <vulkan/vulkan.h>
 
 class Instance;
 class PhysicalDevice;

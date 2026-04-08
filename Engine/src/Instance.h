@@ -1,11 +1,9 @@
 #pragma once
 #include "core.h"
-#include "PhysicalDevice.h"
-// External
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <iostream>
-#include <vector>
+
+#include <vulkan/vulkan.h>
+
+class PhysicalDevice;
 class Instance
 {
    public:

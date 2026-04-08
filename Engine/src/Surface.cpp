@@ -1,7 +1,6 @@
 #include "Instance.h"
 #include "PhysicalDevice.h"
 #include "Surface.h"
-// #include "VulkanApplication.h"
 #include "Window.h"
 
 #include <algorithm>

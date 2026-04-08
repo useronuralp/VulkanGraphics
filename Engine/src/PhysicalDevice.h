@@ -1,10 +1,8 @@
 #pragma once
 #include "core.h"
-// External
-#include <iostream>
-#include <set>
-#include <vector>
+
 #include <vulkan/vulkan.h>
+
 struct QueueFamily
 {
     uint32_t                Index = -1;

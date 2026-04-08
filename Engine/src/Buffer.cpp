@@ -1,14 +1,8 @@
 #include "Buffer.h"
-#include "CommandBuffer.h"
-#include "DescriptorSet.h"
 #include "Device.h"
 #include "EngineInternal.h"
-#include "PhysicalDevice.h"
 #include "Utils.h"
 #include "VulkanContext.h"
-
-#include <iostream>
-#include <stb_image.h>
 
 VertexBuffer::VertexBuffer(const std::vector<float>& vertices) : m_Vertices(vertices)
 {

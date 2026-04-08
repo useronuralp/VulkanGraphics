@@ -1,13 +1,10 @@
 #pragma once
 
 #include "core.h"
-#include "LightObject.h"
-#include "RenderPass.h"
-#include "Scene.h"
-#include "StaticMeshObject.h"
 
 #include <chrono>
 #include <imgui_impl_vulkan.h>
+#include <random>
 
 class CloudPass;
 class RenderPass;
@@ -23,6 +20,10 @@ class DescriptorSetLayout;
 class Bloom;
 class DescriptorPool;
 class Material;
+class Scene;
+class RenderGraph;
+struct ParticleSpecs;
+enum LoadingFlags;
 
 #define MAX_POINT_LIGHT_COUNT 10
 #define SHADOW_DIM            10000
@@ -42,12 +43,60 @@ class RendererInterface
     virtual void Cleanup()                    = 0;
 };
 
-class ForwardRenderer : public RendererInterface
+class VulkanRenderer : public RendererInterface
 {
    public:
-    VkDescriptorPool          imguiPool;
-    ImGui_ImplVulkan_InitInfo init_info;
+    VulkanRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
+    virtual ~VulkanRenderer() = default;
 
+    // RendererInterface — shared implementations
+    bool BeginFrame() override;
+    void EndFrame() override;
+    void InitImGui() override;
+    void RenderImGui() override;
+    void Cleanup() override;
+
+    // Scene
+    void       SetScene(const Ref<Scene>& InScene);
+    Ref<Scene> GetScene() const;
+
+   protected:
+    void HandleWindowResize(VkResult InResult);
+    void UpdateViewport_Scissor();
+    void CreateSwapchainRenderPass();
+    void CreateSwapchainFramebuffers();
+
+    // Subclass must implement — called during resize
+    virtual void OnResize() = 0;
+
+    VulkanContext& _Context;
+    Ref<Swapchain> _Swapchain;
+    Ref<Camera>    _Camera;
+    Ref<Scene>     _Scene;
+
+    // Swapchain
+    Unique<RenderPass>            _SwapchainRenderPass;
+    std::vector<Ref<Framebuffer>> _SwapchainFramebuffers;
+    uint32_t                      _CurrentSwapchainImageIndex = 0;
+
+    // Viewport
+    VkViewport _DynamicViewport{};
+    VkRect2D   _DynamicScissor{};
+
+    // Command buffers
+    VkCommandBuffer _CmdBuffers[MAX_FRAMES_IN_FLIGHT];
+    VkCommandPool   _CmdPool;
+
+    // ImGui
+    VkDescriptorPool          _ImGuiPool;
+    ImGui_ImplVulkan_InitInfo _ImGuiInitInfo;
+
+    float _DeltaTime = 0.0f;
+};
+
+class VulkanForwardRenderer : public VulkanRenderer
+{
+   public:
     bool pointLightShadows  = true;
     bool showDOFFocus       = false;
     bool enableDepthOfField = true;
@@ -151,8 +200,6 @@ class ForwardRenderer : public RendererInterface
     Ref<Material> cubeMaterial;
 
     // Others
-    VkCommandBuffer cmdBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkCommandPool   cmdPool;
     Ref<Bloom>      bloomAgent;
     VkSampler       finalPassSampler;
     VkDescriptorSet finalPassDescriptorSet;
@@ -163,7 +210,6 @@ class ForwardRenderer : public RendererInterface
    private:
     // Framebuffer creations.
     void CreateHDRFramebuffer();
-    void CreateSwapchainFramebuffers();
     void CreateBokehFramebuffer();
 
     // Pipeline creations.
@@ -178,7 +224,6 @@ class ForwardRenderer : public RendererInterface
     void SetupEmissiveObjectPipeline();
 
     // Render pass creations.
-    void CreateSwapchainRenderPass();
     void CreateBokehRenderPass();
     void CreateHDRRenderPass();
     void CreateShadowRenderPass();
@@ -188,45 +233,43 @@ class ForwardRenderer : public RendererInterface
     void EnableDepthOfField();
     void DisableDepthOfField();
     void SyncLightsToUBO();
-    void SetupTorchesTorchLightsAndParticleSystems();
 
    public:
-    ForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
+    VulkanForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
 
     // RendererInterface overrides
     void Init() override;
-    bool BeginFrame() override;
     void RenderFrame(const float InDeltaTime) override;
-    void EndFrame() override;
     void Cleanup() override;
-    // ~RendererInterface overrides
+    //  ~RendererInterface overrides
 
-    void UpdateViewport_Scissor();
-    void InitImGui();
-    void RenderImGui();
-    void HandleWindowResize(VkResult InResult);
+    // Model loading API
+    // TODO: Better to have a ResourceLoader class that handles this, but for simplicity it's in the renderer for now.
+    Ref<Model> LoadPBRModel(const std::string& InPath, LoadingFlags InFlags);
+    Ref<Model> LoadSimpleModel(const std::string& InPath, LoadingFlags InFlags);
+    Ref<Model> LoadSkyboxModel(const float* InVertices, uint32_t InVertexCount, Ref<Image> InCubemap);
+    Ref<Model> LoadDebugModel(const float* InVertices, uint32_t InVertexCount);
+
+    // Material access
+    Ref<Material> GetPBRMaterial() const;
+    Ref<Material> GetEmissiveMaterial() const;
+    Ref<Material> GetSkyboxMaterial() const;
+    Ref<Material> GetCubeMaterial() const;
+
+    // Particle creation
+    Ref<ParticleSystem> CreateParticleSystem(const ParticleSpecs& InSpecs, const Ref<Image>& InTexture);
+
+   protected:
+    void OnResize() override;
 
    private:
-    VulkanContext& _Context;
-    Ref<Swapchain> _Swapchain;
-    Ref<Camera>    _Camera;
-
     Unique<RenderPass> _PointShadowRenderPass;
     Unique<RenderPass> _HDRRenderPass;
     Unique<RenderPass> _ShadowMapRenderPass;
-    Unique<RenderPass> _SwapchainRenderPass;
-
-    Scene _Scene;
 
     Ref<Framebuffer>              _DirectionalShadowMapFramebuffer;
     Ref<Framebuffer>              _HDRFramebuffer;
     std::vector<Ref<Framebuffer>> _PointShadowMapFramebuffers;
-    std::vector<Ref<Framebuffer>> _SwapchainFramebuffers;
-
-    VkViewport _DynamicViewport{};
-    VkRect2D   _DynamicScissor;
-
-    uint32_t _CurrentSwapchainImageIndex = 0;
 
     Ref<CloudPass> _CloudPass;
 
@@ -237,6 +280,4 @@ class ForwardRenderer : public RendererInterface
     Unique<RenderGraph> _Graph;
 
     int _FrameCount = 0;
-
-    float _DeltaTime;
 };

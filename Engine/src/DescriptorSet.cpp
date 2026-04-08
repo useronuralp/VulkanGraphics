@@ -2,8 +2,6 @@
 #include "Device.h"
 #include "EngineInternal.h"
 
-#include <iostream>
-
 DescriptorPool::DescriptorPool(uint32_t maximumDescriptorCount, std::vector<VkDescriptorType> types)
 {
     std::vector<VkDescriptorPoolSize> poolSizes;

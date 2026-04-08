@@ -1,13 +1,10 @@
 // Scene.h
 #pragma once
 #include "core.h"
-#include "LightObject.h"
-#include "StaticMeshObject.h"
-
-#include <string>
-#include <vector>
 
 class Camera;
+class LightObject;
+class StaticMeshObject;
 class ParticleSystem;
 
 struct TorchFireGroup

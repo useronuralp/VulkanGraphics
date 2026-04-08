@@ -1,7 +1,6 @@
 #include "Instance.h"
 #include "PhysicalDevice.h"
 
-#include <string>
 PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevice& physicalDevice) : m_PhysicalDevice(physicalDevice)
 {
     // Enumerate neccessary properties.

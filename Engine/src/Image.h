@@ -1,15 +1,15 @@
 #pragma once
 #include "core.h"
-#include "vulkan/vulkan.h"
-// External
-#include <string>
-#include <vector>
+
+#include <vulkan/vulkan.h>
+
 enum class ImageType
 {
     COLOR,
     DEPTH,
     DEPTH_CUBEMAP // point light shadows
 };
+
 class Image
 {
    public:

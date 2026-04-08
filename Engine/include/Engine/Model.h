@@ -1,6 +1,8 @@
 #pragma once
 #include "core.h"
 
+#include <vulkan/vulkan.h>
+
 class Mesh;
 class Image;
 class VertexBuffer;
@@ -66,8 +68,7 @@ class Model
     std::string _FullPath;
     std::string _Directory;
 
-    Ref<Image> _DefaultAlbedo = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/Magenta_ERROR.png") }, VK_FORMAT_R8G8B8A8_SRGB);
-    Ref<Image> _DefaultNormal = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/NormalMAP_ERROR.png") }, VK_FORMAT_R8G8B8A8_UNORM);
-    Ref<Image> _DefaultRoughnessMetallic =
-        make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/White_Texture.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+    Ref<Image> _DefaultAlbedo;
+    Ref<Image> _DefaultNormal;
+    Ref<Image> _DefaultRoughnessMetallic;
 };

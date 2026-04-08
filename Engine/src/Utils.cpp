@@ -1,13 +1,14 @@
+
 #include "CommandBuffer.h"
-#include "core.h"
 #include "Device.h"
 #include "EngineInternal.h"
+#include "Image.h"
 #include "PhysicalDevice.h"
 #include "Utils.h"
 #include "VulkanContext.h"
 
 #include <fstream>
-#include <iostream>
+
 void Utils::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo, PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC)
 {
     createInfo       = {};

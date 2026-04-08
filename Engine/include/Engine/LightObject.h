@@ -1,4 +1,5 @@
 #pragma once
+#include "core.h"
 #include "SceneObject.h"
 
 enum class LightType

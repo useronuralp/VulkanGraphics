@@ -33,12 +33,12 @@ class EngineInternal
     void  PollEvents();
     void  CreateSynchronizationPrimitives();
 
-    Unique<RendererInterface> _Renderer      = nullptr;
-    Unique<VulkanContext>     _Context       = nullptr;
-    Ref<class Swapchain>      _Swapchain     = nullptr;
-    Ref<class Camera>         _Camera        = nullptr;
-    Ref<class Scene>          _ActiveScene   = nullptr;
-    float                     _LastFrameTime = 0.0f;
+    Unique<VulkanForwardRenderer> _Renderer      = nullptr;
+    Unique<VulkanContext>         _Context       = nullptr;
+    Ref<class Swapchain>          _Swapchain     = nullptr;
+    Ref<class Camera>             _Camera        = nullptr;
+    Ref<class Scene>              _ActiveScene   = nullptr;
+    float                         _LastFrameTime = 0.0f;
 
     friend class Engine;
 };

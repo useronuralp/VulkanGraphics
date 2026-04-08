@@ -1,10 +1,8 @@
 #pragma once
 #include "core.h"
 
-// External
-#include <glm/glm.hpp>
-#include <vector>
 #include <vulkan/vulkan.h>
+
 class DescriptorSetLayout;
 class VulkanContext;
 

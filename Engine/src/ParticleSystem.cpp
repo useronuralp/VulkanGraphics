@@ -5,9 +5,9 @@
 #include "ParticleSystem.h"
 #include "Utils.h"
 #include "VulkanContext.h"
-// External
+
 #include <Curl.h>
-#include <simplexnoise.h>
+
 ParticleSystem::ParticleSystem(const ParticleSpecs& specs, Ref<Image> texture, const Ref<DescriptorSetLayout>& layout, const Ref<DescriptorPool>& pool)
     : m_ParticleTexture(texture)
 {

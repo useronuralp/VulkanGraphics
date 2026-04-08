@@ -1,10 +1,9 @@
 #pragma once
 #include "core.h"
-#include "VulkanContext.h"
 
-#include <vector>
 #include <vulkan/vulkan.h>
 
+class VulkanContext;
 class Swapchain
 {
    public:

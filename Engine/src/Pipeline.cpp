@@ -3,10 +3,9 @@
 #include "Device.h"
 #include "Pipeline.h"
 #include "Surface.h"
-#include "Swapchain.h"
 #include "Utils.h"
+#include "VulkanContext.h"
 
-#include <iostream>
 Pipeline::Pipeline(VulkanContext& InContext, const PipelineBuildConfig& InConfig) : _Config(InConfig), _Context(InContext)
 {
     Init();

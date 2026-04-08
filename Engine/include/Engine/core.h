@@ -1,13 +1,16 @@
 #pragma once
 
-#include <cassert>
-#include <cstdlib>
+//  glm todo: create engine wrapper for these
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/matrix.hpp>
+// ~glm
 #include <iostream>
 #include <memory>
-#include <random>
-#include <sstream>
+#include <string>
 #include <vector>
-#include <vulkan/vulkan.h>
 
 //////////////////////////////////////////////////////////////
 // ANSI Color Codes
@@ -48,6 +51,17 @@ constexpr const char* BOLD_TEXT   = "\033[1m";
             __debugbreak(); \
         } \
     } while (false)
+
+#define ENSURE_CHECK(CONDITION, MESSAGE) \
+    [&]() -> bool \
+    { \
+        if (!(CONDITION)) \
+        { \
+            std::cerr << "Assertion `" #CONDITION "` failed in " << __FILE__ << " line " << __LINE__ << ": " << MESSAGE << std::endl; \
+            return false; \
+        } \
+        return true; \
+    }()
 
 //////////////////////////////////////////////////////////////
 // Smart Pointer Aliases

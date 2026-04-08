@@ -5,6 +5,7 @@
 #include "PhysicalDevice.h"
 #include "Utils.h"
 #include "VulkanContext.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 // This constructor is to be used when you want to initialize a VkImage with as a color/texture buffer:

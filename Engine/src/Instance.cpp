@@ -1,5 +1,8 @@
 #include "Instance.h"
+#include "PhysicalDevice.h"
 #include "Utils.h"
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
 // A callback that will print error messages when validation layers are enabled.
 VKAPI_ATTR VkBool32 VKAPI_CALL Instance::DebugCallback(

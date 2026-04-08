@@ -1,11 +1,8 @@
 #pragma once
+#include "core.h"
 
 #include <functional>
-#include <iostream>
-#include <memory>
-#include <string>
 #include <unordered_map>
-#include <vector>
 #include <vulkan/vulkan.h>
 
 class Framebuffer;

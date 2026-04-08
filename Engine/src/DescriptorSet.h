@@ -1,8 +1,9 @@
 #pragma once
 #include "core.h"
 
-class Pipeline;
+#include <vulkan/vulkan.h>
 
+class Pipeline;
 struct DescriptorBinding
 {
     uint32_t           Binding;

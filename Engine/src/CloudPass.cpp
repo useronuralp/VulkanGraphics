@@ -1,18 +1,12 @@
 #include "CloudPass.h"
-#include "Utils.h"
-
-#include <cassert>
-#include <stdexcept>
-#include <string>
-#include <vector>
-#include <vulkan/vulkan.h>
-// #define STB_IMAGE_IMPLEMENTATION
 #include "CommandBuffer.h"
 #include "Device.h"
 #include "EngineInternal.h"
 #include "PhysicalDevice.h"
+#include "Utils.h"
 
 #include <stb_image.h>
+#include <stdexcept>
 
 // Loads a 2D texture (LDR or HDR) for CloudPass
 inline CloudTexture LoadCloudTexture(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue transferQueue, const std::string& path, bool generateMips = false)
@@ -20,7 +14,7 @@ inline CloudTexture LoadCloudTexture(VkDevice device, VkPhysicalDevice physicalD
     CloudTexture tex{};
 
     int texWidth, texHeight, texChannels;
-    //stbi_set_flip_vertically_on_load(true);
+    // stbi_set_flip_vertically_on_load(true);
 
     bool  isHDR  = stbi_is_hdr(path.c_str()) != 0;
     void* pixels = nullptr;

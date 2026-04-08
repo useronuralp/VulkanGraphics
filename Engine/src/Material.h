@@ -2,7 +2,7 @@
 #pragma once
 #include "core.h"
 
-#include <string>
+#include <vulkan/vulkan.h>
 
 class Pipeline;
 class DescriptorSetLayout;

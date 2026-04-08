@@ -1,10 +1,6 @@
 #pragma once
-#define GLM_ENABLE_EXPERIMENTAL
 #include "core.h"
 
-#include <glm/glm.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/matrix.hpp>
 class Camera
 {
    public:

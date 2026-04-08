@@ -7,6 +7,8 @@
 #include "Model.h"
 #include "Utils.h"
 
+#include <vulkan/vulkan.h>
+
 namespace MeshBinding
 {
 static VkDescriptorSet AllocateSet(Ref<DescriptorPool> InPool, Ref<DescriptorSetLayout> InLayout)

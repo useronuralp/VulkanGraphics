@@ -45,13 +45,10 @@
     <ClInclude Include="src\Mesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Model.h">
+    <ClInclude Include="include\Engine\Model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\OVKLib.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ParticleSystem.h">
+    <ClInclude Include="include\Engine\ParticleSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\PhysicalDevice.h">
@@ -129,13 +126,13 @@
     <ClInclude Include="src\CloudPass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\SceneObject.h">
+    <ClInclude Include="include\Engine\SceneObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\StaticMeshObject.h">
+    <ClInclude Include="include\Engine\StaticMeshObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\LightObject.h">
+    <ClInclude Include="include\Engine\LightObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Material.h">

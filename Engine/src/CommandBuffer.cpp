@@ -1,16 +1,10 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
-#include "DescriptorSet.h"
 #include "Device.h"
 #include "EngineInternal.h"
-#include "Framebuffer.h"
 #include "Pipeline.h"
-#include "Surface.h"
-#include "Swapchain.h"
-// #include "VulkanApplication.h"
 
 #include <chrono>
-#include <iostream>
 void CommandBuffer::CreateCommandBuffer(VkCommandBuffer& outCmdBuffer, const VkCommandPool& poolToAllocateFrom)
 {
     // Allocate the memory for the command buffer.

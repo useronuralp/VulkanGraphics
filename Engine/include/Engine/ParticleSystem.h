@@ -1,11 +1,7 @@
 #pragma once
 #include "core.h"
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/matrix.hpp>
+
 #include <random>
-#include <vector>
 #include <vulkan/vulkan.h>
 
 const float M_PI = 3.14159265359;

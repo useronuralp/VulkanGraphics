@@ -1,11 +1,8 @@
 #pragma once
 #include "core.h"
-#include "DescriptorSet.h"
-#include "glm/glm.hpp"
-#include "vulkan/vulkan.h"
 
-#include <array>
-#include <vector>
+#include <vulkan/vulkan.h>
+
 class DescriptorSet;
 class VertexBuffer
 {

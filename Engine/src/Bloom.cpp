@@ -8,11 +8,8 @@
 #include "Image.h"
 #include "Pipeline.h"
 #include "Surface.h"
-#include "Swapchain.h"
 #include "Utils.h"
-// #include "VulkanApplication.h"
-//  External
-#include <array>
+
 Bloom::Bloom()
 {
     CreateRenderPasses();

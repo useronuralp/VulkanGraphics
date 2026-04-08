@@ -1,9 +1,11 @@
 #pragma once
-#include "Image.h"
-#include "vulkan/vulkan.h"
+#include "core.h"
 
-#include <string>
-#include <vector>
+#include <vulkan/vulkan.h>
+
+enum class ImageType;
+class Image;
+
 struct Utils
 {
     static void              PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo, PFN_vkDebugUtilsMessengerCallbackEXT callbackFNC);

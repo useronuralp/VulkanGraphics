@@ -1,7 +1,5 @@
-#include "core.h"
 #include "Window.h"
 
-#include <iostream>
 uint32_t Window::GetHeight()
 {
     int width;

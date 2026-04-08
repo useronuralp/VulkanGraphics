@@ -4,8 +4,6 @@
 #include "Swapchain.h"
 #include "VulkanContext.h"
 
-#include <iostream>
-
 Swapchain::Swapchain(VulkanContext& InContext) : _Context(InContext)
 {
     Create();

@@ -1,4 +1,3 @@
-#define GLM_ENABLE_EXPERIMENTAL
 #include "Buffer.h"
 #include "Image.h"
 #include "Mesh.h"
@@ -7,10 +6,15 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <vulkan/vulkan.h>
 
 Model::Model(const std::string& InPath, LoadingFlags InFlags) : _FullPath(InPath), _Flags(InFlags)
 {
-    _Directory = _FullPath.substr(0, _FullPath.find_last_of("\\/"));
+    _DefaultAlbedo            = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/Magenta_ERROR.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+    _DefaultNormal            = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/NormalMAP_ERROR.png") }, VK_FORMAT_R8G8B8A8_UNORM);
+    _DefaultRoughnessMetallic = make_s<Image>(std::vector{ (std::string(SOLUTION_DIR) + "Engine/assets/textures/White_Texture.png") }, VK_FORMAT_R8G8B8A8_SRGB);
+
+    _Directory                = _FullPath.substr(0, _FullPath.find_last_of("\\/"));
 
     Assimp::Importer importer;
     const aiScene*   scene = importer.ReadFile(_FullPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);

@@ -1,8 +1,7 @@
 #pragma once
 #include "core.h"
 
-// External
-#include "vulkan/vulkan.h"
+#include <vulkan/vulkan.h>
 
 #define BLUR_PASS_COUNT 6
 class Framebuffer;

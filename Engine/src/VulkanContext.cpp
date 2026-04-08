@@ -5,8 +5,6 @@
 #include "VulkanContext.h"
 #include "Window.h"
 
-#include <iostream>
-
 VulkanContext::~VulkanContext()
 {
     Shutdown();

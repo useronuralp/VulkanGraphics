@@ -1,8 +1,8 @@
 #pragma once
 #include "core.h"
-#include "vulkan/vulkan.hpp"
 
-#include <glm/glm.hpp>
+#include <vulkan/vulkan.h>
+
 class RenderPass;
 class Swapchain;
 class Framebuffer;

@@ -1,10 +1,8 @@
 #include "Device.h"
 #include "EngineInternal.h"
-#include "Instance.h"
 #include "PhysicalDevice.h"
-#include "Surface.h"
 #include "VulkanContext.h"
-#include "Window.h"
+
 Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensions)
 {
     // Fetch queue families.

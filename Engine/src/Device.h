@@ -1,7 +1,6 @@
 #pragma once
 #include "core.h"
-// External
-#include <vector>
+
 #include <vulkan/vulkan.h>
 
 class Device

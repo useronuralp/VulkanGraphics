@@ -1,8 +1,9 @@
 #pragma once
 #include "core.h"
 
-class Image;
+#include <vulkan/vulkan.h>
 
+class Image;
 class Mesh
 {
    public:
