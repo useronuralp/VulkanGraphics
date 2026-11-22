@@ -190,6 +190,7 @@
     <ClInclude Include="include\Engine\ParticleSystem.h" />
     <ClInclude Include="src\PhysicalDevice.h" />
     <ClInclude Include="src\Pipeline.h" />
+    <ClInclude Include="src\Renderer\RayTracingFunctions.h" />
     <ClInclude Include="src\Renderer\Renderer.h" />
     <ClInclude Include="src\Renderer\RenderPass.h" />
     <ClInclude Include="include\Engine\Scene.h" />
