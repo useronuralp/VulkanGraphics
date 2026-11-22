@@ -1,6 +1,8 @@
 #include "Instance.h"
 #include "PhysicalDevice.h"
 
+#include <cstring>
+
 PhysicalDevice::PhysicalDevice(const VkInstance& instance, const VkPhysicalDevice& physicalDevice) : m_PhysicalDevice(physicalDevice)
 {
     // Enumerate neccessary properties.
@@ -109,4 +111,15 @@ bool PhysicalDevice::CheckPresentSupport(uint32_t queueFamilyIndex, VkSurfaceKHR
     VkBool32 PresentSupport = VK_FALSE;
     vkGetPhysicalDeviceSurfaceSupportKHR(m_PhysicalDevice, queueFamilyIndex, surface, &PresentSupport);
     return PresentSupport == VK_TRUE;
+}
+bool PhysicalDevice::SupportsExtension(const char* InExtensionName) const
+{
+    for (const auto& extension : m_SupportedExtensions)
+    {
+        if (std::strcmp(extension.extensionName, InExtensionName) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "RendererType.h"
 #include "core.h"
 
 #include <chrono>
@@ -23,6 +24,7 @@ class Material;
 class Scene;
 class RenderGraph;
 struct ParticleSpecs;
+struct DeviceRequirements;
 enum LoadingFlags;
 
 #define MAX_POINT_LIGHT_COUNT 10
@@ -41,13 +43,27 @@ class RendererInterface
     virtual void InitImGui()                  = 0;
     virtual void RenderImGui()                = 0;
     virtual void Cleanup()                    = 0;
+
+    virtual void       SetScene(const Ref<Scene>& InScene) = 0;
+    virtual Ref<Scene> GetScene() const                    = 0;
+
+    // Which renderer type, i.e Rasterizer, PathTracer
+    virtual RendererType GetType() const = 0;
 };
 
-class VulkanRenderer : public RendererInterface
+// -------------------------------------------------------------------------------------------------
+// VulkanRendererBase
+// -------------------------------------------------------------------------------------------------
+// Everything needed to get pixels on screen that does NOT depend on how those pixels are produced:
+// swapchain acquire / submit / present, the swapchain render pass + framebuffers, per-frame command
+// buffers, ImGui, and window-resize handling. (This used to be VulkanRasterizer, but none of it is
+// raster-specific.) Both VulkanForwardRenderer and VulkanPathTracer build on it.
+// -------------------------------------------------------------------------------------------------
+class VulkanRendererBase : public RendererInterface
 {
    public:
-    VulkanRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
-    virtual ~VulkanRenderer() = default;
+    VulkanRendererBase(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera);
+    virtual ~VulkanRendererBase() = default;
 
     // RendererInterface — shared implementations
     bool BeginFrame() override;
@@ -57,14 +73,15 @@ class VulkanRenderer : public RendererInterface
     void Cleanup() override;
 
     // Scene
-    void       SetScene(const Ref<Scene>& InScene);
-    Ref<Scene> GetScene() const;
+    void       SetScene(const Ref<Scene>& InScene) override;
+    Ref<Scene> GetScene() const override;
 
    protected:
     void HandleWindowResize(VkResult InResult);
     void UpdateViewport_Scissor();
     void CreateSwapchainRenderPass();
     void CreateSwapchainFramebuffers();
+    void CreateCommandBuffers();
 
     // Subclass must implement — called during resize
     virtual void OnResize() = 0;
@@ -94,9 +111,14 @@ class VulkanRenderer : public RendererInterface
     float _DeltaTime = 0.0f;
 };
 
-class VulkanForwardRenderer : public VulkanRenderer
+class VulkanForwardRenderer : public VulkanRendererBase
 {
    public:
+    RendererType GetType() const final
+    {
+        return RendererType::Rasterizer;
+    }
+
     bool pointLightShadows  = true;
     bool showDOFFocus       = false;
     bool enableDepthOfField = true;

@@ -141,6 +141,18 @@
     <ClInclude Include="src\MeshBindingHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\PathTracer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DeviceRequirements.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RayTracingFunctions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Engine\RendererType.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Bloom.cpp">
@@ -260,6 +272,9 @@
     <ClCompile Include="src\MeshBindingHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderer\PathTracer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\blurShader.frag" />
@@ -311,5 +326,9 @@
     <None Include="assets\shaders\cloudComputeCOMP.spv" />
     <None Include="assets\shaders\noise3D.comp" />
     <None Include="assets\shaders\noise3DCOMP.spv" />
+    <None Include="assets\shaders\ptDisplay.frag" />
+    <None Include="assets\shaders\ptDisplay.vert" />
+    <None Include="assets\shaders\ptDisplayFRAG.spv" />
+    <None Include="assets\shaders\ptDisplayVERT.spv" />
   </ItemGroup>
 </Project>

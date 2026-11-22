@@ -11,12 +11,13 @@ class Material;
 class ParticleSystem;
 struct ParticleSpecs;
 enum LoadingFlags;
+enum class RendererType;
 
 class Engine
 {
    public:
     // public API
-    void           Init();
+    void           Init(RendererType InRendererType);
     void           Run();
     static Engine& Get();
 

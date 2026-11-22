@@ -10,8 +10,10 @@ VulkanContext::~VulkanContext()
     Shutdown();
 }
 
-void VulkanContext::Init()
+void VulkanContext::Init(const DeviceRequirements& InRequirements)
 {
+    _Requirements = InRequirements;
+
     // 1. Create window
     auto test = make_s<Window>("Vulkan Engine", 1920, 1080);
     _Window   = test;
@@ -39,52 +41,56 @@ void VulkanContext::Init()
 
 void VulkanContext::PickPhysicalDevice()
 {
-    std::vector<PhysicalDevice> devices;
-    devices = _Instance->GetVKPhysicalDevices();
+    std::vector<PhysicalDevice> devices = _Instance->GetVKPhysicalDevices();
 
-    // Find a suitable PHYSICAL (GPU) device here.
-    bool found = false;
-
-    PrintInfo("Searching for a DISCREETE graphics card...");
-    // First, check for a dedicated graphics card.
-    for (auto& device : devices)
+    // A GPU is only a candidate if it can actually run the selected renderer. Without this, a laptop
+    // with an RT-capable dGPU and a non-RT iGPU could pick the wrong one and fail at vkCreateDevice.
+    auto meetsRequirements = [&](PhysicalDevice& InDevice) -> bool
     {
-        if (device.GetVKProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        const auto& props = InDevice.GetVKProperties();
+        bool        ok    = true;
+
+        if (props.apiVersion < _Requirements.MinApiVersion)
         {
-            _PhysicalDevice = make_s<PhysicalDevice>(device);
-            found           = true;
-            PrintInfo("Searching for a DISCREETE graphics card...");
-            PrintInfo(
-                "Found a suitable DISCREETE graphics card. Card "
-                "Name:");
-            std::cout << _PhysicalDevice->GetVKProperties().deviceName << std::endl;
-            break;
+            PrintWarning(std::string(props.deviceName) + " skipped: Vulkan API version too old.");
+            ok = false;
         }
-    }
-    // If still haven't found a GPU, we pick the first available one without
-    // looking at any other condition.
-    if (!found)
+
+        for (const char* extension : _Requirements.Extensions)
+        {
+            if (!InDevice.SupportsExtension(extension))
+            {
+                PrintWarning(std::string(props.deviceName) + " skipped: missing device extension " + extension);
+                ok = false;
+            }
+        }
+        return ok;
+    };
+
+    // Pass 0: discrete GPUs only. Pass 1: everything else (integrated, virtual, CPU).
+    for (int pass = 0; pass < 2 && !_PhysicalDevice; pass++)
     {
-        PrintWarning("Could not find a DISCREETE graphics card.");
-        PrintInfo("Searching for an INTEGRATED graphics card...");
         for (auto& device : devices)
         {
+            const bool isDiscrete = device.GetVKProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+            // Todo: convoluted coniditon, make more human friendly to read.
+            if ((pass == 0) != isDiscrete || !meetsRequirements(device))
+            {
+                continue;
+            }
+
             _PhysicalDevice = make_s<PhysicalDevice>(device);
-            found           = true;
-            PrintInfo(
-                "Found a suitable INTEGRATED graphics card. Card "
-                "Name:");
-            std::cout << _PhysicalDevice->GetVKProperties().deviceName << std::endl;
+            PrintInfo(std::string("Selected ") + (isDiscrete ? "DISCRETE" : "NON-DISCRETE") + " GPU: " + device.GetVKProperties().deviceName);
             break;
         }
     }
 
-    ENSURE(found, "Could not find a GPU.");
+    ENSURE(_PhysicalDevice != nullptr, "Could not find a GPU that meets the renderer's requirements. See warnings above.");
 }
 
 void VulkanContext::CreateLogicalDevice()
 {
-    _Device = make_s<Device>(_RequiredExtensions);
+    _Device = make_s<Device>(_Requirements);
 }
 
 void VulkanContext::SetupQueueFamilies()

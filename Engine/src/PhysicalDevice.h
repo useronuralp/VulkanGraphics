@@ -54,6 +54,7 @@ class PhysicalDevice
    public:
     uint64_t FindQueueFamily(VkQueueFlags queueFlags);
     bool     CheckPresentSupport(uint32_t queueFamilyIndex, VkSurfaceKHR surface);
+    bool     SupportsExtension(const char* InExtensionName) const;
 
    private:
     VkPhysicalDevice           m_PhysicalDevice = VK_NULL_HANDLE;

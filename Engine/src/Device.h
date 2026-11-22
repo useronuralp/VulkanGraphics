@@ -3,10 +3,12 @@
 
 #include <vulkan/vulkan.h>
 
+struct DeviceRequirements;
+
 class Device
 {
    public:
-    Device(std::vector<const char*> extensions);
+    Device(const DeviceRequirements& InRequirements);
     ~Device();
 
    public:
@@ -34,4 +36,8 @@ class Device
 
     std::vector<const char*> m_Layers;
     std::vector<const char*> m_DeviceExtensions;
+
+    // Decides whether the RT feature structs are linked into the create-info chain. The device only
+    // *enables* ray tracing; the entry points are loaded by the path tracer, their only consumer.
+    bool m_RayTracingEnabled = false;
 };

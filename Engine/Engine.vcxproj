@@ -167,6 +167,10 @@
   <ItemGroup>
     <ClInclude Include="include\Engine\core.h" />
     <ClInclude Include="include\Engine\Engine.h" />
+    <ClInclude Include="include\Engine\RendererType.h" />
+    <ClInclude Include="src\DeviceRequirements.h" />
+    <ClInclude Include="src\RayTracingFunctions.h" />
+    <ClInclude Include="src\Renderer\PathTracer.h" />
     <ClInclude Include="src\Bloom.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\Camera.h" />
@@ -209,6 +213,7 @@
     <ClInclude Include="vendor\imgui\imstb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Renderer\PathTracer.cpp" />
     <ClCompile Include="src\Bloom.cpp" />
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\Camera.cpp" />
@@ -289,6 +294,10 @@
     <None Include="assets\shaders\pointShadowPassFRAG.spv" />
     <None Include="assets\shaders\pointShadowPassGEOM.spv" />
     <None Include="assets\shaders\pointShadowPassVERT.spv" />
+    <None Include="assets\shaders\ptDisplay.frag" />
+    <None Include="assets\shaders\ptDisplay.vert" />
+    <None Include="assets\shaders\ptDisplayFRAG.spv" />
+    <None Include="assets\shaders\ptDisplayVERT.spv" />
     <None Include="assets\shaders\QuadRender.vert" />
     <None Include="assets\shaders\quadRenderVert.spv" />
     <None Include="assets\shaders\shadowPass.vert" />

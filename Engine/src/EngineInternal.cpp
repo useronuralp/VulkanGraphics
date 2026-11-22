@@ -1,7 +1,9 @@
 #include "Camera.h"
 #include "Device.h"
+#include "DeviceRequirements.h"
 #include "Engine.h"
 #include "EngineInternal.h"
+#include "Renderer/PathTracer.h"
 #include "Renderer/Renderer.h"
 #include "Surface.h"
 #include "Swapchain.h"
@@ -18,14 +20,79 @@ VulkanContext& EngineInternal::GetContext()
     return *Engine::Get()._Internal->_Context;
 }
 
-void EngineInternal::Init()
+VulkanForwardRenderer* EngineInternal::TryGetRasterizer() const
 {
+    if (_Renderer && _Renderer->GetType() == RendererType::Rasterizer)
+    {
+        return static_cast<VulkanForwardRenderer*>(_Renderer.get());
+    }
+    return nullptr;
+}
+
+namespace
+{
+DeviceRequirements ResolveDeviceRequirementsFor(RendererType InRendererType)
+{
+    DeviceRequirements requirements;
+    switch (InRendererType)
+    {
+        case RendererType::Rasterizer:
+            
+            requirements.Extensions                               = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+            requirements.Features.Core.features.samplerAnisotropy = VK_TRUE;
+            requirements.Features.Core.features.geometryShader    = VK_TRUE; // point-light shadow cubemap pass
+            requirements.Features.Vulkan13.dynamicRendering       = VK_TRUE;
+            return requirements;
+
+        case RendererType::PathTracer:
+
+            requirements.RayTracing = true;
+            requirements.Extensions = {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, // BLAS/TLAS objects and their build commands
+                VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, // raygen/miss/hit shader stages, SBT, vkCmdTraceRaysKHR
+                VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, // hard dependency of VK_KHR_acceleration_structure
+            };
+
+            auto& features                                       = requirements.Features;
+            features.Core.features.samplerAnisotropy             = VK_TRUE; // material texture sampling (later parts)
+            features.Vulkan12.bufferDeviceAddress                = VK_TRUE; // AS inputs, scratch, SBT are all passed as raw GPU addresses
+            features.AccelerationStructure.accelerationStructure = VK_TRUE;
+            features.RayTracingPipeline.rayTracingPipeline       = VK_TRUE;
+            return requirements;
+    }
+    ENSURE(false, "Unhandled RendererType.");
+    return {};
+}
+
+Unique<RendererInterface> CreateRenderer(RendererType InRendererType, VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
+{
+    switch (InRendererType)
+    {
+        case RendererType::Rasterizer:
+            return make_u<VulkanForwardRenderer>(InContext, InSwapchain, InCamera);
+        case RendererType::PathTracer:
+            return make_u<VulkanPathTracer>(InContext, InSwapchain, InCamera);
+    }
+    ENSURE(false, "Unhandled RendererType.");
+    return nullptr;
+}
+} // namespace
+
+void EngineInternal::Init(RendererType InRendererType)
+{
+    // The renderer decides what the device must support, so ask it *before* the device exists.
     _Context = make_u<VulkanContext>();
-    _Context->Init();
+    _Context->Init(ResolveDeviceRequirementsFor(InRendererType));
 
     _Swapchain = make_s<Swapchain>(*_Context);
     _Camera    = make_s<Camera>(45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
-    _Renderer  = make_u<VulkanForwardRenderer>(*_Context, _Swapchain, _Camera);
+
+    _Renderer = CreateRenderer(InRendererType, *_Context, _Swapchain, _Camera);
+
+    // Sanity check on renderer type.
+    ENSURE(_Renderer->GetType() == InRendererType, "Renderer::GetType() disagrees with the type that was constructed.");
+
     _Renderer->Init();
 
     // TODO: Move out of renderer into UI layer.
@@ -36,13 +103,13 @@ void EngineInternal::Init()
 
 void EngineInternal::Run()
 {
-    while (!_Context->GetWindow()->ShouldClose())
+    while (NOT _Context->GetWindow()->ShouldClose())
     {
         float deltaTime = DeltaTime();
 
         PollEvents();
 
-        if (!_Renderer->BeginFrame())
+        if (NOT _Renderer->BeginFrame())
         {
             CreateSynchronizationPrimitives(); // TODO redo
             continue;

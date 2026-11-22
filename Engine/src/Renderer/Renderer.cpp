@@ -4,6 +4,7 @@
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
 #include "Device.h"
+#include "DeviceRequirements.h"
 #include "EngineInternal.h"
 #include "Framebuffer.h"
 #include "Image.h"
@@ -35,13 +36,13 @@ static bool printedDependencies = false;
 
 extern FrameSync GFrameSync;
 
-// VulkanRenderer.cpp
-VulkanRenderer::VulkanRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
+// VulkanRendererBase
+VulkanRendererBase::VulkanRendererBase(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
     : _Context(InContext), _Swapchain(InSwapchain), _Camera(InCamera)
 {
 }
 
-bool VulkanRenderer::BeginFrame()
+bool VulkanRendererBase::BeginFrame()
 {
     auto device = _Context.GetDevice()->GetVKDevice();
 
@@ -61,7 +62,7 @@ bool VulkanRenderer::BeginFrame()
     return true;
 }
 
-void VulkanRenderer::EndFrame()
+void VulkanRendererBase::EndFrame()
 {
     if (!ImGui::GetIO().WantCaptureMouse)
     {
@@ -99,7 +100,7 @@ void VulkanRenderer::EndFrame()
     ENSURE(result == VK_SUCCESS, "Failed to present swap chain image!");
 }
 
-void VulkanRenderer::InitImGui()
+void VulkanRendererBase::InitImGui()
 {
     VkDescriptorPoolSize pool_sizes[]    = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
                                              { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -153,14 +154,14 @@ void VulkanRenderer::InitImGui()
     CommandBuffer::DestroyCommandPool(singleCmdPool);
 }
 
-void VulkanRenderer::RenderImGui()
+void VulkanRendererBase::RenderImGui()
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 }
 
-void VulkanRenderer::Cleanup()
+void VulkanRendererBase::Cleanup()
 {
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
 
@@ -175,17 +176,17 @@ void VulkanRenderer::Cleanup()
     ImGui_ImplVulkan_Shutdown();
 }
 
-void VulkanRenderer::SetScene(const Ref<Scene>& InScene)
+void VulkanRendererBase::SetScene(const Ref<Scene>& InScene)
 {
     _Scene = InScene;
 }
 
-Ref<Scene> VulkanRenderer::GetScene() const
+Ref<Scene> VulkanRendererBase::GetScene() const
 {
     return _Scene;
 }
 
-void VulkanRenderer::UpdateViewport_Scissor()
+void VulkanRendererBase::UpdateViewport_Scissor()
 {
     _DynamicViewport.x            = 0.0f;
     _DynamicViewport.y            = 0.0f;
@@ -199,7 +200,7 @@ void VulkanRenderer::UpdateViewport_Scissor()
     _DynamicScissor.extent.height = _Context.GetSurface()->GetVKExtent().height;
 }
 
-void VulkanRenderer::CreateSwapchainRenderPass()
+void VulkanRendererBase::CreateSwapchainRenderPass()
 {
     RenderPass::AttachmentInfo colorAttachment{ _Context.GetSurface()->GetVKSurfaceFormat().format,
                                                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -220,7 +221,7 @@ void VulkanRenderer::CreateSwapchainRenderPass()
     _SwapchainRenderPass = std::make_unique<RenderPass>(_Context, createInfo);
 }
 
-void VulkanRenderer::CreateSwapchainFramebuffers()
+void VulkanRendererBase::CreateSwapchainFramebuffers()
 {
     _SwapchainFramebuffers.clear();
 
@@ -232,7 +233,14 @@ void VulkanRenderer::CreateSwapchainFramebuffers()
     }
 }
 
-void VulkanRenderer::HandleWindowResize(VkResult InResult)
+void VulkanRendererBase::CreateCommandBuffers()
+{
+    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, _CmdPool);
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        CommandBuffer::CreateCommandBuffer(_CmdBuffers[i], _CmdPool);
+}
+
+void VulkanRendererBase::HandleWindowResize(VkResult InResult)
 {
     if (InResult == VK_ERROR_OUT_OF_DATE_KHR || _Context.GetWindow()->IsWindowResized() || InResult == VK_SUBOPTIMAL_KHR)
     {
@@ -261,7 +269,7 @@ void VulkanRenderer::HandleWindowResize(VkResult InResult)
 }
 
 VulkanForwardRenderer::VulkanForwardRenderer(VulkanContext& InContext, Ref<Swapchain> InSwapchain, Ref<Camera> InCamera)
-    : VulkanRenderer(InContext, InSwapchain, InCamera)
+    : VulkanRendererBase(InContext, InSwapchain, InCamera)
 {
 }
 
@@ -357,7 +365,7 @@ void VulkanForwardRenderer::Cleanup()
     vkDestroyBuffer(_Context.GetDevice()->GetVKDevice(), globalParametersUBOBuffer, nullptr);
 
     // Base class cleanup (command buffers, ImGui)
-    VulkanRenderer::Cleanup();
+    VulkanRendererBase::Cleanup();
 }
 
 void VulkanForwardRenderer::Init()
@@ -508,9 +516,7 @@ void VulkanForwardRenderer::Init()
 
     // ── Command Buffers ─────────────────────────────────────
 
-    CommandBuffer::CreateCommandBufferPool(_Context._QueueFamilies.GraphicsFamily, _CmdPool);
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        CommandBuffer::CreateCommandBuffer(_CmdBuffers[i], _CmdPool);
+    CreateCommandBuffers();
 
     // ── Post Processing ─────────────────────────────────────
 
@@ -834,7 +840,7 @@ void VulkanForwardRenderer::SyncLightsToUBO()
 
 void VulkanForwardRenderer::RenderFrame(const float InDeltaTime)
 {
-    if (!ENSURE_CHECK(_Scene, "Scene wasn't valid, create a scene first to start rendering."))
+    if (NOT ENSURE_CHECK(_Scene, "Scene wasn't valid, create a scene first to start rendering."))
     {
         return;
     }

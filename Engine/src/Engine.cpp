@@ -18,9 +18,9 @@ Engine& Engine::Get()
     return instance;
 }
 
-void Engine::Init()
+void Engine::Init(RendererType InRendererType)
 {
-    _Internal->Init();
+    _Internal->Init(InRendererType);
 }
 
 void Engine::Run()
@@ -38,28 +38,52 @@ void Engine::SetScene(const Ref<Scene>& InScene)
     _Internal->_Renderer->SetScene(InScene);
 }
 
-// Engine.cpp — all forwarding to renderer
+// todo: When loading models/materials, checking rasterizer first and the falling back on path tracer is incorrect behaviour. Caller can't predict what would happen.
 Ref<Model> Engine::LoadPBRModel(const std::string& InPath, LoadingFlags InFlags)
 {
-    return _Internal->_Renderer->LoadPBRModel(InPath, InFlags);
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->LoadPBRModel(InPath, InFlags);
+    }
+
+    return make_s<Model>(InPath, InFlags);
 }
 
 Ref<Model> Engine::LoadSimpleModel(const std::string& InPath, LoadingFlags InFlags)
 {
-    return _Internal->_Renderer->LoadSimpleModel(InPath, InFlags);
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->LoadSimpleModel(InPath, InFlags);
+    }
+
+    return make_s<Model>(InPath, InFlags);
 }
 
+// The skybox cube and debug meshes are raster visualisation. The path tracer's sky will be an
+// environment map sampled in the miss shader, and it gets its own API when we get there.
 Ref<Model> Engine::LoadSkyboxModel(const float* InVertices, uint32_t InVertexCount, const std::vector<std::string>& InFaces)
 {
-    auto cubemap = make_s<Image>(InFaces, VK_FORMAT_R8G8B8A8_SRGB);
-    return _Internal->_Renderer->LoadSkyboxModel(InVertices, InVertexCount, cubemap);
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->LoadSkyboxModel(InVertices, InVertexCount, make_s<Image>(InFaces, VK_FORMAT_R8G8B8A8_SRGB));
+    }
+
+    ENSURE(false, std::string("Engine::LoadSkyboxModel") + " is raster-only; returning nullptr in path tracer mode.");
+    return nullptr;
 }
 
 Ref<Model> Engine::LoadDebugModel(const float* InVertices, uint32_t InVertexCount)
 {
-    return _Internal->_Renderer->LoadDebugModel(InVertices, InVertexCount);
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->LoadDebugModel(InVertices, InVertexCount);
+    }
+
+    ENSURE(false, std::string("Engine::LoadDebugModel") + " is raster-only; returning nullptr in path tracer mode.");
+    return nullptr;
 }
 
+// Plain images - meaningful to both renderers.
 Ref<Image> Engine::LoadTexture(const std::string& InPath)
 {
     return make_s<Image>(std::vector{ InPath }, VK_FORMAT_R8G8B8A8_SRGB);
@@ -70,24 +94,58 @@ Ref<Image> Engine::LoadCubemap(const std::vector<std::string>& InFaces)
     return make_s<Image>(InFaces, VK_FORMAT_R8G8B8A8_SRGB);
 }
 
+// Raster materials are pipelines + descriptor layouts; they have no meaning to the path tracer.
 Ref<Material> Engine::GetPBRMaterial()
 {
-    return _Internal->_Renderer->GetPBRMaterial();
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->GetPBRMaterial();
+    }
+
+    ENSURE(false, std::string("Engine::GetPBRMaterial") + " is raster-only; returning nullptr in path tracer mode.");
+    return nullptr;
 }
+
 Ref<Material> Engine::GetEmissiveMaterial()
 {
-    return _Internal->_Renderer->GetEmissiveMaterial();
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->GetEmissiveMaterial();
+    }
+
+    ENSURE(false, std::string("Engine::GetEmissiveMaterial") + " is raster-only; returning nullptr in path tracer mode.");
+    return nullptr;
 }
+
 Ref<Material> Engine::GetSkyboxMaterial()
 {
-    return _Internal->_Renderer->GetSkyboxMaterial();
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->GetSkyboxMaterial();
+    }
+
+    ENSURE(false, std::string("Engine::GetSkyboxMaterial") + " is raster-only; returning nullptr in path tracer mode.");
+    return nullptr;
 }
+
 Ref<Material> Engine::GetCubeMaterial()
 {
-    return _Internal->_Renderer->GetCubeMaterial();
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->GetCubeMaterial();
+    }
+
+    ENSURE(false, std::string("Engine::GetCubeMaterial") + " is raster-only; returning nullptr in path tracer mode.");
+    return nullptr;
 }
 
 Ref<ParticleSystem> Engine::CreateParticleSystem(const ParticleSpecs& InSpecs, const Ref<Image>& InTexture)
 {
-    return _Internal->_Renderer->CreateParticleSystem(InSpecs, InTexture);
+    if (auto* rasterizer = _Internal->TryGetRasterizer())
+    {
+        return rasterizer->CreateParticleSystem(InSpecs, InTexture);
+    }
+
+    ENSURE(false, std::string("Engine::CreateParticleSystem") + " is raster-only; returning nullptr in path tracer mode.");
+    return nullptr;
 }

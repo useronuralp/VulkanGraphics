@@ -1,7 +1,8 @@
 #pragma once
-#include "core.h"
+#include "RendererType.h" // lives next to Engine.h in the public include dir
 #include "Renderer/Renderer.h"
 #include "VulkanContext.h"
+#include "core.h"
 
 struct FrameSync
 {
@@ -26,19 +27,25 @@ class EngineInternal
     EngineInternal& operator=(const EngineInternal&) = delete;
     EngineInternal& operator=(EngineInternal&&)      = delete;
 
-    void Init();
+    void Init(RendererType InRendererType);
     void Run();
 
     float DeltaTime();
     void  PollEvents();
     void  CreateSynchronizationPrimitives();
 
-    Unique<VulkanForwardRenderer> _Renderer      = nullptr;
-    Unique<VulkanContext>         _Context       = nullptr;
-    Ref<class Swapchain>          _Swapchain     = nullptr;
-    Ref<class Camera>             _Camera        = nullptr;
-    Ref<class Scene>              _ActiveScene   = nullptr;
-    float                         _LastFrameTime = 0.0f;
+    // Typed access for the parts of the Engine API that only exist on the rasterizer (materials, particles,
+    // raster model bindings). Null when another renderer is active. The only place we downcast _Renderer.
+    VulkanForwardRenderer* TryGetRasterizer() const;
+
+    // The single source of truth for which renderer is active: ask it via _Renderer->GetType().
+    Unique<RendererInterface> _Renderer = nullptr;
+
+    Unique<VulkanContext> _Context       = nullptr;
+    Ref<class Swapchain>  _Swapchain     = nullptr;
+    Ref<class Camera>     _Camera        = nullptr;
+    Ref<class Scene>      _ActiveScene   = nullptr;
+    float                 _LastFrameTime = 0.0f;
 
     friend class Engine;
 };

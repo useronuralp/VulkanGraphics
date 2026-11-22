@@ -1,9 +1,46 @@
 #include "Device.h"
+#include "DeviceRequirements.h"
 #include "EngineInternal.h"
 #include "PhysicalDevice.h"
 #include "VulkanContext.h"
 
-Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensions)
+namespace
+{
+// False (with the feature's name printed) if it was requested but the GPU doesn't have it.
+static bool CheckFeature(VkBool32 InRequested, VkBool32 InSupported, const char* InName)
+{
+    if (InRequested && NOT InSupported)
+    {
+        PrintError(std::string("Required device feature not supported: ") + InName);
+        return false;
+    }
+    return true;
+}
+
+static bool ValidateFeatureSupport(VkPhysicalDevice InPhysicalDevice, const DeviceFeatureChain& InRequested, bool InIncludeRayTracing)
+{
+    // What the GPU supports, filled in by the driver. Compared against InRequested (what the renderer needs).
+    DeviceFeatureChain deviceFeatureCapabilities{};
+    vkGetPhysicalDeviceFeatures2(InPhysicalDevice, deviceFeatureCapabilities.LinkGetChain(InIncludeRayTracing));
+
+    bool allSupported = true;
+#define CHECK_FEATURE(Path) allSupported &= CheckFeature(InRequested.Path, deviceFeatureCapabilities.Path, #Path)
+    CHECK_FEATURE(Core.features.samplerAnisotropy);
+    CHECK_FEATURE(Core.features.geometryShader);
+    CHECK_FEATURE(Vulkan12.bufferDeviceAddress);
+    CHECK_FEATURE(Vulkan13.dynamicRendering);
+    if (InIncludeRayTracing)
+    {
+        CHECK_FEATURE(AccelerationStructure.accelerationStructure);
+        CHECK_FEATURE(RayTracingPipeline.rayTracingPipeline);
+    }
+#undef CHECK_FEATURE
+
+    return allSupported;
+}
+} // namespace
+
+Device::Device(const DeviceRequirements& InRequirements) : m_DeviceExtensions(InRequirements.Extensions), m_RayTracingEnabled(InRequirements.RayTracing)
 {
     // Fetch queue families.
     std::vector<QueueFamily>             queueFamilies = EngineInternal::GetContext().GetPhysicalDevice()->GetQueueFamilies();
@@ -65,28 +102,28 @@ Device::Device(std::vector<const char*> extensions) : m_DeviceExtensions(extensi
         deviceQueueCreateInfos.push_back(QCI);
     }
 
-    // Check Anisotrophy support.
-    ENSURE(EngineInternal::GetContext().GetPhysicalDevice()->GetVKFeatures().samplerAnisotropy, "Anisotropy is not supported on your GPU.");
+    // Features are requested through a VkPhysicalDeviceFeatures2 pNext chain. Features2::features *is* the
+    // Vulkan 1.0 VkPhysicalDeviceFeatures struct (anisotropy, geometry shaders, ...), so the 1.0 features are
+    // still enabled - just from inside the chain. The spec forbids also passing pEnabledFeatures, so it stays null.
+    // Copy first: the chain's pNext pointers point into the object, so we link our own copy.
+    DeviceFeatureChain requestedFeatures = InRequirements.Features;
+    ENSURE(
+        ValidateFeatureSupport(EngineInternal::GetContext().GetPhysicalDevice()->GetVKPhysicalDevice(), requestedFeatures, m_RayTracingEnabled),
+        "The selected GPU doesn't support every device feature the renderer requires. See errors above.");
 
-    // Enable Anisotropy.
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
-    deviceFeatures.geometryShader    = VK_TRUE;
-
-    constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature{
-        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-        .dynamicRendering = VK_TRUE,
-    };
-
-    VkPhysicalDeviceFeatures pDeviceFeatures[] = { deviceFeatures };
+    PrintInfo("Enabling device extensions:");
+    for (const char* extension : m_DeviceExtensions)
+    {
+        std::cout << '\t' << extension << std::endl;
+    }
 
     // Create info for the device.
     VkDeviceCreateInfo CI{};
     CI.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    CI.pNext                   = &dynamic_rendering_feature;
+    CI.pNext                   = requestedFeatures.LinkGetChain(m_RayTracingEnabled);
     CI.queueCreateInfoCount    = deviceQueueCreateInfos.size();
     CI.pQueueCreateInfos       = deviceQueueCreateInfos.data();
-    CI.pEnabledFeatures        = pDeviceFeatures;
+    CI.pEnabledFeatures        = nullptr; // must be null when pNext carries VkPhysicalDeviceFeatures2
     CI.enabledExtensionCount   = m_DeviceExtensions.size();
     CI.ppEnabledExtensionNames = m_DeviceExtensions.data();
 

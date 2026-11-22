@@ -5,8 +5,9 @@
 #include "Engine/Scene.h"
 #include "Engine/SceneObject.h"
 #include "Engine/StaticMeshObject.h"
+#include "Engine/RendererType.h"
 
-Ref<Scene> CreateScene()
+static Ref<Scene> CreateScene() 
 {
     auto& engine = Engine::Get();
     auto  scene  = make_s<Scene>();
@@ -197,10 +198,67 @@ Ref<Scene> CreateScene()
     return scene;
 }
 
-int main()
+// ── Path tracer scene ───────────────────────────────────────
+// Geometry only: no raster materials, particles, skybox cube or debug meshes. In a path tracer,
+// light comes from emissive surfaces and the environment, which we'll add as we go; the
+// directional light is kept as the "sun" for when we add explicit light sampling.
+static Ref<Scene> CreatePathTracerScene()
 {
-    Engine::Get().Init();
-    Engine::Get().SetScene(CreateScene());
+    auto& engine = Engine::Get();
+    auto  scene  = make_s<Scene>();
+    scene->SetCamera(engine.GetCamera());
+
+    auto sponzaModel = engine.LoadPBRModel(
+        std::string(SOLUTION_DIR) + "Engine/assets/models/Sponza/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+
+    auto sponza = make_s<StaticMeshObject>("Sponza", sponzaModel);
+    sponza->SetScale(glm::vec3(0.005f));
+    scene->AddMeshObject(sponza);
+
+    auto helmetModel = engine.LoadPBRModel(
+        std::string(SOLUTION_DIR) + "Engine/assets/models/MaleniaHelmet/scene.gltf", LOAD_VERTEX_POSITIONS | LOAD_NORMALS | LOAD_BITANGENT | LOAD_TANGENT | LOAD_UV);
+
+    auto helmet = make_s<StaticMeshObject>("Helmet", helmetModel);
+    helmet->SetPosition(glm::vec3(0.0f, 2.0f, 0.0f));
+    helmet->Rotate(90, glm::vec3(0, 1, 0));
+    helmet->SetScale(glm::vec3(0.7f));
+    scene->AddMeshObject(helmet);
+
+    auto sun = make_s<LightObject>("Sun", LightType::Directional);
+    sun->SetPosition(glm::vec3(-10.0f, 35.0f, -22.0f));
+    sun->SetIntensity(10.0f);
+    sun->SetColor(glm::vec3(1.0f));
+    scene->SetDirectionalLight(sun);
+
+    return scene;
+}
+
+// Usage: App.exe [--pathtracer | -pt] [--rasterizer | -rs]   (default: rasterizer)
+// In Visual Studio: Project Properties > Debugging > Command Arguments.
+static RendererType ParseRendererType(int argc, char** argv)
+{
+    RendererType type = RendererType::Rasterizer;
+    for (int i = 1; i < argc; i++)
+    {
+        const std::string arg = argv[i];
+        if (arg == "--pathtracer" || arg == "-pt")
+        {
+            type = RendererType::PathTracer;
+        }
+        else if (arg == "--rasterizer" || arg == "-rs")
+        {
+            type = RendererType::Rasterizer;
+        }
+    }
+    return type;
+}
+
+int main(int argc, char** argv)
+{
+    const RendererType rendererType = ParseRendererType(argc, argv);
+
+    Engine::Get().Init(rendererType);
+    Engine::Get().SetScene(rendererType == RendererType::PathTracer ? CreatePathTracerScene() : CreateScene());
     Engine::Get().Run();
 
     return 0;

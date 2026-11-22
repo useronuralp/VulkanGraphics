@@ -1,4 +1,5 @@
 #pragma once
+#include "DeviceRequirements.h"
 #include "core.h"
 
 #include <vulkan/vulkan.h>
@@ -29,8 +30,15 @@ class VulkanContext
     VulkanContext() = default;
     ~VulkanContext();
 
-    void Init();
+    // The renderer's device requirements must be known here: extensions and features are baked into
+    // the logical device at creation and also drive which physical device we pick.
+    void Init(const DeviceRequirements& InRequirements);
     void Shutdown();
+
+    const DeviceRequirements& GetDeviceRequirements() const
+    {
+        return _Requirements;
+    }
 
     Ref<Instance>       GetInstance() const;
     Ref<Device>         GetDevice() const;
@@ -54,7 +62,7 @@ class VulkanContext
     Ref<Surface>        _Surface;
     Ref<Device>         _Device;
 
-    VkSampleCountFlagBits _MSAASamples           = VK_SAMPLE_COUNT_1_BIT;
+    VkSampleCountFlagBits _MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-    std::vector<const char*> _RequiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    DeviceRequirements _Requirements;
 };
