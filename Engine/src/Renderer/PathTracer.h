@@ -2,8 +2,10 @@
 #include "RayTracingFunctions.h"
 #include "Renderer.h"
 
+#include <cstddef>
 #include <vulkan/vulkan.h>
 
+class ComputePipeline;
 class DescriptorPool;
 class DescriptorSetLayout;
 class Image;
@@ -15,7 +17,9 @@ class Pipeline;
 // Frame structure (one command buffer):
 //
 //   [Trace pass]   writes linear HDR radiance into _OutputImage (RGBA32F storage image, GENERAL layout)
-//        |           Part 0: vkCmdClearColorImage placeholder.  Part 3+: vkCmdTraceRaysKHR.
+//        |           Now: compute reference path tracer over an analytic Cornell box (ptCornell.comp),
+//        |           1 sample per pixel per frame, blended into the running average already in the image.
+//        |           Later: vkCmdTraceRaysKHR against the scene's acceleration structures.
 //        |  barrier: trace writes -> fragment shader reads  (read-after-write)
 //        v
 //   [Display pass] swapchain render pass: fullscreen triangle reads _OutputImage, applies
@@ -53,10 +57,30 @@ class VulkanPathTracer : public VulkanRendererBase
     };
     static_assert(sizeof(DisplayPushConstants) == 16, "Must match the push_constant block in ptDisplay.frag");
 
+    // Re-pushed every frame. Push constants rather than a uniform buffer: 96 bytes fits in the 128 the spec
+    // guarantees, and they're recorded into the command buffer, so there's no buffer to create, no
+    // per-frame-in-flight copies and nothing to synchronise.
+    // Layout must match ptCornell.comp (std430: mat4 @0, vec2 @64, then uints @72, 76, 80).
+    struct TracePushConstants
+    {
+        glm::mat4 CameraToWorld{ 1.0f }; // inverse(view): column 3 = camera position, upper 3x3 = camera axes
+        glm::vec2 TanHalfFov{ 0.0f };    // half-extent of the image plane at distance 1 (x = horizontal, y = vertical)
+        uint32_t  FrameIndex  = 0;       // seeds the RNG; never resets, so every frame draws fresh random numbers
+        uint32_t  SampleCount = 0;       // samples already averaged into the image; 0 = overwrite
+        uint32_t  MaxBounces  = 0;       // scattering events per path
+        uint32_t  Padding[3]{};
+    };
+    static_assert(sizeof(TracePushConstants) == 96, "Must match the push_constant block in ptCornell.comp");
+    static_assert(offsetof(TracePushConstants, TanHalfFov) == 64 && offsetof(TracePushConstants, FrameIndex) == 72 &&
+                      offsetof(TracePushConstants, SampleCount) == 76 && offsetof(TracePushConstants, MaxBounces) == 80,
+                  "Must match the push_constant block in ptCornell.comp");
+
     void QueryRayTracingProperties();
     void CreateOutputImage();
-    void CreateDisplayResources();
-    void UpdateDisplayDescriptor();
+    void CreateOutputDescriptor();
+    void UpdateOutputDescriptor();
+    void CreateTracePass();
+    void CreateDisplayPipeline();
 
     void RecordTracePass(VkCommandBuffer InCmd);
     void RecordDisplayPass(VkCommandBuffer InCmd);
@@ -81,17 +105,27 @@ class VulkanPathTracer : public VulkanRendererBase
     VkExtent2D _OutputExtent{};
     bool       _OutputNeedsLayoutInit = true; // first use: UNDEFINED -> GENERAL
 
-    // Display
+    // One descriptor set exposing _OutputImage to both passes: the trace pass writes it (compute), the
+    // display pass reads it (fragment). Same image, same layout, so there's no reason for two sets.
     Ref<DescriptorPool>      _DescriptorPool;
-    Ref<DescriptorSetLayout> _DisplaySetLayout;
-    VkDescriptorSet          _DisplaySet = VK_NULL_HANDLE;
-    Ref<Pipeline>            _DisplayPipeline;
-    DisplayPushConstants     _DisplayParams;
+    Ref<DescriptorSetLayout> _OutputSetLayout;
+    VkDescriptorSet          _OutputSet = VK_NULL_HANDLE;
 
-    // Accumulation bookkeeping (consumed by the ray-gen shader from Part 4 on)
+    // Trace pass
+    Unique<ComputePipeline> _TracePass;
+
+    // Display pass
+    Ref<Pipeline>        _DisplayPipeline;
+    DisplayPushConstants _DisplayParams;
+
+    // Accumulation. _AccumulatedFrames = samples per pixel in the image right now (1 per frame); reset whenever
+    // what the camera sees changes. _FrameIndex only ever counts up: it seeds the RNG, and reusing seeds after
+    // a reset would replay the same noise.
     uint32_t  _AccumulatedFrames = 0;
+    uint32_t  _FrameIndex        = 0;
     glm::mat4 _LastViewProjection{ 0.0f };
 
-    // Part 0 only: stand-in for traced radiance, editable in ImGui. HDR so you can see the tonemapper work.
-    glm::vec3 _PlaceholderRadiance{ 0.6f, 0.75f, 1.0f };
+    // Scattering events per path, editable in ImGui. 0 = only emitters visible, 1 = direct lighting,
+    // 2+ = indirect (the red/green colour bleeding). 8 is plenty for a diffuse Cornell box.
+    int _MaxBounces = 8;
 };

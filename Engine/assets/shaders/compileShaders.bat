@@ -21,4 +21,5 @@
 ..\..\vendor\VULKAN\1.4.328.1\Bin\glslc.exe Clouds.vert -o CloudsVERT.spv
 ..\..\vendor\VULKAN\1.4.328.1\Bin\glslc.exe cloudCompute.comp -o cloudComputeCOMP.spv
 ..\..\vendor\VULKAN\1.4.328.1\Bin\glslc.exe noise3D.comp -o noise3DCOMP.spv
+..\..\vendor\VULKAN\1.4.328.1\Bin\glslc.exe ptCornell.comp -o ptCornellCOMP.spv
 pause

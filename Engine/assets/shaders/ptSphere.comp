@@ -1,0 +1,94 @@
+#version 460
+
+// Analytic test sphere: one invocation per pixel, one camera ray each, written into the output image.
+// Doubles as the reference image for the hardware RT path: the tessellated unit_sphere.obj should
+// line up with this almost exactly.
+//
+// How this maps onto the RT pipeline later:
+//   ray setup in main()     -> raygen shader (gl_GlobalInvocationID -> gl_LaunchIDEXT, nearly line for line)
+//   IntersectSphere()       -> what the RT cores do for triangles
+//   the "hit" branch        -> closest-hit shader
+//   the "miss" branch / Sky -> miss shader
+layout(local_size_x = 8, local_size_y = 8) in; // keep in sync with ComputePipelineDesc::GroupSize
+
+layout(set = 0, binding = 0, rgba32f) uniform writeonly image2D uOutput;
+
+layout(push_constant) uniform TraceParams
+{
+    mat4 cameraToWorld; // inverse view matrix: columns 0-2 = camera right/up/back axes, column 3 = camera position
+    vec4 sphere;        // xyz = centre, w = radius (world space)
+    vec2 tanHalfFov;    // x = horizontal, y = vertical: half-extent of the image plane at distance 1
+    vec2 padding;
+} pc;
+
+// Distance t along the ray to the nearest intersection in front of the origin, or a negative value if none.
+//
+//   Ray:    P(t) = O + t*D,  |D| = 1
+//   Sphere: |P - C|^2 = r^2
+//
+// Substitute the ray into the sphere, with OC = O - C:
+//   |OC + t*D|^2 = r^2   ->   t^2 + 2t(D.OC) + (OC.OC - r^2) = 0
+//
+// A quadratic in t. |D| = 1 makes the t^2 coefficient 1, and with b = D.OC (half the textbook "b")
+// the roots simplify to  t = -b +- sqrt(b^2 - c)  where c = OC.OC - r^2.
+float IntersectSphere(vec3 origin, vec3 dir, vec3 center, float radius)
+{
+    vec3  oc   = origin - center;
+    float b    = dot(oc, dir);
+    float c    = dot(oc, oc) - radius * radius;
+    float disc = b * b - c;
+    if (disc < 0.0)
+    {
+        return -1.0; // no real roots: the ray's line passes the sphere by
+    }
+
+    float s = sqrt(disc);
+    float t = -b - s; // nearer root: where the ray enters the sphere
+    if (t < 0.0)
+    {
+        t = -b + s; // origin is inside the sphere: the exit point is the one in front of us
+    }
+    return t; // still negative => the whole sphere is behind the origin
+}
+
+// Vertical gradient, white at the horizon to blue overhead. Stand-in for an environment map.
+vec3 Sky(vec3 dir)
+{
+    float t = 0.5 * (dir.y + 1.0);
+    return mix(vec3(1.0), vec3(0.5, 0.7, 1.0), t);
+}
+
+void main()
+{
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size  = imageSize(uOutput);
+    if (pixel.x >= size.x || pixel.y >= size.y)
+    {
+        return; // the last row/column of workgroups overhangs the image when its size isn't a multiple of 8
+    }
+
+    // Pixel centre -> [-1, 1] on both axes. Image row 0 is the top of the screen, so flip y to make +y "up".
+    vec2 uv  = (vec2(pixel) + 0.5) / vec2(size);
+    vec2 ndc = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+
+    // Pinhole camera. In camera space the camera looks down -Z, and the image plane at z = -1 spans
+    // +-tanHalfFov. A point on that plane *is* the ray direction; rotate it into world space.
+    vec3 dirCamera = normalize(vec3(ndc * pc.tanHalfFov, -1.0));
+    vec3 origin    = pc.cameraToWorld[3].xyz;
+    vec3 dir       = normalize(mat3(pc.cameraToWorld) * dirCamera);
+
+    vec3  color;
+    float t = IntersectSphere(origin, dir, pc.sphere.xyz, pc.sphere.w);
+    if (t > 0.0)
+    {
+        vec3 hitPoint = origin + t * dir;
+        vec3 normal   = (hitPoint - pc.sphere.xyz) / pc.sphere.w; // unit length: hitPoint is exactly r from the centre
+        color         = normal * 0.5 + 0.5;                       // [-1,1] -> [0,1], the classic "normals" debug view
+    }
+    else
+    {
+        color = Sky(dir);
+    }
+
+    imageStore(uOutput, pixel, vec4(color, 1.0));
+}

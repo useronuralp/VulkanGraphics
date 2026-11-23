@@ -2,6 +2,7 @@
 
 #include "Camera.h"
 #include "CommandBuffer.h"
+#include "ComputePipeline.h"
 #include "DescriptorSet.h"
 #include "Device.h"
 #include "DeviceRequirements.h"
@@ -15,17 +16,19 @@
 #include "Swapchain.h"
 #include "VulkanContext.h"
 
+#include <cmath>
 #include <imgui_impl_vulkan.h>
 
 extern FrameSync GFrameSync;
 
 namespace
 {
-// The pipeline stage + access that produces _OutputImage each frame. Part 0 uses a transfer clear;
-// in Part 3 this becomes VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR / VK_ACCESS_SHADER_WRITE_BIT
-// and every barrier below follows automatically.
-constexpr VkPipelineStageFlags kTraceStage       = VK_PIPELINE_STAGE_TRANSFER_BIT;
-constexpr VkAccessFlags        kTraceWriteAccess = VK_ACCESS_TRANSFER_WRITE_BIT;
+// How the trace pass touches _OutputImage each frame: the compute shader reads last frame's running average
+// and writes the new one (imageLoad + imageStore). When the trace pass becomes vkCmdTraceRaysKHR, the stage
+// becomes VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR and every barrier below follows automatically.
+constexpr VkPipelineStageFlags kTraceStage       = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+constexpr VkAccessFlags        kTraceWriteAccess = VK_ACCESS_SHADER_WRITE_BIT;
+constexpr VkAccessFlags        kTraceAccess      = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 
 // A single-image barrier. A barrier answers two questions:
 //   execution: which earlier stages must finish before which later stages may start (src/dstStage)
@@ -93,8 +96,10 @@ void VulkanPathTracer::Init()
     _DescriptorPool = make_s<DescriptorPool>(4, std::vector<VkDescriptorType>{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE });
 
     CreateOutputImage();
-    CreateDisplayResources();
-    UpdateDisplayDescriptor();
+    CreateOutputDescriptor();
+    UpdateOutputDescriptor();
+    CreateTracePass();
+    CreateDisplayPipeline();
 
     // The surface prefers R8G8B8A8_UNORM, which does NOT encode sRGB on write. If we ever end up with
     // an *_SRGB swapchain format the hardware does it for us, and doing it again would wash the image out.
@@ -127,34 +132,48 @@ void VulkanPathTracer::CreateOutputImage()
 {
     _OutputExtent = _Context.GetSurface()->GetVKExtent();
 
-    // STORAGE: written by shaders with imageStore (and read with imageLoad in the display pass).
-    // TRANSFER_DST: Part 0's vkCmdClearColorImage placeholder.
-    _OutputImage = make_s<Image>(
-        _OutputExtent.width, _OutputExtent.height, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, ImageType::COLOR);
+    // STORAGE: written by the trace pass with imageStore, read by the display pass with imageLoad.
+    _OutputImage = make_s<Image>(_OutputExtent.width, _OutputExtent.height, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, ImageType::COLOR);
 
     _OutputNeedsLayoutInit = true;
     ResetAccumulation();
 }
 
-void VulkanPathTracer::CreateDisplayResources()
+void VulkanPathTracer::CreateOutputDescriptor()
 {
-    auto device = _Context.GetDevice()->GetVKDevice();
-
-    // The display pass reads the radiance with imageLoad (1:1 pixel mapping), so a storage image
-    // descriptor is enough - no sampler, and RGBA32F linear filtering isn't guaranteed anyway.
-    _DisplaySetLayout = make_s<DescriptorSetLayout>(std::vector<DescriptorBinding>{
-        { 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+    // Both passes touch the image 1:1 per pixel, so one storage-image descriptor serves both: the trace pass
+    // writes with imageStore, the display pass reads with imageLoad. No sampler needed (and RGBA32F linear
+    // filtering isn't guaranteed anyway).
+    _OutputSetLayout = make_s<DescriptorSetLayout>(std::vector<DescriptorBinding>{
+        { 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
     });
 
     VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
     allocInfo.descriptorPool     = _DescriptorPool->GetDescriptorPool();
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts        = &_DisplaySetLayout->GetDescriptorLayout();
-    ENSURE(vkAllocateDescriptorSets(device, &allocInfo, &_DisplaySet) == VK_SUCCESS, "Failed to allocate the path tracer display descriptor set.");
+    allocInfo.pSetLayouts        = &_OutputSetLayout->GetDescriptorLayout();
+    ENSURE(
+        vkAllocateDescriptorSets(_Context.GetDevice()->GetVKDevice(), &allocInfo, &_OutputSet) == VK_SUCCESS,
+        "Failed to allocate the path tracer output descriptor set.");
+}
 
+void VulkanPathTracer::CreateTracePass()
+{
+    _TracePass = make_u<ComputePipeline>(
+        _Context,
+        ComputePipelineDesc{
+            .ShaderPath       = "assets/shaders/ptCornellCOMP.spv",
+            .SetLayouts       = { _OutputSetLayout },
+            .PushConstantSize = sizeof(TracePushConstants),
+            .GroupSize        = { 8, 8 },
+        });
+}
+
+void VulkanPathTracer::CreateDisplayPipeline()
+{
     _DisplayPipeline = PipelineBuilder(_Context)
                            .SetRenderPass(_SwapchainRenderPass->GetHandle())
-                           .SetDescriptorSetLayout(_DisplaySetLayout)
+                           .SetDescriptorSetLayout(_OutputSetLayout)
                            .SetVertexShader("assets/shaders/ptDisplayVERT.spv")
                            .SetFragmentShader("assets/shaders/ptDisplayFRAG.spv")
                            .SetBlending(VK_FALSE)
@@ -162,7 +181,7 @@ void VulkanPathTracer::CreateDisplayResources()
                            .Build();
 }
 
-void VulkanPathTracer::UpdateDisplayDescriptor()
+void VulkanPathTracer::UpdateOutputDescriptor()
 {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageView   = _OutputImage->GetImageView();
@@ -170,7 +189,7 @@ void VulkanPathTracer::UpdateDisplayDescriptor()
     imageInfo.sampler     = VK_NULL_HANDLE;
 
     VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    write.dstSet          = _DisplaySet;
+    write.dstSet          = _OutputSet;
     write.dstBinding      = 0;
     write.descriptorCount = 1;
     write.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -183,7 +202,7 @@ void VulkanPathTracer::OnResize()
 {
     // HandleWindowResize already waited for the device to go idle, so the old image is safe to drop.
     CreateOutputImage();
-    UpdateDisplayDescriptor();
+    UpdateOutputDescriptor();
     // The display pipeline uses dynamic viewport/scissor and the swapchain render pass is format-only,
     // so neither needs rebuilding.
 }
@@ -234,6 +253,7 @@ void VulkanPathTracer::RenderFrame(float InDeltaTime)
     CommandBuffer::EndRecording(cmd);
 
     _AccumulatedFrames++;
+    _FrameIndex++;
 }
 
 void VulkanPathTracer::RecordTracePass(VkCommandBuffer InCmd)
@@ -245,30 +265,52 @@ void VulkanPathTracer::RecordTracePass(VkCommandBuffer InCmd)
         // A fresh image is in UNDEFINED. Transition once to GENERAL and keep it there forever:
         // GENERAL is the only layout that allows storage-image access, and sampling/imageLoad from it
         // is legal too, so there's no reason to bounce between layouts every frame.
-        ImageBarrier(InCmd, outputImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, kTraceStage, kTraceWriteAccess);
+        // Contents are undefined after this, which is fine: _AccumulatedFrames is 0 for a new image, so the
+        // shader overwrites instead of reading.
+        ImageBarrier(InCmd, outputImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, kTraceStage, kTraceAccess);
         _OutputNeedsLayoutInit = false;
     }
     else
     {
-        // Write-after-read: this frame's writes must not start before the previous display pass finished
-        // reading. WAR only needs an *execution* dependency - there are no pending writes to make visible -
-        // hence srcAccess = 0.
-        ImageBarrier(InCmd, outputImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, kTraceStage, kTraceWriteAccess);
+        // Accumulation made the trace pass read-modify-write, so this barrier now covers two hazards:
+        //  - write-after-read against last frame's display pass (execution dependency only), and
+        //  - read-after-write against last frame's trace pass: we imageLoad the average it wrote. That needs
+        //    a memory dependency, so the write is in srcAccess and the read in dstAccess.
+        ImageBarrier(
+            InCmd,
+            outputImage,
+            VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_GENERAL,
+            kTraceStage | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            kTraceWriteAccess,
+            kTraceStage,
+            kTraceAccess);
     }
 
-    // ── Part 0 placeholder for vkCmdTraceRaysKHR ──
-    VkClearColorValue clearValue{};
-    clearValue.float32[0] = _PlaceholderRadiance.r;
-    clearValue.float32[1] = _PlaceholderRadiance.g;
-    clearValue.float32[2] = _PlaceholderRadiance.b;
-    clearValue.float32[3] = 1.0f;
+    // ── Camera -> what the shader needs to build one ray per pixel ──
+    TracePushConstants params;
 
-    VkImageSubresourceRange range{};
-    range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    range.levelCount = 1;
-    range.layerCount = 1;
+    // The view matrix maps world -> camera; its inverse maps camera -> world. Its columns are exactly what
+    // the shader wants: column 3 is the camera position (ray origin), the upper 3x3 rotates camera-space
+    // directions into world space.
+    params.CameraToWorld = glm::inverse(_Camera->GetViewMatrix());
 
-    vkCmdClearColorImage(InCmd, outputImage, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range);
+    // glm::perspective puts 1 / tan(fovY / 2) in [1][1]. Horizontal extent comes from the output image's
+    // aspect rather than the camera's stored one, so pixels stay square whatever size the window is.
+    const float tanHalfFovY = 1.0f / std::abs(_Camera->GetProjectionMatrix()[1][1]);
+    const float aspect      = static_cast<float>(_OutputExtent.width) / static_cast<float>(_OutputExtent.height);
+    params.TanHalfFov       = { tanHalfFovY * aspect, tanHalfFovY };
+
+    // ── Accumulation state ──
+    params.FrameIndex  = _FrameIndex;
+    params.SampleCount = _AccumulatedFrames;
+    params.MaxBounces  = static_cast<uint32_t>(_MaxBounces);
+
+    // ── Dispatch: one invocation per pixel, in 8x8 groups ──
+    _TracePass->Bind(InCmd);
+    _TracePass->BindDescriptorSet(InCmd, _OutputSet);
+    _TracePass->PushConstants(InCmd, params);
+    _TracePass->DispatchForExtent(InCmd, _OutputExtent.width, _OutputExtent.height);
 }
 
 void VulkanPathTracer::RecordDisplayPass(VkCommandBuffer InCmd)
@@ -278,7 +320,7 @@ void VulkanPathTracer::RecordDisplayPass(VkCommandBuffer InCmd)
     CommandBuffer::BindPipeline(InCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _DisplayPipeline);
     vkCmdSetViewport(InCmd, 0, 1, &_DynamicViewport);
     vkCmdSetScissor(InCmd, 0, 1, &_DynamicScissor);
-    vkCmdBindDescriptorSets(InCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _DisplayPipeline->GetPipelineLayout(), 0, 1, &_DisplaySet, 0, nullptr);
+    vkCmdBindDescriptorSets(InCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _DisplayPipeline->GetPipelineLayout(), 0, 1, &_OutputSet, 0, nullptr);
     CommandBuffer::PushConstants(
         InCmd, _DisplayPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DisplayPushConstants), &_DisplayParams);
     vkCmdDraw(InCmd, 3, 1, 0, 0); // fullscreen triangle, positions generated from gl_VertexIndex
@@ -309,9 +351,22 @@ void VulkanPathTracer::DrawImGuiPanel()
         ImGui::Text("maxInstanceCount (per TLAS): %llu", static_cast<unsigned long long>(_ASProperties.maxInstanceCount));
     }
 
-    ImGui::Separator();
-    ImGui::Text("Accumulated frames: %u", _AccumulatedFrames);
+    if (ImGui::CollapsingHeader("Path tracing", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Text("Samples per pixel: %u", _AccumulatedFrames);
 
+        // Changing the bounce count changes the image the average converges to, so restart it.
+        if (ImGui::SliderInt("Max bounces", &_MaxBounces, 0, 16))
+        {
+            ResetAccumulation();
+        }
+        if (ImGui::Button("Reset accumulation"))
+        {
+            ResetAccumulation();
+        }
+    }
+
+    ImGui::Separator();
     ImGui::DragFloat("Exposure", &_DisplayParams.Exposure, 0.01f, 0.0f, 32.0f);
 
     int         tonemapper    = static_cast<int>(_DisplayParams.Tonemapper);
@@ -320,8 +375,6 @@ void VulkanPathTracer::DrawImGuiPanel()
     {
         _DisplayParams.Tonemapper = static_cast<uint32_t>(tonemapper);
     }
-
-    ImGui::ColorEdit3("Placeholder radiance", &_PlaceholderRadiance.x, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float);
 
     ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
@@ -332,8 +385,9 @@ void VulkanPathTracer::Cleanup()
     vkDeviceWaitIdle(_Context.GetDevice()->GetVKDevice());
 
     _DisplayPipeline.reset();
-    _DisplaySetLayout.reset();
-    _DisplaySet = VK_NULL_HANDLE; // freed with the pool
+    _TracePass.reset();
+    _OutputSetLayout.reset();
+    _OutputSet = VK_NULL_HANDLE; // freed with the pool
     _DescriptorPool.reset();
     _OutputImage.reset();
 

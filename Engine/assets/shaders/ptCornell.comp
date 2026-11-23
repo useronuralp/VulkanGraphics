@@ -1,0 +1,309 @@
+#version 460
+
+// =================================================================================================
+// Reference path tracer: analytic Cornell box, diffuse (Lambertian) surfaces only, one sample per
+// pixel per frame, accumulated over frames into the output image.
+//
+// Everything except the Scene section carries over to the hardware RT pipeline: the bounce loop and
+// camera go into the raygen shader, the surface response into closest-hit, the escape case into miss.
+// When the same box is rendered through BLAS/TLAS later, both should converge to the same image.
+// =================================================================================================
+
+layout(local_size_x = 8, local_size_y = 8) in; // keep in sync with ComputePipelineDesc::GroupSize
+
+// Read-modify-write: last frame's running average is read back, blended with this frame's sample, stored.
+layout(set = 0, binding = 0, rgba32f) uniform image2D uOutput;
+
+layout(push_constant) uniform TraceParams
+{
+    mat4 cameraToWorld; // inverse view: columns 0-2 = camera axes, column 3 = camera position
+    vec2 tanHalfFov;    // half-extent of the image plane at distance 1 (x = horizontal, y = vertical)
+    uint frameIndex;    // never resets: seeds the random numbers so every frame draws fresh samples
+    uint sampleCount;   // samples already averaged into the image; 0 = overwrite (after a reset)
+    uint maxBounces;    // scattering events per path: 0 = emitters only, 1 = direct light, 2+ = indirect
+    uint padding0;
+    uint padding1;
+    uint padding2;
+} pc;
+
+const float PI = 3.14159265358979;
+
+// =================================================================================================
+// Random numbers
+// =================================================================================================
+// PCG hash (Jarzynski & Olano, "Hash Functions for GPU Rendering", JCGT 2020). Good statistical quality
+// and cheap. Each pixel gets its own stream, seeded from (pixel, frame), and advances it per use.
+
+uint PCGHash(uint v)
+{
+    uint state = v * 747796405u + 2891336453u;
+    uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+// Uniform float in [0, 1). The top 24 bits are exactly representable in a float's mantissa.
+float Random(inout uint rng)
+{
+    rng = PCGHash(rng);
+    return float(rng >> 8) * (1.0 / 16777216.0);
+}
+
+// =================================================================================================
+// Sampling
+// =================================================================================================
+
+// Orthonormal basis around a unit normal, branch-free (Duff et al., "Building an Orthonormal Basis,
+// Revisited", JCGT 2017). Lets us generate directions in a local frame where the normal is +Z.
+void BuildBasis(vec3 n, out vec3 tangent, out vec3 bitangent)
+{
+    float s = n.z >= 0.0 ? 1.0 : -1.0;
+    float a = -1.0 / (s + n.z);
+    float b = n.x * n.y * a;
+    tangent   = vec3(1.0 + s * n.x * n.x * a, s * b, -s * n.x);
+    bitangent = vec3(b, s + n.y * n.y * a, -n.y);
+}
+
+// Cosine-weighted direction on the hemisphere around n: pdf(w) = cos(theta) / PI.
+// Malley's method: pick a point uniformly on the unit disk and project it straight up onto the hemisphere.
+// Uniform area on the disk becomes density proportional to cos(theta) on the hemisphere.
+vec3 SampleCosineHemisphere(vec3 n, inout uint rng)
+{
+    float u1  = Random(rng);
+    float u2  = Random(rng);
+    float r   = sqrt(u1);
+    float phi = 2.0 * PI * u2;
+
+    vec3 local = vec3(r * cos(phi), r * sin(phi), sqrt(max(0.0, 1.0 - u1)));
+
+    vec3 t, b;
+    BuildBasis(n, t, b);
+    return normalize(t * local.x + b * local.y + n * local.z);
+}
+
+// =================================================================================================
+// Scene: the Cornell box, 2 units wide, centred on the origin, open towards +Z (where the camera is)
+// =================================================================================================
+// Reflectances and light radiance are the RGB values commonly used for the classic box
+// (e.g. the PBRT / Mitsuba scene descriptions).
+
+const vec3 WHITE = vec3(0.725, 0.710, 0.680);
+const vec3 RED   = vec3(0.630, 0.065, 0.050);
+const vec3 GREEN = vec3(0.140, 0.450, 0.091);
+const vec3 LIGHT = vec3(17.0, 12.0, 4.0);
+
+// Rectangle: corner + two perpendicular edges. Covers both axis-aligned walls and, later, rotated boxes.
+struct Quad
+{
+    vec3 corner;
+    vec3 edgeU;
+    vec3 edgeV;
+    vec3 normal;   // the side that emits, for the light; walls are two-sided
+    vec3 albedo;
+    vec3 emission;
+};
+
+const int QUAD_COUNT = 6;
+const Quad QUADS[QUAD_COUNT] = Quad[](
+    //   corner                    edgeU                 edgeV                 normal               albedo  emission
+    Quad(vec3(-1.0, -1.0, -1.0),   vec3(2.0, 0.0, 0.0),  vec3(0.0, 0.0, 2.0),  vec3(0.0, 1.0, 0.0),  WHITE, vec3(0.0)), // floor
+    Quad(vec3(-1.0,  1.0, -1.0),   vec3(2.0, 0.0, 0.0),  vec3(0.0, 0.0, 2.0),  vec3(0.0, -1.0, 0.0), WHITE, vec3(0.0)), // ceiling
+    Quad(vec3(-1.0, -1.0, -1.0),   vec3(2.0, 0.0, 0.0),  vec3(0.0, 2.0, 0.0),  vec3(0.0, 0.0, 1.0),  WHITE, vec3(0.0)), // back wall
+    Quad(vec3(-1.0, -1.0, -1.0),   vec3(0.0, 0.0, 2.0),  vec3(0.0, 2.0, 0.0),  vec3(1.0, 0.0, 0.0),  RED,   vec3(0.0)), // left wall
+    Quad(vec3( 1.0, -1.0, -1.0),   vec3(0.0, 0.0, 2.0),  vec3(0.0, 2.0, 0.0),  vec3(-1.0, 0.0, 0.0), GREEN, vec3(0.0)), // right wall
+    // The light hangs just below the ceiling so it never coincides with it. Albedo 0: it only emits.
+    Quad(vec3(-0.25, 0.998, -0.2), vec3(0.5, 0.0, 0.0),  vec3(0.0, 0.0, 0.4),  vec3(0.0, -1.0, 0.0), vec3(0.0), LIGHT)
+);
+
+struct Sphere
+{
+    vec3  center;
+    float radius;
+    vec3  albedo;
+};
+
+const int SPHERE_COUNT = 2;
+const Sphere SPHERES[SPHERE_COUNT] = Sphere[](
+    Sphere(vec3(-0.45, -0.6, -0.30), 0.4, WHITE), // resting on the floor: y = -1 + radius
+    Sphere(vec3( 0.45, -0.6,  0.35), 0.4, WHITE)
+);
+
+struct Hit
+{
+    float t;
+    vec3  position;
+    vec3  normal;   // geometric normal, flipped to face the incoming ray
+    vec3  albedo;
+    vec3  emission; // already zero if the light was hit from behind
+};
+
+const float T_MIN = 1e-4; // ignore hits closer than this: protects against re-hitting the surface we just left
+
+// Plane hit, then check the hit point lies inside the rectangle (edges are perpendicular, so projecting
+// onto each edge gives the local coordinate).
+bool IntersectQuad(Quad q, vec3 origin, vec3 dir, float tMax, out float t)
+{
+    float denom = dot(q.normal, dir);
+    if (abs(denom) < 1e-8)
+    {
+        return false; // ray parallel to the plane
+    }
+
+    t = dot(q.normal, q.corner - origin) / denom;
+    if (t < T_MIN || t >= tMax)
+    {
+        return false;
+    }
+
+    vec3  local = origin + t * dir - q.corner;
+    float u     = dot(local, q.edgeU) / dot(q.edgeU, q.edgeU);
+    float v     = dot(local, q.edgeV) / dot(q.edgeV, q.edgeV);
+    return u >= 0.0 && u <= 1.0 && v >= 0.0 && v <= 1.0;
+}
+
+// Same quadratic as the test sphere: t = -b +- sqrt(b^2 - c), with b = D.(O-C), c = |O-C|^2 - r^2.
+bool IntersectSphere(Sphere s, vec3 origin, vec3 dir, float tMax, out float t)
+{
+    vec3  oc   = origin - s.center;
+    float b    = dot(oc, dir);
+    float c    = dot(oc, oc) - s.radius * s.radius;
+    float disc = b * b - c;
+    if (disc < 0.0)
+    {
+        return false;
+    }
+
+    float root = sqrt(disc);
+    t          = -b - root; // entry point
+    if (t < T_MIN)
+    {
+        t = -b + root; // we're inside (or just left the surface): try the exit point
+    }
+    return t >= T_MIN && t < tMax;
+}
+
+// Closest hit over everything in the scene. This loop is what the RT cores and the TLAS replace.
+bool IntersectScene(vec3 origin, vec3 dir, out Hit hit)
+{
+    hit.t      = 1e30;
+    bool found = false;
+    float t;
+
+    for (int i = 0; i < QUAD_COUNT; i++)
+    {
+        if (IntersectQuad(QUADS[i], origin, dir, hit.t, t))
+        {
+            found       = true;
+            hit.t       = t;
+            bool front  = dot(QUADS[i].normal, dir) < 0.0; // ray travels against the normal: it's on the front side
+            hit.normal  = front ? QUADS[i].normal : -QUADS[i].normal;
+            hit.albedo  = QUADS[i].albedo;
+            hit.emission = front ? QUADS[i].emission : vec3(0.0); // the light only emits downwards
+        }
+    }
+
+    for (int i = 0; i < SPHERE_COUNT; i++)
+    {
+        if (IntersectSphere(SPHERES[i], origin, dir, hit.t, t))
+        {
+            found        = true;
+            hit.t        = t;
+            vec3 outward = (origin + t * dir - SPHERES[i].center) / SPHERES[i].radius;
+            hit.normal   = dot(outward, dir) < 0.0 ? outward : -outward;
+            hit.albedo   = SPHERES[i].albedo; // Reflectance amount for material.
+            hit.emission = vec3(0.0);
+        }
+    }
+
+    hit.position = origin + hit.t * dir;
+    return found;
+}
+
+// =================================================================================================
+// The path tracer
+// =================================================================================================
+// Rendering equation:  L(x, wo) = Le(x, wo) + integral over the hemisphere of  f(wi, wo) * L(x', -wi) * cos(theta_i) dwi
+//
+// Monte Carlo: estimate the integral with ONE random direction wi drawn with probability density p(wi):
+//     L ~= Le + f * L(next hit) * cos(theta) / p
+// Applying that at every hit turns one camera ray into a random path. What each later hit contributes is
+// scaled by the product of  f * cos / p  along the way: that running product is the "accumulatedReflectance".
+//
+// Lambertian surface: f = albedo / PI. Cosine-weighted sampling: p = cos(theta) / PI. So
+//     f * cos / p = (albedo / PI) * cos / (cos / PI) = albedo
+// and the accumulatedReflectance update is just a multiply by the albedo.
+vec3 TracePath(vec3 origin, vec3 dir, inout uint rng)
+{
+    vec3 radiance   = vec3(0.0);
+    vec3 accumulatedReflectance = vec3(1.0);
+
+    // depth 0 is the camera ray; each further segment exists because of one scattering event.
+    for (uint depth = 0u; depth <= pc.maxBounces; depth++)
+    {
+        Hit hit;
+        if (!IntersectScene(origin, dir, hit))
+        {
+            break; // escaped through the open front; nothing out there emits
+        }
+
+        radiance += accumulatedReflectance * hit.emission; // the Le term at this vertex
+
+        if (depth == pc.maxBounces)
+        {
+            break; // no scattering budget left
+        }
+
+        accumulatedReflectance *= hit.albedo; // f * cos / p for a Lambertian surface with cosine sampling
+        if (max(accumulatedReflectance.r, max(accumulatedReflectance.g, accumulatedReflectance.b)) <= 0.0)
+        {
+            break; // e.g. we hit the light (albedo 0): nothing further can contribute
+        }
+
+        // Continue from just above the surface, into the hemisphere around the normal.
+        origin = hit.position + hit.normal * T_MIN;
+        dir    = SampleCosineHemisphere(hit.normal, rng);
+    }
+
+    return radiance;
+}
+
+void main()
+{
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size  = imageSize(uOutput);
+    if (pixel.x >= size.x || pixel.y >= size.y)
+    {
+        return;
+    }
+
+    // One independent random stream per pixel per frame.
+    uint rng = PCGHash(uint(pixel.x) + PCGHash(uint(pixel.y) + PCGHash(pc.frameIndex)));
+
+    // Random point inside the pixel rather than its centre: averaging over frames gives anti-aliasing for free.
+    vec2 jitter = vec2(Random(rng), Random(rng));
+    vec2 uv     = (vec2(pixel) + jitter) / vec2(size);
+    vec2 ndc    = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0); // +y up: image row 0 is the top of the screen
+
+    vec3 dirCamera = normalize(vec3(ndc * pc.tanHalfFov, -1.0));
+    vec3 origin    = pc.cameraToWorld[3].xyz;
+    vec3 dir       = normalize(mat3(pc.cameraToWorld) * dirCamera);
+
+    vec3 sampleRadiance = TracePath(origin, dir, rng);
+
+    // One NaN or Inf would poison this pixel's average forever, so drop it.
+    if (any(isnan(sampleRadiance)) || any(isinf(sampleRadiance)))
+    {
+        sampleRadiance = vec3(0.0);
+    }
+
+    // Running average: avg(n+1) = avg(n) + (x - avg(n)) / (n+1) = mix(avg(n), x, 1/(n+1)).
+    // Branch on sampleCount rather than relying on mix(old, x, 1.0): after a reset 'old' is whatever the
+    // image held (possibly NaN), and NaN * 0 is still NaN.
+    vec3 result = sampleRadiance;
+    if (pc.sampleCount > 0u)
+    {
+        vec3 previous = imageLoad(uOutput, pixel).rgb;
+        result        = mix(previous, sampleRadiance, 1.0 / float(pc.sampleCount + 1u));
+    }
+
+    imageStore(uOutput, pixel, vec4(result, 1.0));
+}
