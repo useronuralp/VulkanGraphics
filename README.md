@@ -4,6 +4,9 @@ A tiny toy engine to try new rendering related things with.
 Setup:
 There is no setup needed to run the engine with the attached Application.exe.
 
+Pass --pathtracer to run in that mode.
+
+
 However, if you want to further develop this (mostly a note to myself), grab the latest VulkanSDK and paste it in Engine/vendor/VULKAN/
 
 ![Screenshot 2022-10-22 150437](https://user-images.githubusercontent.com/61450895/197343542-3e244c1e-50ea-4a0c-adef-8a9c50facd9f.png)
@@ -11,3 +14,4 @@ However, if you want to further develop this (mostly a note to myself), grab the
 ![Screenshot 2022-10-22 150602](https://user-images.githubusercontent.com/61450895/197343544-d620fd64-c24c-403a-bf8d-bf7577c7620b.png)
 ![Screenshot 2022-10-22 150647](https://user-images.githubusercontent.com/61450895/197343545-ffb9aa64-4d30-4959-95e2-234957d9efdb.png)
 ![dof](https://user-images.githubusercontent.com/61450895/213594149-1924aa76-63f7-4388-b6ac-c44ba020ebbd.png)
+<img width="1442" height="1077" alt="PT" src="https://github.com/user-attachments/assets/ed79e594-1daf-47c0-b2db-41add9f7a75a" />
