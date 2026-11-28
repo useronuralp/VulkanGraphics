@@ -13,7 +13,7 @@ void Camera::OnUpdate(float deltaTime)
     auto window = EngineInternal::GetContext().GetWindow()->GetNativeWindow();
 
     const glm::vec2& mouse{ GetMouseXOffset(), GetMouseYOffset() };
-    glm::vec2        delta = (mouse - _InitialMousePosition) * 0.003f;
+    glm::vec2        delta = (mouse - _InitialMousePosition) * _RotationSpeedScale;
     _InitialMousePosition  = mouse;
 
     if (IsMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT))
@@ -227,6 +227,10 @@ float Camera::GetNearClip() const
 float Camera::GetFarClip() const
 {
     return _FarClip;
+}
+void Camera::SetCameraRotationSpeedScale(const float rotationSpeedScale)
+{
+    _RotationSpeedScale = rotationSpeedScale;
 }
 void Camera::SetDistance(float distance)
 {

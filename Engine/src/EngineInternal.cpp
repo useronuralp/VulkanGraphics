@@ -88,7 +88,13 @@ void EngineInternal::Init(RendererType InRendererType)
     _Swapchain = make_s<Swapchain>(*_Context);
     _Camera    = make_s<Camera>(45.0f, _Context->GetSurface()->GetVKExtent().width / (float)_Context->GetSurface()->GetVKExtent().height);
 
+
     _Renderer = CreateRenderer(InRendererType, *_Context, _Swapchain, _Camera);
+
+    if (_Renderer->GetType() == RendererType::PathTracer)
+    {
+        _Camera->SetCameraRotationSpeedScale(0.05f);
+    }
 
     // Sanity check on renderer type.
     ENSURE(_Renderer->GetType() == InRendererType, "Renderer::GetType() disagrees with the type that was constructed.");

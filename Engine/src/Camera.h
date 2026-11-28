@@ -9,6 +9,7 @@ class Camera
 
     void OnUpdate(float deltaTime);
 
+    void SetCameraRotationSpeedScale(const float rotationSpeedScale);
     void SetDistance(float distance);
     void SetViewportSize(float width, float height);
 
@@ -58,4 +59,5 @@ class Camera
     float     _Distance             = 4.0f;
     float     _ViewportWidth        = 1280;
     float     _ViewportHeight       = 720;
+    float     _RotationSpeedScale   = 0.003f;
 };
