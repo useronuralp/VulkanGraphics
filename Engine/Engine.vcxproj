@@ -42,13 +42,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -297,10 +297,14 @@
     <None Include="assets\shaders\pointShadowPassFRAG.spv" />
     <None Include="assets\shaders\pointShadowPassGEOM.spv" />
     <None Include="assets\shaders\pointShadowPassVERT.spv" />
+    <None Include="assets\shaders\ptCornell.comp" />
+    <None Include="assets\shaders\ptCornellCOMP.spv" />
     <None Include="assets\shaders\ptDisplay.frag" />
     <None Include="assets\shaders\ptDisplay.vert" />
     <None Include="assets\shaders\ptDisplayFRAG.spv" />
     <None Include="assets\shaders\ptDisplayVERT.spv" />
+    <None Include="assets\shaders\ptSphere.comp" />
+    <None Include="assets\shaders\ptSphereCOMP.spv" />
     <None Include="assets\shaders\QuadRender.vert" />
     <None Include="assets\shaders\quadRenderVert.spv" />
     <None Include="assets\shaders\shadowPass.vert" />

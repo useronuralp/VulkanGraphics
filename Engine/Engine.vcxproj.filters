@@ -339,5 +339,9 @@
     <None Include="assets\shaders\ptDisplay.vert" />
     <None Include="assets\shaders\ptDisplayFRAG.spv" />
     <None Include="assets\shaders\ptDisplayVERT.spv" />
+    <None Include="assets\shaders\ptSphereCOMP.spv" />
+    <None Include="assets\shaders\ptSphere.comp" />
+    <None Include="assets\shaders\ptCornellCOMP.spv" />
+    <None Include="assets\shaders\ptCornell.comp" />
   </ItemGroup>
 </Project>
